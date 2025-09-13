@@ -31,20 +31,31 @@ export const useFileUpload = () => {
 
   // Handle file before upload
   const beforeUpload = useCallback((file: RcFile, _fileList: RcFile[]): boolean => {
-    console.log('[InvoiceCreate.beforeUpload] Проверка файла:', {
+    console.log('[InvoiceCreate.beforeUpload] Вызван beforeUpload для файла:', {
       name: file.name,
       size: file.size,
-      type: file.type
+      type: file.type,
+      uid: file.uid
     })
 
-    // No file size restrictions
+    // Check file size (10MB limit)
+    const isLt10M = file.size / 1024 / 1024 < 10
+    if (!isLt10M) {
+      console.error('[InvoiceCreate.beforeUpload] Файл слишком большой:', file.size)
+      return false
+    }
 
-    return true
+    console.log('[InvoiceCreate.beforeUpload] Файл прошел проверку, возвращаем false для ручной загрузки')
+    // Return false to prevent auto upload - we'll upload files when form is submitted
+    return false
   }, [])
 
   // Handle file change
   const handleFileChange = useCallback(({ fileList: newFileList }: { fileList: UploadFile[] }) => {
-    console.log('[InvoiceCreate.handleFileChange] Изменение списка файлов:', newFileList)
+    console.log('[InvoiceCreate.handleFileChange] Вызван handleFileChange:', {
+      filesCount: newFileList.length,
+      files: newFileList.map(f => ({ name: f.name, uid: f.uid, status: f.status }))
+    })
     setFileList(newFileList)
     calculateTotalSize(newFileList)
   }, [calculateTotalSize])

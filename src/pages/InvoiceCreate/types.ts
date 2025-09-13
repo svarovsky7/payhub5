@@ -16,8 +16,8 @@ export interface InvoiceFormValues {
   invoice_number?: string
   internal_number?: string
   invoice_date: Dayjs
-  invoice_type?: number
-  title: string
+  invoice_type_id?: number
+  title?: string
   description?: string
   supplier_id: number
   payer_id: number
@@ -28,6 +28,7 @@ export interface InvoiceFormValues {
   vat_rate: number
   vat_amount?: number
   delivery_days?: number
+  delivery_days_type?: 'calendar' | 'working'
   estimated_delivery_date?: Dayjs
   priority?: string
   material_responsible_person_id?: number

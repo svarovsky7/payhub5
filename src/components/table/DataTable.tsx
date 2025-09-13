@@ -94,6 +94,9 @@ export interface DataTableProps<T = any> extends Omit<ProTableProps<T, any>, 'co
     total: number
     onChange: (page: number, pageSize: number) => void
   }
+
+  // Sorting
+  onSort?: (sortBy: string, sortOrder: 'asc' | 'desc') => void
 }
 
 export const DataTable = <T extends Record<string, any>>({
@@ -119,6 +122,7 @@ export const DataTable = <T extends Record<string, any>>({
   selectable = true,
   multiSelect = true,
   pagination,
+  onSort,
   ...tableProps
 }: DataTableProps<T>) => {
   const actionRef = useRef<ActionType>()
@@ -345,6 +349,17 @@ export const DataTable = <T extends Record<string, any>>({
         columns={visibleColumns}
         search={false}
         toolbar={false}
+        onChange={(pagination, filters, sorter) => {
+          console.log('[DataTable] onChange triggered:', { pagination, filters, sorter })
+          // Handle sorting
+          if (onSort && sorter && !Array.isArray(sorter)) {
+            const { field, order } = sorter
+            if (field && order) {
+              console.log('[DataTable] Calling onSort with:', { field, order })
+              onSort(field as string, order === 'ascend' ? 'asc' : 'desc')
+            }
+          }
+        }}
         
         pagination={pagination ? {
           current: pagination.current,

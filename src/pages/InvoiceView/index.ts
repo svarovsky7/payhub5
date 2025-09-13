@@ -2,5 +2,5 @@
  * Re-export InvoiceView components
  */
 
-export { InvoiceViewPage as default } from './InvoiceView'
+export { default } from './InvoiceViewNew'
 export type { InvoiceViewPageProps } from './types'

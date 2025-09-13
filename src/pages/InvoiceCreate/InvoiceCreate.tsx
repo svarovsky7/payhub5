@@ -35,13 +35,11 @@ import { useInvoiceCreate } from './hooks/useInvoiceCreate'
 import { useFileUpload } from './hooks/useFileUpload'
 import type { InvoiceFormValues } from './types'
 import { ACCEPTED_FILE_TYPES, VAT_RATE_OPTIONS } from './constants'
-import { EnumQueryService } from '@/services/enums/queries'
 import { calculateVATAmounts, formatFileSize } from './utils/calculations'
 import { PaymentsTab } from './components/PaymentsTab'
 import type { Payment } from './components/PaymentsTab'
 import './InvoiceCreate.css'
 
-const { Dragger } = Upload
 const { Title, Text } = Typography
 const { TextArea } = Input
 
@@ -63,8 +61,6 @@ const InvoiceCreate: React.FC = () => {
     loadingCurrencies,
     loadingPriorities,
     deliveryDate,
-    selectedCurrency,
-    setSelectedCurrency,
     payments,
     setPayments,
     internalNumberPreview,
@@ -91,37 +87,8 @@ const InvoiceCreate: React.FC = () => {
   } = useFileUpload()
 
   const onFinish = (values: InvoiceFormValues) => {
-    console.log('[InvoiceCreate.onFinish] Отправка формы:', values)
-    void handleSubmit(values, false)
+    void handleSubmit(values, false, fileList)
   }
-
-  // Загрузка данных для отладки
-  React.useEffect(() => {
-    console.log('[InvoiceCreate] Загрузка данных контрагентов:', {
-      contractorsResponse: { suppliers, payers },
-      isLoading: loadingContractors,
-      suppliersCount: suppliers?.length,
-      payersCount: payers?.length
-    })
-  }, [suppliers, payers, loadingContractors])
-
-  React.useEffect(() => {
-    console.log('[InvoiceCreate] Загрузка данных проектов:', {
-      projectsResponse: projects,
-      isLoading: loadingProjects,
-      error: null,
-      projectsCount: projects?.length
-    })
-  }, [projects, loadingProjects])
-
-  React.useEffect(() => {
-    console.log('[InvoiceCreate] Загрузка данных МОЛ:', {
-      materialResponsiblePersons,
-      isLoading: loadingMRPs,
-      error: null,
-      mrpCount: materialResponsiblePersons?.length
-    })
-  }, [materialResponsiblePersons, loadingMRPs])
 
   return (
     <div className="invoice-create-container">
@@ -144,7 +111,13 @@ const InvoiceCreate: React.FC = () => {
             invoice_date: dayjs(),
             priority: 'normal',
             invoice_type_id: 1, // Default to МАТЕРИАЛЫ (mtrl)
-            delivery_days_type: 'working'
+            delivery_days_type: 'calendar'
+          }}
+          onValuesChange={(changedValues) => {
+            // Отслеживаем изменения полей доставки
+            if ('delivery_days' in changedValues || 'delivery_days_type' in changedValues) {
+              handleDeliveryDaysChange()
+            }
           }}
         >
           <Tabs
@@ -222,7 +195,6 @@ const InvoiceCreate: React.FC = () => {
                     <Select
                       placeholder="Тип счета"
                       loading={loadingInvoiceTypes}
-                      onChange={handleInternalNumberUpdate}
                       onChange={handleInternalNumberUpdate}
                       options={invoiceTypes?.map(type => ({
                         label: type.name,
@@ -351,12 +323,6 @@ const InvoiceCreate: React.FC = () => {
                     <Select
                       options={currencies}
                       loading={loadingCurrencies}
-                      onChange={(value) => {
-                        setSelectedCurrency(value)
-                        // Force re-render of amount fields with new currency
-                        const currentValues = form.getFieldsValue(['amount_with_vat', 'amount_net', 'vat_amount'])
-                        form.setFieldsValue(currentValues)
-                      }}
                     />
                   </Form.Item>
                 </Col>
@@ -371,8 +337,7 @@ const InvoiceCreate: React.FC = () => {
                       style={{ width: '100%' }}
                       formatter={value => {
                         if (!value) {return ''}
-                        const formatted = String(value).replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
-                        return `${selectedCurrency} ${formatted}`
+                        return String(value).replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
                       }}
                       parser={value => {
                         if (!value) {return ''}
@@ -484,7 +449,7 @@ const InvoiceCreate: React.FC = () => {
                     <InputNumber
                       style={{ width: '100%' }}
                       disabled
-                      formatter={value => `${EnumQueryService.getCurrencySymbol(selectedCurrency)} ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ' ')}
+                      formatter={value => String(value).replace(/\B(?=(\d{3})+(?!\d))/g, ' ')}
                       precision={2}
                     />
                   </Form.Item>
@@ -498,7 +463,7 @@ const InvoiceCreate: React.FC = () => {
                     <InputNumber
                       style={{ width: '100%' }}
                       disabled
-                      formatter={value => `${EnumQueryService.getCurrencySymbol(selectedCurrency)} ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ' ')}
+                      formatter={value => String(value).replace(/\B(?=(\d{3})+(?!\d))/g, ' ')}
                       precision={2}
                     />
                   </Form.Item>
@@ -520,7 +485,6 @@ const InvoiceCreate: React.FC = () => {
                       style={{ width: '100%' }}
                       min={0}
                       placeholder="Количество дней"
-                      onChange={handleDeliveryDaysChange}
                     />
                   </Form.Item>
                 </Col>
@@ -528,7 +492,6 @@ const InvoiceCreate: React.FC = () => {
                   <Form.Item
                     label="Тип дней"
                     name="delivery_days_type"
-                    initialValue="calendar"
                     style={{ marginBottom: 12 }}
                   >
                     <Select
@@ -536,7 +499,6 @@ const InvoiceCreate: React.FC = () => {
                         { value: 'calendar', label: 'Календарные' },
                         { value: 'working', label: 'Рабочие' }
                       ]}
-                      onChange={handleDeliveryDaysChange}
                     />
                   </Form.Item>
                 </Col>
@@ -567,12 +529,6 @@ const InvoiceCreate: React.FC = () => {
                       )}
                     </div>
                   </div>
-                  <Form.Item
-                    name="estimated_delivery_date"
-                    hidden
-                  >
-                    <DatePicker />
-                  </Form.Item>
                 </Col>
                 <Col span={24}>
                   <Form.Item
@@ -592,32 +548,33 @@ const InvoiceCreate: React.FC = () => {
             </Col>
           </Row>
 
-          <Divider style={{ margin: '12px 0' }} />
+                  <Divider style={{ margin: '12px 0' }} />
 
-          {/* Файлы */}
-          <Text strong style={{ fontSize: '13px', color: '#13c2c2' }}>ПРИКРЕПЛЕННЫЕ ФАЙЛЫ</Text>
-          <div style={{ marginTop: 8 }}>
-            <Dragger
-              multiple
-              fileList={fileList}
-              beforeUpload={beforeUpload}
-              onChange={handleFileChange}
-              onPreview={handlePreview}
-              onRemove={handleRemove}
-              accept={ACCEPTED_FILE_TYPES}
-              style={{ padding: '10px' }}
-            >
-              <p className="ant-upload-drag-icon">
-                <InboxOutlined style={{ fontSize: 32 }} />
-              </p>
-              <p className="ant-upload-text" style={{ fontSize: 13 }}>
-                Нажмите или перетащите файлы для загрузки
-              </p>
-              <p className="ant-upload-hint" style={{ fontSize: 11 }}>
-                Поддерживаются изображения, PDF, Word, Excel и текстовые файлы
-              </p>
-            </Dragger>
-          </div>
+                  {/* Файлы */}
+                  <Text strong style={{ fontSize: '13px', color: '#13c2c2' }}>ПРИКРЕПЛЕННЫЕ ФАЙЛЫ</Text>
+                  <div style={{ marginTop: 8 }}>
+                    <Upload
+                      multiple
+                      fileList={fileList}
+                      beforeUpload={beforeUpload}
+                      onChange={handleFileChange}
+                      onPreview={handlePreview}
+                      onRemove={handleRemove}
+                      accept={ACCEPTED_FILE_TYPES}
+                      showUploadList={true}
+                    >
+                      <Button icon={<InboxOutlined />}>
+                        Выбрать файлы
+                      </Button>
+                    </Upload>
+                    {fileList.length > 0 && (
+                      <div style={{ marginTop: 8 }}>
+                        <Text type="secondary" style={{ fontSize: 12 }}>
+                          Загружено файлов: {fileList.length}
+                        </Text>
+                      </div>
+                    )}
+                  </div>
                   </>
                 )
               },
@@ -633,7 +590,7 @@ const InvoiceCreate: React.FC = () => {
                   <PaymentsTab
                     payments={payments as Payment[]}
                     onPaymentsChange={(newPayments) => setPayments(newPayments as any)}
-                    currency={selectedCurrency}
+                    currency={form.getFieldValue('currency') || 'RUB'}
                   />
                 )
               }

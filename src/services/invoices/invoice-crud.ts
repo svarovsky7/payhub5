@@ -40,6 +40,8 @@ export class InvoiceCrudOperations {
       })
 
       console.log('[InvoiceCrudOperations.create] Prepared invoice data:', invoiceData)
+      console.log('[InvoiceCrudOperations.create] delivery_days value:', invoiceData.delivery_days, 'type:', typeof invoiceData.delivery_days)
+      console.log('[InvoiceCrudOperations.create] delivery_days_type value:', invoiceData.delivery_days_type)
 
       const { data, error } = await supabase
         .from('invoices')

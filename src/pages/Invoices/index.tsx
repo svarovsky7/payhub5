@@ -19,6 +19,7 @@ import {
 } from '@ant-design/icons'
 import {useNavigate} from 'react-router-dom'
 import dayjs from 'dayjs'
+import { calculateDeliveryDate } from '../InvoiceCreate/utils/calculations'
 
 import {
     useDeleteInvoice,
@@ -42,7 +43,12 @@ export const InvoicesPage: React.FC<InvoicesPageProps> = ({companyId = '1'}) => 
     const {profile} = useAuthStore()
     const [createModalVisible, setCreateModalVisible] = useState(false)
     const [filters, setFilters] = useState<InvoiceFilters>({})
-    const [pagination, setPagination] = useState({page: 1, limit: 50})
+    const [pagination, setPagination] = useState({
+        page: 1,
+        limit: 50,
+        sortBy: 'created_at',
+        sortOrder: 'desc' as 'asc' | 'desc'
+    })
 
     // Подготавливаем фильтры с учетом прав пользователя
     const enhancedFilters = useMemo(() => {
@@ -73,6 +79,8 @@ export const InvoicesPage: React.FC<InvoicesPageProps> = ({companyId = '1'}) => 
         enhancedFilters,
         pagination
     )
+
+    console.log('[InvoicesPage] Current pagination:', pagination)
 
     // Добавляем логирование для отладки
     console.log('[InvoicesPage] invoicesData:', invoicesData)
@@ -151,6 +159,7 @@ export const InvoicesPage: React.FC<InvoicesPageProps> = ({companyId = '1'}) => 
             fixed: 'left',
             priority: 1,
             exportable: true,
+            sorter: true,
             responsive: ['lg', 'md', 'sm', 'xs'],
             render: (text, record) => {
                 if (!text) {
@@ -216,6 +225,7 @@ export const InvoicesPage: React.FC<InvoicesPageProps> = ({companyId = '1'}) => 
             width: 100,
             priority: 2,
             exportable: true,
+            sorter: true,
             responsive: ['lg', 'md'],
             render: (text) => text || '—',
         },
@@ -239,6 +249,7 @@ export const InvoicesPage: React.FC<InvoicesPageProps> = ({companyId = '1'}) => 
             width: 180,
             priority: 4,
             exportable: true,
+            sorter: true,
             responsive: ['lg', 'md', 'sm'],
             ellipsis: true,
             render: (text, record) => {
@@ -253,6 +264,7 @@ export const InvoicesPage: React.FC<InvoicesPageProps> = ({companyId = '1'}) => 
             width: 140,
             priority: 5,
             exportable: true,
+            sorter: true,
             responsive: ['lg'],
             ellipsis: true,
             render: (text, record) => record.project?.name || '—',
@@ -282,57 +294,44 @@ export const InvoicesPage: React.FC<InvoicesPageProps> = ({companyId = '1'}) => 
             width: 100,
             priority: 3,
             exportable: true,
+            sorter: true,
             responsive: ['lg', 'md', 'sm', 'xs'],
             render: (text) => <StatusCell status={text} type="invoice"/>,
-        },
+},
         {
-            title: 'Баланс',
-            key: 'balance',
-            width: 100,
-            align: 'right',
-            priority: 8,
-            exportable: true,
-            responsive: ['lg', 'md'],
-            render: (_, record) => {
-                const paidAmount = record.paid_amount || 0
-                const balance = record.total_amount - paidAmount
-                return (
-                    <MoneyCell
-                        amount={balance}
-                        currency={record.currency}
-                        type={balance > 0 ? 'warning' : balance < 0 ? 'danger' : 'success'}
-                    />
-                )
-            },
-        },
-        {
-            title: 'Прогнозная дата поставки',
+            title: 'Предварительная дата поставки',
             dataIndex: 'delivery_date',
             key: 'delivery_date',
-            width: 120,
-            priority: 9,
+            width: 140,
+            priority: 8,
             exportable: true,
+            sorter: true,
             responsive: ['lg'],
             render: (text, record) => {
                 // Calculate delivery date if we have delivery_days
                 if (record.delivery_days && record.delivery_days > 0) {
-                    // Start from tomorrow
-                    let date = dayjs().add(1, 'day');
+                    // Use the proper calculation function that considers delivery_days_type
+                    const deliveryDaysType = record.delivery_days_type || 'calendar'
+                    const calculatedDate = calculateDeliveryDate(record.delivery_days, deliveryDaysType)
 
-                    // Skip weekends to get next business day
-                    while (date.day() === 0 || date.day() === 6) {
-                        date = date.add(1, 'day');
+                    if (calculatedDate) {
+                        // Determine the days type label
+                        const daysTypeLabel = deliveryDaysType === 'working' ? 'р.д.' : 'к.д.'
+
+                        return (
+                            <div style={{ lineHeight: '1.2' }}>
+                                <div>
+                                    <DateCell
+                                        date={calculatedDate.format('YYYY-MM-DD')}
+                                        format="DD.MM.YY"
+                                    />
+                                </div>
+                                <div style={{ fontSize: '11px', color: '#8c8c8c', marginTop: '2px' }}>
+                                    {record.delivery_days} {daysTypeLabel}
+                                </div>
+                            </div>
+                        )
                     }
-
-                    // Add calendar days (not business days)
-                    date = date.add(record.delivery_days, 'day');
-
-                    return (
-                        <DateCell
-                            date={date.format('YYYY-MM-DD')}
-                            format="DD.MM.YY"
-                        />
-                    )
                 }
 
                 // If delivery_date is stored in DB, use it
@@ -355,6 +354,7 @@ export const InvoicesPage: React.FC<InvoicesPageProps> = ({companyId = '1'}) => 
             width: 140,
             priority: 10,
             exportable: true,
+            sorter: true,
             responsive: ['lg'],
             ellipsis: true,
             render: (text, record) => {
@@ -540,8 +540,33 @@ export const InvoicesPage: React.FC<InvoicesPageProps> = ({companyId = '1'}) => 
                     pageSize: pagination.limit,
                     total: invoicesData?.total || 0,
                     onChange: (page, pageSize) => {
-                        setPagination({page, limit: pageSize || 20})
+                        console.log('[InvoicesPage] Pagination changed:', { page, pageSize })
+                        setPagination(prev => ({...prev, page, limit: pageSize || 20}))
                     },
+                }}
+
+                // Sorting
+                onSort={(sortBy, sortOrder) => {
+                    console.log('[InvoicesPage] Sort changed:', { sortBy, sortOrder })
+                    // Map column dataIndex to database field names
+                    const fieldMapping: Record<string, string> = {
+                        'invoice_number': 'invoice_number',
+                        'invoice_date': 'invoice_date',
+                        'supplier.name': 'supplier_id',
+                        'payer.name': 'payer_id',
+                        'project.name': 'project_id',
+                        'description': 'description',
+                        'total_amount': 'total_amount',
+                        'currency': 'currency',
+                        'status': 'status',
+                        'priority': 'priority',
+                        'payment_due_date': 'payment_due_date',
+                        'estimated_delivery_date': 'delivery_days',
+                        'created_at': 'created_at'
+                    }
+                    const dbField = fieldMapping[sortBy] || sortBy
+                    console.log('[InvoicesPage] Mapped field:', dbField)
+                    setPagination(prev => ({...prev, sortBy: dbField, sortOrder, page: 1}))
                 }}
 
                 // Selection and responsiveness

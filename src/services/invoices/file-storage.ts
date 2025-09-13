@@ -98,23 +98,36 @@ export class InvoiceFileStorage {
 
           const fallbackUrl = `local://invoices/${invoiceId}/${fileName}`
 
+          // First create attachment record
+          const { data: attachmentData, error: attachmentError } = await supabase
+            .from('attachments')
+            .insert({
+              original_name: file.name,
+              storage_path: fallbackUrl,
+              size_bytes: file.size,
+              mime_type: file.type || 'application/octet-stream',
+              created_by: userId
+            })
+            .select()
+            .single()
+
+          if (attachmentError) {
+            console.error('[InvoiceFileStorage.uploadFile] Error creating attachment:', attachmentError)
+            throw attachmentError
+          }
+
+          // Then link to invoice
           const { data: docData, error: docError } = await supabase
             .from('invoice_documents')
             .insert({
               invoice_id: parseInt(invoiceId),
-              file_name: file.name,
-              file_path: fallbackUrl,
-              file_url: fallbackUrl,
-              file_size: file.size,
-              file_type: file.type || 'application/octet-stream',
-              uploaded_by: userId,
-              created_at: new Date().toISOString()
+              attachment_id: attachmentData.id
             })
             .select()
             .single()
 
           if (docError) {
-            console.error('[InvoiceFileStorage.uploadFile] Error saving to invoice_documents:', docError)
+            console.error('[InvoiceFileStorage.uploadFile] Error linking to invoice:', docError)
             throw docError
           }
 
@@ -138,25 +151,41 @@ export class InvoiceFileStorage {
 
       const fileUrl = urlData.publicUrl
 
-      // Add record to invoice_documents table
+      // First create attachment record
+      const { data: attachmentData, error: attachmentError } = await supabase
+        .from('attachments')
+        .insert({
+          original_name: file.name,
+          storage_path: uploadData.path,
+          size_bytes: file.size,
+          mime_type: file.type || 'application/octet-stream',
+          created_by: userId
+        })
+        .select()
+        .single()
+
+      if (attachmentError) {
+        console.error('[InvoiceFileStorage.uploadFile] Error creating attachment:', attachmentError)
+        // If failed to save to DB, remove file from storage
+        await supabase.storage.from('documents').remove([uploadData.path])
+        throw attachmentError
+      }
+
+      // Then link to invoice
       const { data: docData, error: docError } = await supabase
         .from('invoice_documents')
         .insert({
           invoice_id: parseInt(invoiceId),
-          file_name: file.name,
-          file_path: uploadData.path,
-          file_url: fileUrl,
-          file_size: file.size,
-          file_type: file.type || 'application/octet-stream',
-          uploaded_by: userId,
-          created_at: new Date().toISOString()
+          attachment_id: attachmentData.id
         })
         .select()
         .single()
 
       if (docError) {
-        console.error('[InvoiceFileStorage.uploadFile] Error saving to invoice_documents:', docError)
-        // If failed to save to DB, remove file from storage
+        console.error('[InvoiceFileStorage.uploadFile] Error linking to invoice:', docError)
+        // If failed to link, clean up attachment record
+        await supabase.from('attachments').delete().eq('id', attachmentData.id)
+        // And remove file from storage
         await supabase.storage.from('documents').remove([uploadData.path])
         throw docError
       }

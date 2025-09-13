@@ -175,7 +175,7 @@ export const useCreateInvoice = (
   })
 }
 
-const useUpdateInvoice = (
+export const useUpdateInvoice = (
   options?: UseMutationOptions<Invoice, Error, { id: string; updates: InvoiceUpdate; companyId: string }>
 ) => {
   const queryClient = useQueryClient()

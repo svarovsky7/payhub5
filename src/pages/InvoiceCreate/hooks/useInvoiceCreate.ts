@@ -18,13 +18,14 @@ import { getNextSequenceNumber } from '@/services/invoices/sequence'
 import { calculateDeliveryDate, calculateVATAmounts } from '../utils/calculations'
 import type { InvoiceFormValues, PaymentRow } from '../types'
 import { DEFAULT_CURRENCY, DEFAULT_VAT_RATE } from '../constants'
+import { InvoiceFileStorage } from '@/services/invoices/file-storage'
+import type { UploadFile } from 'antd/es/upload/interface'
 
 export const useInvoiceCreate = () => {
   const [form] = Form.useForm<InvoiceFormValues>()
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
   const [deliveryDate, setDeliveryDate] = useState<dayjs.Dayjs | null>(null)
-  const [selectedCurrency, setSelectedCurrency] = useState(DEFAULT_CURRENCY)
   const [payments, setPayments] = useState<PaymentRow[]>([])
   const [internalNumberPreview, setInternalNumberPreview] = useState<string>('')
 
@@ -45,30 +46,7 @@ export const useInvoiceCreate = () => {
   const { data: currencies, isLoading: loadingCurrencies } = useCurrencies()
   const { data: priorities, isLoading: loadingPriorities } = usePriorities()
 
-  // Logging
-  useEffect(() => {
-    console.log('[InvoiceCreate] Загрузка данных контрагентов:', {
-      contractorsResponse,
-      isLoading: loadingContractors,
-      error: contractorsError
-    })
-  }, [contractorsResponse, loadingContractors, contractorsError])
-
-  useEffect(() => {
-    console.log('[InvoiceCreate] Загрузка данных проектов:', {
-      projectsResponse,
-      isLoading: loadingProjects,
-      error: projectsError
-    })
-  }, [projectsResponse, loadingProjects, projectsError])
-
-  useEffect(() => {
-    console.log('[InvoiceCreate] Загрузка данных МОЛ:', {
-      materialResponsiblePersons,
-      isLoading: loadingMRPs,
-      error: mrpsError
-    })
-  }, [materialResponsiblePersons, loadingMRPs, mrpsError])
+  // Removed data loading logging
 
   // Extract data from responses - the API returns PaginatedResponse with data property
   const contractors = contractorsResponse?.data || []
@@ -192,9 +170,11 @@ export const useInvoiceCreate = () => {
     // Не сохраняем в форму, так как estimated_delivery_date больше не хранится в БД
   }, [form])
 
-  // Submit form
-  const handleSubmit = async (values: InvoiceFormValues, launchApproval: boolean = false) => {
-    console.log('[InvoiceCreate.handleSubmit] Начало отправки формы:', { values, launchApproval })
+  // Submit form with file upload support
+  const handleSubmit = async (values: InvoiceFormValues, launchApproval: boolean = false, fileList?: UploadFile[]) => {
+    console.log('[InvoiceCreate.handleSubmit] Начало отправки формы:', { values, launchApproval, filesCount: fileList?.length || 0 })
+    console.log('[InvoiceCreate.handleSubmit] delivery_days из формы:', values.delivery_days, 'type:', typeof values.delivery_days)
+    console.log('[InvoiceCreate.handleSubmit] delivery_days_type из формы:', values.delivery_days_type)
     setLoading(true)
 
     try {
@@ -218,22 +198,53 @@ export const useInvoiceCreate = () => {
         amount_net: Number(values.amount_net || 0),  // amount_net (Amount excluding VAT)
         vat_amount: Number(values.vat_amount || 0),
         vat_rate: Number(values.vat_rate || DEFAULT_VAT_RATE),
-        // Temporarily comment out delivery_days to avoid trigger error
-        // delivery_days: values.delivery_days ? Number(values.delivery_days) : undefined,
-        delivery_days_type: values.delivery_days_type || 'calendar'  // Теперь это поле есть в БД
+        delivery_days: values.delivery_days ? Number(values.delivery_days) : null,
+        delivery_days_type: values.delivery_days_type || 'calendar'
       }
 
-      console.log('[InvoiceCreate.handleSubmit] Подготовленные данные счета:', invoiceData)
+      console.log('[InvoiceCreate.handleSubmit] Подготовленные данные счета:', {
+        ...invoiceData,
+        filesAttached: fileList?.length || 0
+      })
 
       // Create invoice
       const result = await createInvoiceMutation.mutateAsync(invoiceData)
 
       console.log('[InvoiceCreate.handleSubmit] Счет успешно создан:', result)
 
+      // Show success message immediately after invoice creation
       message.success(`Счет ${result.invoice_number || result.id} успешно создан`)
 
-      // Navigate to invoices list
+      // Navigate to invoices list immediately - don't wait for file uploads
+      console.log('[InvoiceCreate.handleSubmit] Переход на страницу списка счетов')
       navigate('/invoices/list')
+
+      // Upload files in background if there are any
+      if (fileList && fileList.length > 0) {
+        console.log('[InvoiceCreate.handleSubmit] Загрузка файлов для счета в фоновом режиме:', { invoiceId: result.id, filesCount: fileList.length })
+
+        const filesToUpload = fileList
+          .filter(file => file.originFileObj) // Only files with actual File objects
+          .map(file => file.originFileObj as File)
+
+        if (filesToUpload.length > 0) {
+          // Upload files asynchronously without blocking navigation
+          InvoiceFileStorage.uploadFiles(
+            result.id.toString(),
+            filesToUpload,
+            user?.id
+          ).then(uploadResult => {
+            if (uploadResult.error) {
+              console.error('[InvoiceCreate.handleSubmit] Ошибка загрузки файлов:', uploadResult.error)
+              // Don't show warning since user already navigated away
+            } else {
+              console.log('[InvoiceCreate.handleSubmit] Файлы успешно загружены:', uploadResult.data)
+            }
+          }).catch(error => {
+            console.error('[InvoiceCreate.handleSubmit] Ошибка при загрузке файлов:', error)
+          })
+        }
+      }
     } catch (error) {
       console.error('[InvoiceCreate.handleSubmit] Ошибка создания счета:', error)
       message.error('Ошибка при создании счета')
@@ -242,30 +253,25 @@ export const useInvoiceCreate = () => {
     }
   }
 
-  // Form initialization with defaults
+  // Set default invoice type when it loads
   useEffect(() => {
-    const initialValues: any = {
-      invoice_date: dayjs(),
-      currency: DEFAULT_CURRENCY,
-      vat_rate: DEFAULT_VAT_RATE,
-      delivery_days_type: 'calendar'  // Предустанавливаем календарные дни
-    }
-
-    // НЕ устанавливаем по умолчанию: supplier_id, payer_id, project_id
-    // Пользователь должен выбрать их сам
-
-    // Устанавливаем только тип счета по умолчанию (первый из списка)
+    // Устанавливаем только тип счета по умолчанию, если он еще не выбран
     if (invoiceTypes && invoiceTypes.length > 0 && !form.getFieldValue('invoice_type_id')) {
-      initialValues.invoice_type_id = invoiceTypes[0].id
+      form.setFieldValue('invoice_type_id', invoiceTypes[0].id)
     }
-
-    form.setFieldsValue(initialValues)
 
     // Генерируем внутренний номер только если есть данные
     if ((suppliers.length > 0 || payers.length > 0 || projects.length > 0) && invoiceTypes && invoiceTypes.length > 0) {
       handleInternalNumberUpdate()
     }
-  }, [form, suppliers, payers, projects, invoiceTypes, handleInternalNumberUpdate])
+  }, [form, invoiceTypes]) // Убрали лишние зависимости, чтобы не перезаписывать форму
+
+  // Отдельный useEffect для генерации внутреннего номера
+  useEffect(() => {
+    if ((suppliers.length > 0 || payers.length > 0 || projects.length > 0) && invoiceTypes && invoiceTypes.length > 0) {
+      handleInternalNumberUpdate()
+    }
+  }, [suppliers, payers, projects, invoiceTypes, handleInternalNumberUpdate])
 
   return {
     // Form
@@ -293,8 +299,6 @@ export const useInvoiceCreate = () => {
 
     // State
     deliveryDate,
-    selectedCurrency,
-    setSelectedCurrency,
     payments,
     setPayments,
     internalNumberPreview,
