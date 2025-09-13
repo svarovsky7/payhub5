@@ -11,8 +11,6 @@ export {
   StatusCell,
   UserCell,
   DateCell,
-  ProgressCell,
   LinkCell,
-  BadgeCell,
   TextCell
 } from './TableCells'

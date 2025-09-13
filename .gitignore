@@ -65,3 +65,4 @@ supabase/types/
 
 # Local development
 .local
+/nul

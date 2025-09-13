@@ -220,43 +220,6 @@ export const DateCell: React.FC<DateCellProps> = ({
   )
 }
 
-// Progress Cell Component
-interface ProgressCellProps {
-  percent: number
-  showText?: boolean
-  size?: 'small' | 'default'
-  strokeColor?: string | { from: string; to: string; direction?: string }
-}
-
-export const ProgressCell: React.FC<ProgressCellProps> = ({
-  percent,
-  showText = true,
-  size = 'small',
-  strokeColor
-}) => {
-  const getColor = () => {
-    if (strokeColor) {return strokeColor}
-    
-    if (percent >= 90) {return '#52c41a'}
-    if (percent >= 70) {return '#1890ff'}
-    if (percent >= 50) {return '#faad14'}
-    return '#ff4d4f'
-  }
-  
-  return (
-    <Space direction="vertical" size={4}>
-      <Progress 
-        percent={percent} 
-        size={size}
-        strokeColor={getColor()}
-        showInfo={false}
-      />
-      {showText && (
-        <Text style={{ fontSize: 12 }}>{percent}%</Text>
-      )}
-    </Space>
-  )
-}
 
 // Link Cell Component
 interface LinkCellProps {
@@ -295,30 +258,6 @@ export const LinkCell: React.FC<LinkCellProps> = ({
   )
 }
 
-// Badge Cell Component
-interface BadgeCellProps {
-  count: number
-  status?: 'success' | 'processing' | 'error' | 'warning' | 'default'
-  text?: string
-  showZero?: boolean
-}
-
-export const BadgeCell: React.FC<BadgeCellProps> = ({
-  count,
-  status = 'default',
-  text,
-  showZero = false
-}) => {
-  return (
-    <Badge 
-      count={count} 
-      status={status}
-      showZero={showZero}
-    >
-      {text && <Text>{text}</Text>}
-    </Badge>
-  )
-}
 
 // Multi-line Text Cell
 interface TextCellProps {

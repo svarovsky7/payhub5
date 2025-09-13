@@ -3,9 +3,8 @@
  * Direct Supabase API calls for theme management
  */
 
-import { supabase } from '../supabase'
+import { supabase, handleSupabaseError } from '../supabase'
 import type { CustomThemeConfig } from '@/models/theme'
-import { handleSupabaseError } from '@/utils/errorHandlers'
 
 // Database table interfaces
 export interface ThemeRecord {

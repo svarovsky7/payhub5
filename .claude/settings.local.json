@@ -52,7 +52,9 @@
       "Bash(npm run build:*)",
       "Bash(npm run knip:*)",
       "Bash(git init:*)",
-      "Bash(npm uninstall:*)"
+      "Bash(npm uninstall:*)",
+      "Bash(npx knip:*)",
+      "Bash(del:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

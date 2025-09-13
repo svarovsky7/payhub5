@@ -27,7 +27,7 @@ function translitRuToLat(input: string): string {
 
   out = out
     .toUpperCase()
-    .replace(/[«»"""'`().,+*&^%$#@!?:<>/\\|\[\]{}]/g, " ") // знаки → пробел
+    .replace(/[«»"""'`().,+*&^%$#@!?:<>/\\|[\]{}]/g, " ") // знаки → пробел
     // схлопываем диграфы в одну букву для удобства выбора согласных
     .replace(/SCH/g, "S")
     .replace(/SH/g, "S")
@@ -44,99 +44,7 @@ function translitRuToLat(input: string): string {
   return out
 }
 
-/**
- * Стоп-слова (уже в транслитерации, UPPERCASE).
- * Удаляются как отдельные токены из начала/середины/конца названия.
- */
-const STOP = new Set([
-  // ОПФ
-  "OOO","AO","PAO","ZAO","OAO","IP","GUP","MUP","NKO",
-  // обёртки/принадлежность
-  "COMPANY","KOMPANIYA","KOMP","GRUPPA","GROUP","HOLDING","KORPORATSIYA",
-  "KONTSERN","ASSOTSIATSIYA","ASSOCIATION","SOYUZ","OBEDINENIE",
-  "PARTNERSTVO","KOOPERATIV",
-  // производственные
-  "ZAVOD","FABRIKA","KOMBINAT","PREDPRIYATIE","NII","NPO",
-  // приставки/суффиксы
-  "UK","SK",
-  // союзы
-  "I","AND"
-])
 
-/**
- * Возвращает true, если символ — согласная латинская буква.
- */
-function isConsonant(ch: string): boolean {
-  return /^[BCDFGHJKLMNPQRSTVWXYZ]$/.test(ch)
-}
-
-/**
- * Подобрать из слова согласные/буквы для дополнения кода.
- * skipFirst — пропустить первые N символов (обычно 1 — первую букву уже взяли).
- */
-function pickFromWord(word: string, want: number = 2, skipFirst: number = 1): string {
-  const arr = (word || "").split("")
-  const picked: string[] = []
-
-  // сначала собираем согласные
-  for (let i = skipFirst; i < arr.length && picked.length < want; i++) {
-    const ch = arr[i]
-    if (isConsonant(ch)) {picked.push(ch)}
-  }
-  // если не хватило — добираем любыми буквами A-Z
-  for (let i = skipFirst; i < arr.length && picked.length < want; i++) {
-    const ch = arr[i]
-    if (/^[A-Z]$/.test(ch) && !picked.includes(ch)) {picked.push(ch)}
-  }
-
-  // если всё ещё < want — добиваем X
-  while (picked.length < want) {picked.push("X")}
-  return picked.join("")
-}
-
-/**
- * Сформировать 3-буквенный код поставщика из названия:
- * - 1 токен: первая буква + две следующие согласные/буквы
- * - 2–3 токена: первые буквы трёх значимых токенов; если не хватает — добираем из первого
- * - ≥4 токенов: просто первые буквы первых трёх значимых токенов
- * Всегда возвращает ровно 3 латинские буквы A–Z.
- */
-function generateSupplierCode(companyName: string): string {
-  const lat = translitRuToLat(companyName)
-  if (!lat) {return "XXX"}
-
-  // токены по пробелам
-  let tokens = lat.split(" ").filter(Boolean)
-
-  // чистим стоп-слова
-  tokens = tokens.filter(t => !STOP.has(t))
-
-  // удаляем токены, которые не начинаются с буквы A-Z
-  tokens = tokens.filter(t => /^[A-Z]/.test(t))
-
-  if (tokens.length === 0) {return "XXX"}
-
-  let code = ""
-
-  if (tokens.length === 1) {
-    const w = tokens[0]
-    const first = (w[0] && /[A-Z]/.test(w[0])) ? w[0] : "X"
-    code = (first + pickFromWord(w, 2, 1)).slice(0, 3).padEnd(3, "X")
-  } else if (tokens.length <= 3) {
-    const initials = tokens.map(t => t[0]).join("").slice(0, 3)
-    if (initials.length === 3) {
-      code = initials
-    } else {
-      const need = 3 - initials.length
-      const w = tokens[0]
-      code = (initials + pickFromWord(w, need, 1)).slice(0, 3).padEnd(3, "X")
-    }
-  } else {
-    code = tokens.slice(0, 3).map(t => t[0]).join("").padEnd(3, "X")
-  }
-
-  return code
-}
 
 /**
  * Улучшенная генерация кода поставщика с более предсказуемыми результатами
@@ -213,12 +121,7 @@ export function generateSupplierCodeImproved(companyName: string): string {
 /**
  * Полный код поставщика: только 3 буквы без цифр ИНН
  */
-export function generateFullSupplierCode(companyName: string, inn?: string | null): string {
+export function generateFullSupplierCode(companyName: string, _inn?: string | null): string {
   return generateSupplierCodeImproved(companyName)
 }
 
-/* ===================== Примеры использования (для тестирования) ===================== */
-// console.log(generateSupplierCode("ООО «СтройИнвест»")); // STR
-// console.log(generateSupplierCode("АО «Гласс Лаб»"));     // GLS
-// console.log(generateSupplierCode("ПАО «ЭлектроМонтажСервис»")); // ELK
-// console.log(generateFullSupplierCode("АО «Гласс Лаб»", "7708123456")); // GLS3456

@@ -10,13 +10,16 @@ import { QUERY_KEYS } from './queryKeys'
 /**
  * Хук для получения всех статусов
  */
-const useStatuses = () => {
+export const useStatuses = () => {
   return useQuery({
     queryKey: [QUERY_KEYS.STATUSES],
     queryFn: () => StatusQueryService.getAll(),
     staleTime: 1000 * 60 * 5, // 5 минут
   })
 }
+
+// Алиас для обратной совместимости
+export const useStatusesList = useStatuses
 
 /**
  * Хук для получения статусов счетов

@@ -39,21 +39,3 @@ export const formatPhoneNumber = (value: string): string => {
   return formatted
 }
 
-/**
- * Проверяет, является ли строка валидным телефонным номером
- */
-const isValidPhoneNumber = (value: string): boolean => {
-  const numbers = value.replace(/\D/g, '')
-  return numbers.length === 11 && (numbers.startsWith('7') || numbers.startsWith('8'))
-}
-
-/**
- * Очищает телефонный номер от форматирования
- */
-const cleanPhoneNumber = (value: string): string => {
-  const numbers = value.replace(/\D/g, '')
-  // Если номер начинается с 8, заменяем на 7
-  const cleanNumbers = numbers.startsWith('8') ? '7' + numbers.slice(1) : numbers
-  // Если номер не начинается с 7, добавляем
-  return cleanNumbers.startsWith('7') ? cleanNumbers : '7' + cleanNumbers
-}

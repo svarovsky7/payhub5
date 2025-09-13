@@ -134,7 +134,7 @@ export const SYSTEM_ROLES = {
 } as const
 
 // Типы счетов
-const INVOICE_TYPES = {
+export const INVOICE_TYPES = {
   GOODS: { id: 1, name: 'Товары', code: 'goods' },
   WORKS: { id: 2, name: 'Работы', code: 'works' },
   RENT: { id: 3, name: 'Аренда', code: 'rent' },
@@ -156,7 +156,7 @@ const CONTRACTOR_TYPES = {
 } as const
 
 // Действия в процессе
-const WORKFLOW_ACTIONS = {
+export const WORKFLOW_ACTIONS = {
   VIEW: 'view',
   EDIT: 'edit',
   APPROVE: 'approve',
@@ -165,7 +165,7 @@ const WORKFLOW_ACTIONS = {
 } as const
 
 // Статусы процесса
-const WORKFLOW_STATUS = {
+export const WORKFLOW_STATUS = {
   DRAFT: 'draft',
   ACTIVE: 'active',
   INACTIVE: 'inactive',
