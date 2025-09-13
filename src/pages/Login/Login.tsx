@@ -16,7 +16,7 @@ const Login: React.FC = () => {
     // Если пользователь уже аутентифицирован, перенаправляем на главную
     useEffect(() => {
         if (isAuthenticated) {
-            void navigate('/dashboard');
+            void navigate('/invoices');
         }
     }, [isAuthenticated, navigate]);
 
@@ -27,7 +27,7 @@ const Login: React.FC = () => {
             message.success('Вход выполнен успешно');
             // Используем window.location.href для полной перезагрузки страницы
             setTimeout(() => {
-                window.location.href = '/dashboard';
+                window.location.href = '/invoices';
             }, 500);
         } catch (error: any) {
             message.error(error.message || 'Произошла ошибка при входе');

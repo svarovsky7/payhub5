@@ -7,7 +7,6 @@ import {useAuth} from '../models/auth'
 
 // Lazy loading для оптимизации производительности
 const LoginPage = lazy(() => import('../pages/Login'))
-const DashboardPage = lazy(() => import('../pages/Dashboard'))
 const InvoicesPage = lazy(() => import('../pages/Invoices'))
 const InvoiceCreate = lazy(() => import('../pages/InvoiceCreate'))
 const InvoiceView = lazy(() => import('../pages/InvoiceView'))
@@ -64,15 +63,7 @@ export const AppRouter: React.FC = () => {
             <MainLayout>
                 <PageSuspense>
                     <Routes>
-                        <Route path="/" element={<Navigate to="/dashboard" replace/>}/>
-                        <Route
-                            path="/dashboard"
-                            element={
-                                <ProtectedRoute>
-                                    <DashboardPage/>
-                                </ProtectedRoute>
-                            }
-                        />
+                        <Route path="/" element={<Navigate to="/invoices" replace/>}/>
                         <Route
                             path="/invoices"
                             element={
@@ -129,7 +120,7 @@ export const AppRouter: React.FC = () => {
                                 </ProtectedRoute>
                             }
                         />
-                        <Route path="/login" element={<Navigate to="/dashboard" replace/>}/>
+                        <Route path="/login" element={<Navigate to="/invoices" replace/>}/>
                         <Route path="*" element={<NotFoundPage/>}/>
                     </Routes>
                 </PageSuspense>

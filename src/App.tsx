@@ -24,13 +24,11 @@ import { useRolesList } from './services/hooks/useRoles';
 import Login from './pages/Login';
 import Register from './pages/Register';
 
-const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Invoices = lazy(() => import('./pages/Invoices'));
 const InvoiceView = lazy(() => import('./pages/InvoiceView'));
 const InvoiceCreate = lazy(() => import('./pages/InvoiceCreate'));
 const Payments = lazy(() => import('./pages/Payments').catch(() => ({ default: () => <div>Страница платежей в разработке</div> })));
 const PaymentsPending = lazy(() => import('./pages/PaymentsPending').catch(() => ({ default: () => <div>Страница ожидающих платежей в разработке</div> })));
-const Projects = lazy(() => import('./pages/Projects').catch(() => ({ default: () => <div>Страница проектов в разработке</div> })));
 const Contractors = lazy(() => import('./pages/Contractors').catch(() => ({ default: () => <div>Страница контрагентов в разработке</div> })));
 const Suppliers = lazy(() => import('./pages/Suppliers').catch(() => ({ default: () => <div>Страница поставщиков в разработке</div> })));
 const Payers = lazy(() => import('./pages/Payers').catch(() => ({ default: () => <div>Страница плательщиков в разработке</div> })));
@@ -288,8 +286,7 @@ const MainLayout: React.FC = () => {
       <PageContainer>
         <Suspense fallback={<PageLoader />}>
           <Routes>
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/" element={<Navigate to="/invoices" replace />} />
             <Route path="/invoices" element={<Navigate to="/invoices/list" replace />} />
             <Route path="/invoices/list" element={<Invoices />} />
             <Route path="/invoices/create" element={<InvoiceCreate />} />
@@ -298,7 +295,6 @@ const MainLayout: React.FC = () => {
             <Route path="/payments/list" element={<Payments />} />
             <Route path="/payments/pending" element={<PaymentsPending />} />
             <Route path="/approvals" element={<Approvals />} />
-            <Route path="/projects" element={<Projects />} />
             <Route path="/contractors" element={<Navigate to="/contractors/all" replace />} />
             <Route path="/contractors/all" element={<Contractors />} />
             <Route path="/contractors/suppliers" element={<Suppliers />} />
@@ -309,7 +305,7 @@ const MainLayout: React.FC = () => {
             <Route path="*" element={<div style={{ padding: 24, textAlign: 'center' }}>
               <h1>404 - Страница не найдена</h1>
               <p>Запрашиваемая страница не существует или находится в разработке</p>
-              <a href="/dashboard">Вернуться на главную</a>
+              <a href="/invoices">Вернуться на главную</a>
             </div>} />
           </Routes>
         </Suspense>

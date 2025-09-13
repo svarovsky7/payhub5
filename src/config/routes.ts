@@ -4,13 +4,7 @@ import type {MenuDataItem} from '@ant-design/pro-components';
 export const routes: MenuDataItem[] = [
     {
         path: '/',
-        redirect: '/dashboard',
-    },
-    {
-        path: '/dashboard',
-        name: 'Главная',
-        icon: 'DashboardOutlined',
-        component: './pages/Dashboard',
+        redirect: '/invoices',
     },
     {
         path: '/invoices',
