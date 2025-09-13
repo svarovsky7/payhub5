@@ -6,8 +6,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { InvoiceCrudService } from '../invoices/crud'
 import { OptimizedInvoiceQueryService } from '../invoices/optimized-queries'
 import { CacheKeys, CacheTTL, invalidateCache, queryCache } from '../cache/query-cache'
-import type { InvoiceFilters, InvoiceWithRelations } from '../invoices/queries'
-import type { Invoice, InvoiceInsert, InvoiceUpdate, PaginationParams } from '../supabase'
+import type { InvoiceFilters } from '../invoices/queries'
+import type { InvoiceInsert, InvoiceUpdate, PaginationParams } from '../supabase'
 
 export const INVOICE_QUERY_KEYS = {
   all: ['invoices'] as const,

@@ -6,7 +6,6 @@
 import React, { useState } from 'react'
 import {
   Button,
-  Card,
   Col,
   Divider,
   Input,
@@ -18,8 +17,7 @@ import {
 } from 'antd'
 import { 
   BgColorsOutlined,
-  CheckOutlined,
-  FormatPainterOutlined
+  CheckOutlined
 } from '@ant-design/icons'
 import { COLOR_PALETTES } from '@/models/theme'
 

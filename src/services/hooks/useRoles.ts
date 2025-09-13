@@ -4,7 +4,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { message } from 'antd'
-import { type CreateRoleData, type Role, RolesService, type UpdateRoleData } from '../admin/roles'
+import { type CreateRoleData, RolesService, type UpdateRoleData } from '../admin/roles'
 
 const ROLES_QUERY_KEY = 'roles'
 
@@ -22,7 +22,7 @@ export const useRolesList = () => {
 /**
  * Hook for fetching single role
  */
-export const useRole = (id: number | undefined) => {
+const useRole = (id: number | undefined) => {
   return useQuery({
     queryKey: [ROLES_QUERY_KEY, id],
     queryFn: () => id ? RolesService.getRole(id) : null,

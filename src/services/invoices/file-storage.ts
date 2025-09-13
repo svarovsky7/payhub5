@@ -2,7 +2,7 @@
  * File storage operations for invoices
  */
 
-import { supabase, handleSupabaseError, type ApiResponse } from '../supabase'
+import { type ApiResponse, handleSupabaseError, supabase } from '../supabase'
 import type { FileUploadOptions, FileUploadResult } from './types'
 
 export class InvoiceFileStorage {

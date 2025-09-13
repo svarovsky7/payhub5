@@ -3,9 +3,8 @@
  */
 
 import {supabase} from '../supabase'
-import type {WorkflowDefinition} from './workflow-config'
 
-export interface PaymentWorkflowInstance {
+interface PaymentWorkflowInstance {
     id: number
     payment_id: number
     workflow_id: number

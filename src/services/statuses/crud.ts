@@ -9,7 +9,7 @@ export type Status = Database['public']['Tables']['statuses']['Row']
 export type StatusInsert = Database['public']['Tables']['statuses']['Insert']
 export type StatusUpdate = Database['public']['Tables']['statuses']['Update']
 
-export interface StatusWithMeta extends Status {
+interface StatusWithMeta extends Status {
   // Additional computed fields if needed
   isInvoiceStatus?: boolean
   isPaymentStatus?: boolean

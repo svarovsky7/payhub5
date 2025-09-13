@@ -2,7 +2,6 @@ import React from 'react';
 import {ProCard, StatisticCard} from '@ant-design/pro-components';
 import {Button, Col, Progress, Row, Space, Table, Tag} from 'antd';
 import {
-    CheckCircleOutlined,
     ClockCircleOutlined,
     DollarOutlined,
     FallOutlined,

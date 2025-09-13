@@ -7,11 +7,11 @@ import {
   Button,
   Form,
   Input,
+  message,
   Modal,
   Popconfirm,
   Space,
-  Typography,
-  message
+  Typography
 } from 'antd'
 import { ProTable } from '@ant-design/pro-components'
 import type { ProColumns } from '@ant-design/pro-components'

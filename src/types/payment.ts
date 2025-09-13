@@ -24,7 +24,7 @@ export const PaymentTypeColors: Record<PaymentType, string> = {
 }
 
 // Расширенный интерфейс для платежа с типом
-export interface PaymentWithType {
+interface PaymentWithType {
   id: string
   invoice_id: string
   payment_date: string
@@ -45,7 +45,7 @@ export interface PaymentWithType {
 }
 
 // Интерфейс для создания платежа
-export interface PaymentInsertWithType {
+interface PaymentInsertWithType {
   invoice_id: string
   payment_date?: string
   total_amount: number // Total amount including VAT
@@ -61,7 +61,7 @@ export interface PaymentInsertWithType {
 }
 
 // Интерфейс для обновления платежа
-export interface PaymentUpdateWithType {
+interface PaymentUpdateWithType {
   payment_date?: string
   total_amount?: number // Total amount including VAT
   amount_net?: number // Amount excluding VAT

@@ -3,13 +3,13 @@
  */
 
 import React from 'react'
-import { Timeline, Card, Typography, Tag, Space, Empty, Avatar } from 'antd'
+import { Avatar, Card, Empty, Space, Tag, Timeline, Typography } from 'antd'
 import { 
   CheckCircleOutlined, 
-  CloseCircleOutlined, 
-  ClockCircleOutlined,
-  UserOutlined,
-  SyncOutlined
+  ClockCircleOutlined, 
+  CloseCircleOutlined,
+  SyncOutlined,
+  UserOutlined
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 

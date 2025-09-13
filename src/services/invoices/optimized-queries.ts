@@ -5,7 +5,6 @@
 
 import { 
   handleSupabaseError, 
-  type Invoice, 
   type PaginatedResponse, 
   type PaginationParams, 
   supabase,

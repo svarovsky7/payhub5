@@ -66,7 +66,7 @@ export function generateProjectCode(projectName: string): string {
  * @param code - Код проекта для проверки
  * @returns true если код валиден
  */
-export function isValidProjectCode(code: string): boolean {
+function isValidProjectCode(code: string): boolean {
   // Код должен состоять из 2-4 заглавных латинских букв и может заканчиваться одной цифрой
   return /^[A-Z]{2,4}[0-9]?$/.test(code)
 }
@@ -77,7 +77,7 @@ export function isValidProjectCode(code: string): boolean {
  * @param existingCodes - Массив существующих кодов
  * @returns Уникальный код проекта
  */
-export function makeProjectCodeUnique(baseCode: string, existingCodes: string[]): string {
+function makeProjectCodeUnique(baseCode: string, existingCodes: string[]): string {
   console.log('[makeProjectCodeUnique] Base code:', baseCode, 'Existing codes:', existingCodes)
   
   // Убираем числовой суффикс если есть

@@ -21,7 +21,7 @@ export const PRIORITY_LABELS: Record<string, string> = {
   'urgent': 'Срочный'
 }
 
-export const VAT_RATES = [
+const VAT_RATES = [
   { value: 0, label: 'Без НДС (0%)' },
   { value: 5, label: '5%' },
   { value: 7, label: '7%' },

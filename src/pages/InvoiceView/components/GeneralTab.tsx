@@ -117,9 +117,9 @@ export const GeneralTab: React.FC<GeneralTabProps> = ({ invoice, amounts }) => {
               key: 'invoice_type',
               render: () => {
                 const type = invoice.invoice_type
-                if (!type) return '—'
-                if (typeof type === 'object' && type.name) return type.name
-                if (typeof type === 'string') return type
+                if (!type) {return '—'}
+                if (typeof type === 'object' && type.name) {return type.name}
+                if (typeof type === 'string') {return type}
                 return '—'
               },
             },
@@ -150,12 +150,12 @@ export const GeneralTab: React.FC<GeneralTabProps> = ({ invoice, amounts }) => {
                 }
 
                 if (typeof person === 'object') {
-                  if (person.full_name) return person.full_name
-                  if (person.name) return person.name
-                  if (person.email) return person.email
+                  if (person.full_name) {return person.full_name}
+                  if (person.name) {return person.name}
+                  if (person.email) {return person.email}
                 }
 
-                if (typeof person === 'string') return person
+                if (typeof person === 'string') {return person}
 
                 return 'Не указан'
               },
@@ -166,13 +166,13 @@ export const GeneralTab: React.FC<GeneralTabProps> = ({ invoice, amounts }) => {
               key: 'priority',
               render: () => {
                 const priority = invoice.priority
-                if (!priority) return 'Средний'
+                if (!priority) {return 'Средний'}
 
                 if (typeof priority === 'object') {
-                  if (priority.name_ru) return priority.name_ru
-                  if (priority.label) return getPriorityLabel(priority.label)
-                  if (priority.name) return getPriorityLabel(priority.name)
-                  if (priority.value) return getPriorityLabel(priority.value)
+                  if (priority.name_ru) {return priority.name_ru}
+                  if (priority.label) {return getPriorityLabel(priority.label)}
+                  if (priority.name) {return getPriorityLabel(priority.name)}
+                  if (priority.value) {return getPriorityLabel(priority.value)}
                 }
 
                 if (typeof priority === 'string') {

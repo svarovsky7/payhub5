@@ -2,7 +2,7 @@
  * Types for Admin components
  */
 
-export interface AdminPageProps {
+interface AdminPageProps {
   userId?: string
   companyId?: string
 }
@@ -34,7 +34,7 @@ export interface Project {
   updated_at?: string
 }
 
-export interface InvoiceType {
+interface InvoiceType {
   id: number
   name: string
   description?: string
@@ -57,7 +57,7 @@ export interface Status {
   updated_at?: string
 }
 
-export interface Workflow {
+interface Workflow {
   id: number
   name: string
   description?: string

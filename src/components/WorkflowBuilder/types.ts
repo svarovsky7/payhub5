@@ -51,7 +51,7 @@ export interface StagePermissions {
   can_cancel: boolean
 }
 
-export interface StageConditions {
+interface StageConditions {
   invoice_type_ids?: number[]
   project_ids?: number[]
   min_amount?: number
@@ -66,7 +66,7 @@ export interface WorkflowRole {
   permissions: string[]
 }
 
-export interface ApprovalAction {
+interface ApprovalAction {
   id: number
   invoice_id: number
   stage_id: number
@@ -76,7 +76,7 @@ export interface ApprovalAction {
   created_at: string
 }
 
-export interface WorkflowWithStages extends WorkflowDefinition {
+interface WorkflowWithStages extends WorkflowDefinition {
   stages: WorkflowStage[]
   invoice_type?: {
     id: number
@@ -85,7 +85,7 @@ export interface WorkflowWithStages extends WorkflowDefinition {
   }
 }
 
-export interface CreateWorkflowInput {
+interface CreateWorkflowInput {
   name: string
   description?: string
   invoice_type_id?: number
@@ -93,14 +93,14 @@ export interface CreateWorkflowInput {
   stages: Omit<WorkflowStage, 'id' | 'workflow_id' | 'created_at' | 'updated_at'>[]
 }
 
-export interface UpdateWorkflowInput {
+interface UpdateWorkflowInput {
   name?: string
   description?: string
   is_active?: boolean
   rules?: WorkflowRules
 }
 
-export interface CreateStageInput {
+interface CreateStageInput {
   workflow_id: number
   position: number
   name: string
@@ -112,7 +112,7 @@ export interface CreateStageInput {
   assigned_users?: string[]
 }
 
-export interface UpdateStageInput {
+interface UpdateStageInput {
   position?: number
   name?: string
   approval_quorum?: number
@@ -134,7 +134,7 @@ export const SYSTEM_ROLES = {
 } as const
 
 // Типы счетов
-export const INVOICE_TYPES = {
+const INVOICE_TYPES = {
   GOODS: { id: 1, name: 'Товары', code: 'goods' },
   WORKS: { id: 2, name: 'Работы', code: 'works' },
   RENT: { id: 3, name: 'Аренда', code: 'rent' },
@@ -142,21 +142,21 @@ export const INVOICE_TYPES = {
 } as const
 
 // Типы платежей
-export const PAYMENT_TYPES = {
+const PAYMENT_TYPES = {
   MATERIALS: { id: 'materials', name: 'Материалы' },
   SERVICES: { id: 'services', name: 'Услуги' },
   OTHER: { id: 'other', name: 'Прочее' },
 } as const
 
 // Типы контрагентов
-export const CONTRACTOR_TYPES = {
+const CONTRACTOR_TYPES = {
   SUPPLIER: { id: 'supplier', name: 'Поставщик' },
   CONTRACTOR: { id: 'contractor', name: 'Подрядчик' },
   OTHER: { id: 'other', name: 'Прочее' },
 } as const
 
 // Действия в процессе
-export const WORKFLOW_ACTIONS = {
+const WORKFLOW_ACTIONS = {
   VIEW: 'view',
   EDIT: 'edit',
   APPROVE: 'approve',
@@ -165,7 +165,7 @@ export const WORKFLOW_ACTIONS = {
 } as const
 
 // Статусы процесса
-export const WORKFLOW_STATUS = {
+const WORKFLOW_STATUS = {
   DRAFT: 'draft',
   ACTIVE: 'active',
   INACTIVE: 'inactive',

@@ -12,12 +12,10 @@ import {
   Select,
   Space,
   Switch,
-  Tag,
   Typography
 } from 'antd'
 import { CloseOutlined, SaveOutlined } from '@ant-design/icons'
-import type { StageConditions, StagePermissions, WorkflowStage } from './types'
-import { INVOICE_TYPES } from './types'
+import type { StagePermissions, WorkflowStage } from './types'
 import { useRolesList } from '@/services/hooks/useRoles'
 
 const { Title, Text } = Typography

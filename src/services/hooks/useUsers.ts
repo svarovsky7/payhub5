@@ -5,7 +5,7 @@ import { queryKeys } from './queryKeys';
 import type { User } from '../../types/database';
 
 // Получить пользователя
-export const useUser = (userId: string) => {
+const useUser = (userId: string) => {
   return useQuery({
     queryKey: queryKeys.users.detail(userId),
     queryFn: () => UserManagementService.getById(userId),

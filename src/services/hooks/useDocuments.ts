@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { message } from 'antd'
-import { type CreateDocumentData, documentsCrud, type DocumentWithDetails } from '../documents/crud'
+import { type CreateDocumentData, documentsCrud } from '../documents/crud'
 
 export const useInvoiceDocuments = (invoiceId?: number) => {
   const queryClient = useQueryClient()
@@ -71,7 +71,7 @@ export const useInvoiceDocuments = (invoiceId?: number) => {
   }
 }
 
-export const usePaymentDocuments = (paymentId?: number) => {
+const usePaymentDocuments = (paymentId?: number) => {
   const queryClient = useQueryClient()
 
   // Get documents for payment

@@ -110,7 +110,7 @@ export const PaymentsTab: React.FC<PaymentsTabProps> = ({
   }
 
   const handleDelete = (id: string | undefined) => {
-    if (!id) return
+    if (!id) {return}
     console.log('[PaymentsTab] Deleting payment:', id)
     const updatedPayments = payments.filter(p => p.id !== id)
     onPaymentsChange(updatedPayments)

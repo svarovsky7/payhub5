@@ -358,13 +358,3 @@ export const TextCell: React.FC<TextCellProps> = ({
   )
 }
 
-export default {
-  MoneyCell,
-  StatusCell,
-  UserCell,
-  DateCell,
-  ProgressCell,
-  LinkCell,
-  BadgeCell,
-  TextCell
-}

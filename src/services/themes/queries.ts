@@ -101,7 +101,7 @@ export const updateThemeQuery = async (id: string, data: UpdateThemeData) => {
 /**
  * Delete theme
  */
-export const deleteThemeQuery = async (id: string) => {
+const deleteThemeQuery = async (id: string) => {
   console.log('[ThemeQueries] Deleting theme:', id)
   
   try {
@@ -129,7 +129,7 @@ export const deleteThemeQuery = async (id: string) => {
 /**
  * Get theme by ID
  */
-export const getThemeByIdQuery = async (id: string) => {
+const getThemeByIdQuery = async (id: string) => {
   console.log('[ThemeQueries] Getting theme by ID:', id)
   
   try {
@@ -196,7 +196,7 @@ export const getThemesQuery = async (companyId?: string, userId?: string) => {
 /**
  * Get default theme for company
  */
-export const getDefaultThemeQuery = async (companyId?: string) => {
+const getDefaultThemeQuery = async (companyId?: string) => {
   console.log('[ThemeQueries] Getting default theme for company:', companyId)
   
   try {
@@ -233,7 +233,7 @@ export const getDefaultThemeQuery = async (companyId?: string) => {
 /**
  * Set default theme for company
  */
-export const setDefaultThemeQuery = async (themeId: string, companyId: string) => {
+const setDefaultThemeQuery = async (themeId: string, companyId: string) => {
   console.log('[ThemeQueries] Setting default theme:', themeId, 'for company:', companyId)
   
   try {
@@ -266,7 +266,7 @@ export const setDefaultThemeQuery = async (themeId: string, companyId: string) =
 /**
  * Clone existing theme
  */
-export const cloneThemeQuery = async (
+const cloneThemeQuery = async (
   sourceId: string, 
   newName: string, 
   userId?: string, 
@@ -329,7 +329,7 @@ export const saveThemeConfigQuery = async (
 /**
  * Update theme configuration in database
  */
-export const updateThemeConfigQuery = async (
+const updateThemeConfigQuery = async (
   id: string,
   config: CustomThemeConfig,
   name?: string,

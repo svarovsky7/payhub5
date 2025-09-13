@@ -21,7 +21,6 @@ import {
 } from '../invoices'
 import { type WorkflowAction } from '../invoices/workflow'
 import { 
-  type ApiResponse, 
   type Invoice, 
   type InvoiceInsert, 
   type InvoiceUpdate, 
@@ -63,7 +62,7 @@ export const useInvoice = (
   })
 }
 
-export const useInvoicesStats = (
+const useInvoicesStats = (
   companyId: string,
   filters?: InvoiceFilters,
   options?: UseQueryOptions<InvoiceStats>
@@ -77,7 +76,7 @@ export const useInvoicesStats = (
   })
 }
 
-export const useInvoicesDashboard = (
+const useInvoicesDashboard = (
   companyId: string,
   options?: UseQueryOptions<any>
 ) => {
@@ -91,7 +90,7 @@ export const useInvoicesDashboard = (
   })
 }
 
-export const useMyInvoiceTasks = (
+const useMyInvoiceTasks = (
   userId: string,
   companyId: string,
   options?: UseQueryOptions<InvoiceWithRelations[]>
@@ -176,7 +175,7 @@ export const useCreateInvoice = (
   })
 }
 
-export const useUpdateInvoice = (
+const useUpdateInvoice = (
   options?: UseMutationOptions<Invoice, Error, { id: string; updates: InvoiceUpdate; companyId: string }>
 ) => {
   const queryClient = useQueryClient()
@@ -256,7 +255,7 @@ export const useDeleteInvoice = (
   })
 }
 
-export const useSubmitInvoice = (
+const useSubmitInvoice = (
   options?: UseMutationOptions<Invoice, Error, { invoiceId: string; userId: string; companyId: string; comment?: string }>
 ) => {
   const queryClient = useQueryClient()
@@ -286,7 +285,7 @@ export const useSubmitInvoice = (
   })
 }
 
-export const useApproveInvoice = (
+const useApproveInvoice = (
   options?: UseMutationOptions<Invoice, Error, { invoiceId: string; stepId: string; userId: string; companyId: string; comment?: string }>
 ) => {
   const queryClient = useQueryClient()
@@ -316,7 +315,7 @@ export const useApproveInvoice = (
   })
 }
 
-export const useRejectInvoice = (
+const useRejectInvoice = (
   options?: UseMutationOptions<Invoice, Error, { invoiceId: string; stepId: string; userId: string; companyId: string; comment: string }>
 ) => {
   const queryClient = useQueryClient()
@@ -346,7 +345,7 @@ export const useRejectInvoice = (
   })
 }
 
-export const useCancelInvoice = (
+const useCancelInvoice = (
   options?: UseMutationOptions<Invoice, Error, { invoiceId: string; userId: string; companyId: string; comment?: string }>
 ) => {
   const queryClient = useQueryClient()
@@ -376,7 +375,7 @@ export const useCancelInvoice = (
   })
 }
 
-export const useCloneInvoice = (
+const useCloneInvoice = (
   options?: UseMutationOptions<Invoice, Error, { id: string; companyId: string }>
 ) => {
   const queryClient = useQueryClient()
@@ -402,7 +401,7 @@ export const useCloneInvoice = (
   })
 }
 
-export const useInvoiceFileUpload = (
+const useInvoiceFileUpload = (
   options?: UseMutationOptions<string, Error, { invoiceId: string; file: File; companyId: string }>
 ) => {
   const queryClient = useQueryClient()

@@ -56,7 +56,7 @@ export const formatNumber = (
 }
 
 // Форматирование процентов
-export const formatPercent = (value: number, decimals = 1): string => {
+const formatPercent = (value: number, decimals = 1): string => {
   if (isNaN(value)) {return '0%'}
   
   return new Intl.NumberFormat('ru-RU', {
@@ -75,7 +75,7 @@ export const formatDate = (
   return dayjs(date).format(format)
 }
 
-export const formatDateTime = (
+const formatDateTime = (
   date: string | Date | dayjs.Dayjs,
   format = 'DD.MM.YYYY HH:mm'
 ): string => {
@@ -83,7 +83,7 @@ export const formatDateTime = (
   return dayjs(date).format(format)
 }
 
-export const formatTime = (
+const formatTime = (
   date: string | Date | dayjs.Dayjs,
   format = 'HH:mm'
 ): string => {
@@ -92,13 +92,13 @@ export const formatTime = (
 }
 
 // Относительное время
-export const formatRelativeTime = (date: string | Date | dayjs.Dayjs): string => {
+const formatRelativeTime = (date: string | Date | dayjs.Dayjs): string => {
   if (!date) {return ''}
   return dayjs(date).fromNow()
 }
 
 // Форматирование размера файлов
-export const formatFileSize = (bytes: number): string => {
+const formatFileSize = (bytes: number): string => {
   if (bytes === 0) {return '0 Б'}
   
   const k = 1024
@@ -109,7 +109,7 @@ export const formatFileSize = (bytes: number): string => {
 }
 
 // Форматирование телефона
-export const formatPhone = (phone: string): string => {
+const formatPhone = (phone: string): string => {
   if (!phone) {return ''}
   
   // Удаляем все не цифры
@@ -132,7 +132,7 @@ export const formatPhone = (phone: string): string => {
 }
 
 // Форматирование имени файла
-export const formatFileName = (fileName: string, maxLength = 30): string => {
+const formatFileName = (fileName: string, maxLength = 30): string => {
   if (!fileName) {return ''}
   
   if (fileName.length <= maxLength) {return fileName}
@@ -145,7 +145,7 @@ export const formatFileName = (fileName: string, maxLength = 30): string => {
 }
 
 // Форматирование статуса
-export const formatStatus = (status: string): string => {
+const formatStatus = (status: string): string => {
   const statusMap: Record<string, string> = {
     draft: 'Черновик',
     pending: 'Ожидает',
@@ -164,7 +164,7 @@ export const formatStatus = (status: string): string => {
 }
 
 // Получение цвета статуса для Ant Design
-export const getStatusColor = (status: string): string => {
+const getStatusColor = (status: string): string => {
   const colorMap: Record<string, string> = {
     draft: 'default',
     pending: 'processing',
@@ -183,7 +183,7 @@ export const getStatusColor = (status: string): string => {
 }
 
 // Форматирование текста для поиска
-export const normalizeSearchText = (text: string): string => {
+const normalizeSearchText = (text: string): string => {
   return text
     .toLowerCase()
     .trim()
@@ -191,7 +191,7 @@ export const normalizeSearchText = (text: string): string => {
 }
 
 // Подсветка текста в поиске
-export const highlightSearchText = (text: string, search: string): string => {
+const highlightSearchText = (text: string, search: string): string => {
   if (!search) {return text}
   
   const regex = new RegExp(`(${search})`, 'gi')
@@ -199,7 +199,7 @@ export const highlightSearchText = (text: string, search: string): string => {
 }
 
 // Сокращение текста
-export const truncateText = (text: string, maxLength: number): string => {
+const truncateText = (text: string, maxLength: number): string => {
   if (!text || text.length <= maxLength) {return text}
   
   return text.substring(0, maxLength) + '...'

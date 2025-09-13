@@ -6,7 +6,7 @@
 import {supabase} from '../supabase'
 
 // Типы для workflow платежей
-export interface WorkflowDefinition {
+interface WorkflowDefinition {
     id: number
     name: string
     description?: string

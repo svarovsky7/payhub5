@@ -35,7 +35,7 @@ interface InternalNumberParams {
  * SEQ — порядковый номер (4-5 цифр с ведущими нулями)
  * S#### — опциональный суффикс
  */
-export function generateInternalNumber(params: InternalNumberParams = {}): string {
+function generateInternalNumber(params: InternalNumberParams = {}): string {
   const now = new Date()
   const year = now.getFullYear().toString().slice(-2) // последние 2 цифры года
   const month = (now.getMonth() + 1).toString().padStart(2, '0')
@@ -91,7 +91,7 @@ function generateRandomCode(length: number): string {
 /**
  * Проверяет, является ли строка валидным номером счета
  */
-export function isValidInvoiceNumber(invoiceNumber: string): boolean {
+function isValidInvoiceNumber(invoiceNumber: string): boolean {
   // Проверяем форматы:
   // INV-ГГММ-XXX
   const standardFormat = /^INV-\d{4}-\d{3}$/
@@ -105,13 +105,13 @@ export function isValidInvoiceNumber(invoiceNumber: string): boolean {
  * Генерирует следующий порядковый номер для заданного месяца
  * @param lastNumber - последний использованный номер в формате INV-ГГММ-XXX
  */
-export function getNextSequentialNumber(lastNumber?: string): string {
+function getNextSequentialNumber(lastNumber?: string): string {
   const now = new Date()
   const year = now.getFullYear().toString().slice(-2)
   const month = (now.getMonth() + 1).toString().padStart(2, '0')
   const currentPrefix = `INV-${year}${month}`
   
-  if (!lastNumber || !lastNumber.startsWith(currentPrefix)) {
+  if (!lastNumber?.startsWith(currentPrefix)) {
     // Если нет последнего номера или он из другого месяца, начинаем с 001
     return `${currentPrefix}-001`
   }

@@ -4,7 +4,7 @@
 
 import React, { useState } from 'react'
 import { Button, Form, Input, Modal, Space, Typography } from 'antd'
-import { DeleteOutlined, EditOutlined, PlusOutlined, TagOutlined } from '@ant-design/icons'
+import { DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons'
 import { DataTable } from '@/components/table'
 import type { DataTableColumn } from '@/components/table'
 import { DateCell } from '@/components/table/TableCells'
@@ -137,7 +137,7 @@ export const ContractorTypesTab: React.FC<ContractorTypesTabProps> = ({
 
   // Filter contractor types based on search
   const filteredTypes = contractorTypes.filter(type => {
-    if (!typeFilters.search) return true
+    if (!typeFilters.search) {return true}
     const search = typeFilters.search.toLowerCase()
     return (
       type.code?.toLowerCase().includes(search) ||

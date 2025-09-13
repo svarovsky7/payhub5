@@ -4,7 +4,6 @@
 
 import { useEffect, useRef } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { message } from 'antd'
 
 import { subscribeToTable } from '../supabase'
 import { queryKeys } from './queryKeys'

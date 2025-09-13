@@ -6,7 +6,6 @@
 import React, { useEffect, useState } from 'react'
 import {
   Button,
-  Card,
   Divider,
   Input,
   message,
@@ -18,8 +17,7 @@ import {
 import { 
   DesktopOutlined,
   FontSizeOutlined,
-  GoogleOutlined,
-  ReloadOutlined
+  GoogleOutlined
 } from '@ant-design/icons'
 import { GOOGLE_FONTS, SYSTEM_FONTS } from '@/models/theme'
 

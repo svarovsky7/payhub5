@@ -191,7 +191,7 @@ export const useDashboardStats = () => {
 /**
  * Get recent activity for dashboard
  */
-export const useDashboardActivity = () => {
+const useDashboardActivity = () => {
   return useQuery({
     queryKey: queryKeys.dashboard.activity(),
     queryFn: async () => {

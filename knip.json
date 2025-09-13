@@ -1,0 +1,61 @@
+{
+  "$schema": "https://unpkg.com/knip@latest/schema.json",
+  "entry": [
+    "src/main.tsx",
+    "src/App.tsx",
+    "src/app/router.tsx"
+  ],
+  "project": [
+    "src/**/*.{ts,tsx}",
+    "!src/**/*.test.{ts,tsx}",
+    "!src/**/*.spec.{ts,tsx}"
+  ],
+  "ignore": [
+    "dist/**",
+    "build/**",
+    "node_modules/**",
+    "coverage/**",
+    "supabase/**",
+    "**/*.d.ts",
+    "vite.config.ts",
+    "eslint.config.js",
+    "src/utils/test-*.ts",
+    "src/services/dashboard/**",
+    "src/services/**/optimized-*.ts"
+  ],
+  "ignoreDependencies": [
+    "@types/*",
+    "eslint*",
+    "prettier*",
+    "vite*",
+    "@vitejs/*",
+    "typescript*",
+    "@tanstack/react-query-devtools"
+  ],
+  "ignoreExportsUsedInFile": true,
+  "typescript": {
+    "config": ["tsconfig.json", "tsconfig.app.json", "tsconfig.node.json"]
+  },
+  "vite": {
+    "config": ["vite.config.ts"]
+  },
+  "eslint": {
+    "config": ["eslint.config.js"]
+  },
+  "rules": {
+    "files": "error",
+    "dependencies": "warn",
+    "devDependencies": "warn",
+    "unlisted": "error",
+    "binaries": "error",
+    "unresolved": "error",
+    "exports": "warn",
+    "types": "warn",
+    "nsExports": "warn",
+    "nsTypes": "warn",
+    "duplicates": "warn"
+  },
+  "exclude": [
+    "enumMembers"
+  ]
+}

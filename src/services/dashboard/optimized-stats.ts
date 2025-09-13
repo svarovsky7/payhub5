@@ -5,7 +5,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '../supabase'
 import { queryKeys } from '../hooks/queryKeys'
-import { getStatusMappings, countByStatus, sumByStatus } from './helpers'
+import { countByStatus, getStatusMappings, sumByStatus } from './helpers'
 import { INVOICE_STATUS, PAYMENT_STATUS, PROJECT_STATUS } from '../../constants/statuses'
 
 interface DashboardStats {

@@ -35,7 +35,7 @@ export interface InvoiceFormValues {
   payments?: PaymentRow[]
 }
 
-export interface FileUploadState {
+interface FileUploadState {
   fileList: UploadFile[]
   previewOpen: boolean
   previewImage: string
@@ -43,7 +43,7 @@ export interface FileUploadState {
   totalFileSize: number
 }
 
-export interface InvoiceCreateProps {
+interface InvoiceCreateProps {
   userId?: string
   companyId?: string
 }

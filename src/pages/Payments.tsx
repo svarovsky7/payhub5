@@ -1,10 +1,8 @@
-import React, {useEffect, useMemo, useState} from 'react'
+import React, { useMemo, useState} from 'react'
 import {useNavigate} from 'react-router-dom'
 import {
     Button,
-    Card,
     Checkbox,
-    Col,
     List,
     message,
     Modal,
@@ -19,18 +17,15 @@ import {
     CheckCircleOutlined,
     CloseCircleOutlined,
     DeleteOutlined,
-    ExclamationCircleOutlined,
     EyeOutlined,
     FileTextOutlined,
-    PlusOutlined,
-    SendOutlined,
-    SyncOutlined
+    SendOutlined
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import {useCancelPayment, useConfirmPayment, useDeletePayment, usePaymentsList} from '../services/hooks/usePayments'
 import {DataTable} from '../components/table'
 import type {BulkAction, DataTableColumn, FilterField} from '../components/table'
-import {DateCell, LinkCell, MoneyCell, StatusCell, TextCell, UserCell} from '../components/table/TableCells'
+import {DateCell, MoneyCell, StatusCell, TextCell, UserCell} from '../components/table/TableCells'
 import {PaymentWorkflowService} from '../services/admin/payment-workflow'
 import {useAuthStore} from '../models/auth'
 import {PaymentType, PaymentTypeColors, PaymentTypeLabels} from '../types/payment'

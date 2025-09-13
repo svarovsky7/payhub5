@@ -81,16 +81,16 @@ function pickFromWord(word: string, want: number = 2, skipFirst: number = 1): st
   // сначала собираем согласные
   for (let i = skipFirst; i < arr.length && picked.length < want; i++) {
     const ch = arr[i]
-    if (isConsonant(ch)) picked.push(ch)
+    if (isConsonant(ch)) {picked.push(ch)}
   }
   // если не хватило — добираем любыми буквами A-Z
   for (let i = skipFirst; i < arr.length && picked.length < want; i++) {
     const ch = arr[i]
-    if (/^[A-Z]$/.test(ch) && !picked.includes(ch)) picked.push(ch)
+    if (/^[A-Z]$/.test(ch) && !picked.includes(ch)) {picked.push(ch)}
   }
 
   // если всё ещё < want — добиваем X
-  while (picked.length < want) picked.push("X")
+  while (picked.length < want) {picked.push("X")}
   return picked.join("")
 }
 
@@ -101,9 +101,9 @@ function pickFromWord(word: string, want: number = 2, skipFirst: number = 1): st
  * - ≥4 токенов: просто первые буквы первых трёх значимых токенов
  * Всегда возвращает ровно 3 латинские буквы A–Z.
  */
-export function generateSupplierCode(companyName: string): string {
+function generateSupplierCode(companyName: string): string {
   const lat = translitRuToLat(companyName)
-  if (!lat) return "XXX"
+  if (!lat) {return "XXX"}
 
   // токены по пробелам
   let tokens = lat.split(" ").filter(Boolean)
@@ -114,7 +114,7 @@ export function generateSupplierCode(companyName: string): string {
   // удаляем токены, которые не начинаются с буквы A-Z
   tokens = tokens.filter(t => /^[A-Z]/.test(t))
 
-  if (tokens.length === 0) return "XXX"
+  if (tokens.length === 0) {return "XXX"}
 
   let code = ""
 

@@ -5,8 +5,7 @@
 import { 
   type ApiResponse, 
   handleSupabaseError, 
-  type Invoice,
-  type InvoiceUpdate, 
+  type Invoice, 
   supabase, 
   type WorkflowStage
 } from '../supabase'

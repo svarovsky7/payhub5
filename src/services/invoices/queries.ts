@@ -6,7 +6,6 @@ import {
   exportToExcel, 
   type FilterParams, 
   handleSupabaseError, 
-  type Invoice, 
   type PaginatedResponse, 
   type PaginationParams,
   supabase

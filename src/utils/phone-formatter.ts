@@ -42,7 +42,7 @@ export const formatPhoneNumber = (value: string): string => {
 /**
  * Проверяет, является ли строка валидным телефонным номером
  */
-export const isValidPhoneNumber = (value: string): boolean => {
+const isValidPhoneNumber = (value: string): boolean => {
   const numbers = value.replace(/\D/g, '')
   return numbers.length === 11 && (numbers.startsWith('7') || numbers.startsWith('8'))
 }
@@ -50,7 +50,7 @@ export const isValidPhoneNumber = (value: string): boolean => {
 /**
  * Очищает телефонный номер от форматирования
  */
-export const cleanPhoneNumber = (value: string): string => {
+const cleanPhoneNumber = (value: string): string => {
   const numbers = value.replace(/\D/g, '')
   // Если номер начинается с 8, заменяем на 7
   const cleanNumbers = numbers.startsWith('8') ? '7' + numbers.slice(1) : numbers

@@ -44,7 +44,7 @@ export interface UserProfile {
 }
 
 // Утилиты для работы с файлами
-export const uploadFile = async (
+const uploadFile = async (
   bucket: string,
   path: string,
   file: File | Blob
@@ -60,7 +60,7 @@ export const uploadFile = async (
   return data
 }
 
-export const getFileUrl = (bucket: string, path: string) => {
+const getFileUrl = (bucket: string, path: string) => {
   const { data } = supabase.storage
     .from(bucket)
     .getPublicUrl(path)
@@ -68,7 +68,7 @@ export const getFileUrl = (bucket: string, path: string) => {
   return data.publicUrl
 }
 
-export const deleteFile = async (bucket: string, path: string) => {
+const deleteFile = async (bucket: string, path: string) => {
   const { data, error } = await supabase.storage
     .from(bucket)
     .remove([path])
@@ -78,7 +78,7 @@ export const deleteFile = async (bucket: string, path: string) => {
 }
 
 // Утилиты для работе с RLS политиками
-export const setRLSContext = async (companyId: string) => {
+const setRLSContext = async (companyId: string) => {
   const { error } = await supabase.rpc('set_current_company', {
     company_id: companyId,
   })
@@ -106,8 +106,8 @@ export type ProjectInsert = Database['public']['Tables']['projects']['Insert']
 export type ProjectUpdate = Database['public']['Tables']['projects']['Update']
 
 export type WorkflowStage = Database['public']['Tables']['workflow_stages']['Row']
-export type WorkflowStageInsert = Database['public']['Tables']['workflow_stages']['Insert']
-export type WorkflowStageUpdate = Database['public']['Tables']['workflow_stages']['Update']
+type WorkflowStageInsert = Database['public']['Tables']['workflow_stages']['Insert']
+type WorkflowStageUpdate = Database['public']['Tables']['workflow_stages']['Update']
 
 export type User = Database['public']['Tables']['users']['Row']
 export type UserInsert = Database['public']['Tables']['users']['Insert']
@@ -192,7 +192,7 @@ export const handleSupabaseError = (error: unknown, defaultMessage?: string): Ap
 }
 
 // Утилиты для работы с реальным временем
-export const subscribeToTable = <T = any>(
+const subscribeToTable = <T = any>(
   tableName: string,
   callback: (payload: {
     eventType: 'INSERT' | 'UPDATE' | 'DELETE'
@@ -282,7 +282,7 @@ export const formatDate = (date: string | Date): string => {
   }).format(dateObj)
 }
 
-export const formatDateShort = (date: string | Date): string => {
+const formatDateShort = (date: string | Date): string => {
   const dateObj = typeof date === 'string' ? new Date(date) : date
   return new Intl.DateTimeFormat('ru-RU', {
     year: 'numeric',

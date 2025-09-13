@@ -5,12 +5,10 @@
 import { Space, Tag, Typography } from 'antd'
 import {
   CheckCircleOutlined,
-  DeleteOutlined,
-  EditOutlined,
   MoreOutlined,
   StopOutlined
 } from '@ant-design/icons'
-import type { DataTableColumn, FilterField, BulkAction } from '@/components/table'
+import type { BulkAction, DataTableColumn, FilterField } from '@/components/table'
 import { DateCell, StatusCell, TextCell } from '@/components/table/TableCells'
 import type { Contractor, ContractorType } from './types'
 

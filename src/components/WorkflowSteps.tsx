@@ -166,7 +166,7 @@ interface WorkflowProgressProps {
   showPercentage?: boolean
 }
 
-export const WorkflowProgress: React.FC<WorkflowProgressProps> = ({
+const WorkflowProgress: React.FC<WorkflowProgressProps> = ({
   totalSteps,
   completedSteps,
   rejectedSteps = 0,

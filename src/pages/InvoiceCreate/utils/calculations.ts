@@ -85,7 +85,7 @@ export const calculateDeliveryDate = (days: number, daysType: 'calendar' | 'work
  * Format file size for display
  */
 export const formatFileSize = (bytes: number): string => {
-  if (bytes === 0) return '0 B'
+  if (bytes === 0) {return '0 B'}
 
   const k = 1024
   const sizes = ['B', 'KB', 'MB', 'GB']

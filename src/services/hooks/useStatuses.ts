@@ -2,7 +2,7 @@
  * React Query хуки для работы со статусами
  */
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { StatusQueryService } from '../statuses/queries'
 import type { Status } from '../statuses/crud'
 import { QUERY_KEYS } from './queryKeys'
@@ -10,7 +10,7 @@ import { QUERY_KEYS } from './queryKeys'
 /**
  * Хук для получения всех статусов
  */
-export const useStatuses = () => {
+const useStatuses = () => {
   return useQuery({
     queryKey: [QUERY_KEYS.STATUSES],
     queryFn: () => StatusQueryService.getAll(),
@@ -54,7 +54,7 @@ export const useProjectStatuses = () => {
 /**
  * Хук для получения статуса по коду
  */
-export const useStatusByCode = (entityType: 'invoice' | 'payment' | 'project', code: string) => {
+const useStatusByCode = (entityType: 'invoice' | 'payment' | 'project', code: string) => {
   return useQuery({
     queryKey: [QUERY_KEYS.STATUSES, entityType, code],
     queryFn: () => StatusQueryService.getByCode(entityType, code),
@@ -66,7 +66,7 @@ export const useStatusByCode = (entityType: 'invoice' | 'payment' | 'project', c
 /**
  * Хук для получения статуса по ID
  */
-export const useStatusById = (id: number | undefined) => {
+const useStatusById = (id: number | undefined) => {
   return useQuery({
     queryKey: [QUERY_KEYS.STATUSES, 'byId', id],
     queryFn: () => StatusQueryService.getById(id!),
@@ -78,7 +78,7 @@ export const useStatusById = (id: number | undefined) => {
 /**
  * Хук для получения начального статуса
  */
-export const useInitialStatus = (entityType: 'invoice' | 'payment' | 'project') => {
+const useInitialStatus = (entityType: 'invoice' | 'payment' | 'project') => {
   return useQuery({
     queryKey: [QUERY_KEYS.STATUSES, entityType, 'initial'],
     queryFn: () => StatusQueryService.getInitialStatus(entityType),
@@ -89,7 +89,7 @@ export const useInitialStatus = (entityType: 'invoice' | 'payment' | 'project') 
 /**
  * Хук для получения финальных статусов
  */
-export const useFinalStatuses = (entityType: 'invoice' | 'payment' | 'project') => {
+const useFinalStatuses = (entityType: 'invoice' | 'payment' | 'project') => {
   return useQuery({
     queryKey: [QUERY_KEYS.STATUSES, entityType, 'final'],
     queryFn: () => StatusQueryService.getFinalStatuses(entityType),
@@ -162,12 +162,12 @@ export const useDeleteStatus = () => {
 /**
  * Утилиты для работы со статусами
  */
-export const statusUtils = {
+const statusUtils = {
   /**
    * Получить цвет статуса для отображения
    */
   getStatusColor: (status: Status | undefined): string => {
-    if (!status) return 'default'
+    if (!status) {return 'default'}
     return status.color || 'default'
   },
 
@@ -175,7 +175,7 @@ export const statusUtils = {
    * Проверить, является ли статус финальным
    */
   isFinalStatus: (status: Status | undefined): boolean => {
-    if (!status) return false
+    if (!status) {return false}
     return status.is_final || false
   },
 
@@ -183,7 +183,7 @@ export const statusUtils = {
    * Получить описание статуса
    */
   getStatusDescription: (status: Status | undefined): string => {
-    if (!status) return ''
+    if (!status) {return ''}
     return status.description || ''
   },
 
@@ -191,7 +191,7 @@ export const statusUtils = {
    * Получить название статуса
    */
   getStatusName: (status: Status | undefined): string => {
-    if (!status) return ''
+    if (!status) {return ''}
     return status.name || status.code || ''
   },
 
@@ -199,7 +199,7 @@ export const statusUtils = {
    * Проверить, можно ли изменить статус
    */
   canChangeStatus: (currentStatus: Status | undefined): boolean => {
-    if (!currentStatus) return true
+    if (!currentStatus) {return true}
     return !currentStatus.is_final
   },
 }

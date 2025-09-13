@@ -19,7 +19,6 @@ import {
     Typography
 } from 'antd'
 import {
-    CalendarOutlined,
     CheckOutlined,
     ClockCircleOutlined,
     DollarOutlined,

@@ -4,16 +4,16 @@
 
 import { ACTION_TYPE_LABELS, PRIORITY_LABELS } from '../constants'
 
-export const getActionTypeLabel = (actionType: string): string => {
+const getActionTypeLabel = (actionType: string): string => {
   return ACTION_TYPE_LABELS[actionType] ?? actionType
 }
 
 export const getPriorityLabel = (priority: string | undefined): string => {
-  if (!priority) return 'Средний'
+  if (!priority) {return 'Средний'}
   return PRIORITY_LABELS[priority] ?? priority
 }
 
-export const formatPaymentNumber = (text: string | undefined, record: any): string => {
+const formatPaymentNumber = (text: string | undefined, record: any): string => {
   const displayNumber = text ?? (record.reference || `PAY-${record.id}`)
 
   // Если номер содержит /PAY-, выделяем первую часть жирным
@@ -25,7 +25,7 @@ export const formatPaymentNumber = (text: string | undefined, record: any): stri
   return displayNumber
 }
 
-export const getFileIcon = (fileName: string) => {
+const getFileIcon = (fileName: string) => {
   const ext = fileName.split('.').pop()?.toLowerCase()
   const iconMap: Record<string, any> = {
     'pdf': 'FilePdfOutlined',

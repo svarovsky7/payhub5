@@ -24,8 +24,7 @@ import {
     PlayCircleOutlined,
     PlusOutlined,
     ProjectOutlined,
-    SettingOutlined,
-    TeamOutlined
+    SettingOutlined
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import {useDeleteProject, useProjectsList, useUpdateProject} from '../../services/hooks/useProjects'

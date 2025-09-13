@@ -14,8 +14,8 @@ import {
     Typography
 } from 'antd'
 import {
-    InfoCircleOutlined,
-    DollarOutlined
+    DollarOutlined,
+    InfoCircleOutlined
 } from '@ant-design/icons'
 import {PaymentType, PaymentTypeColors, PaymentTypeLabels} from '../../types/payment'
 

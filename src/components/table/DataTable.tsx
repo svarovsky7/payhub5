@@ -4,25 +4,20 @@ import {
   Card,
   Dropdown,
   Empty,
-  Menu,
   message,
   Skeleton,
   Space,
-  Tooltip,
   Typography
 } from 'antd'
-import { 
-  DownloadOutlined,
+import {
   ExportOutlined,
   EyeInvisibleOutlined,
   EyeOutlined,
-  FilterOutlined,
   ReloadOutlined,
   SettingOutlined
 } from '@ant-design/icons'
 import { ProTable } from '@ant-design/pro-components'
 import type { ActionType, ProColumns, ProTableProps } from '@ant-design/pro-components'
-import { ExportButton } from '../ExportButton'
 import { FilterPanel } from '../FilterPanel'
 
 const { Text } = Typography

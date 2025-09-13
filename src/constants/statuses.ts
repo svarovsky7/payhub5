@@ -32,6 +32,6 @@ export const PROJECT_STATUS = {
 } as const
 
 // Type helpers
-export type InvoiceStatusCode = typeof INVOICE_STATUS[keyof typeof INVOICE_STATUS]
-export type PaymentStatusCode = typeof PAYMENT_STATUS[keyof typeof PAYMENT_STATUS]
-export type ProjectStatusCode = typeof PROJECT_STATUS[keyof typeof PROJECT_STATUS]
+type InvoiceStatusCode = typeof INVOICE_STATUS[keyof typeof INVOICE_STATUS]
+type PaymentStatusCode = typeof PAYMENT_STATUS[keyof typeof PAYMENT_STATUS]
+type ProjectStatusCode = typeof PROJECT_STATUS[keyof typeof PROJECT_STATUS]

@@ -1,10 +1,9 @@
-import React, {createContext, useContext, useEffect, useState} from 'react'
+import React, { useContext, useEffect} from 'react'
 import {create} from 'zustand'
 import {devtools, persist} from 'zustand/middleware'
 import {immer} from 'zustand/middleware/immer'
 import {supabase} from '../services/supabase'
 import type {AuthUser, UserProfile} from '../services/supabase'
-import type {User} from '@supabase/supabase-js'
 
 // Интерфейс состояния авторизации
 interface AuthState {
@@ -642,6 +641,6 @@ export const useAuth = () => {
 }
 
 // Хук для контроля доступа
-export const useAccessControl = () => {
+const useAccessControl = () => {
     return useContext(AccessControlContext)
 }

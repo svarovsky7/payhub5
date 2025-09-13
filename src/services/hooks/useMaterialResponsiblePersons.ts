@@ -3,9 +3,8 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { 
+import {
   MaterialResponsiblePersonCrudService,
-  type MaterialResponsiblePerson,
   type MaterialResponsiblePersonInsert,
   type MaterialResponsiblePersonUpdate
 } from '../materialResponsiblePersons/crud'
@@ -38,11 +37,11 @@ export function useMaterialResponsiblePersonsList(filters?: {
 /**
  * Hook для получения МОЛ по ID
  */
-export function useMaterialResponsiblePerson(id: number | undefined) {
+function useMaterialResponsiblePerson(id: number | undefined) {
   return useQuery({
     queryKey: queryKeys.materialResponsiblePersons.detail(id!),
     queryFn: async () => {
-      if (!id) throw new Error('ID не указан')
+      if (!id) {throw new Error('ID не указан')}
       
       console.log('[useMaterialResponsiblePerson] Загрузка МОЛ:', id)
       const result = await MaterialResponsiblePersonCrudService.getById(id)

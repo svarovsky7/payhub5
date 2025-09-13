@@ -4,10 +4,7 @@
 
 import { 
   type ApiResponse, 
-  formatCurrency, 
-  formatDate, 
   handleSupabaseError,
-  type Invoice,
   type Payment, 
   type PaymentInsert,
   type PaymentUpdate,
@@ -27,7 +24,7 @@ export interface PaymentInsertWithType extends PaymentInsert {
   payment_type: PaymentType
 }
 
-export interface PaymentUpdateWithType extends PaymentUpdate {
+interface PaymentUpdateWithType extends PaymentUpdate {
   payment_type?: PaymentType
 }
 

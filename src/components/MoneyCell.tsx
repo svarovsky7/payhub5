@@ -62,7 +62,7 @@ interface MoneyWithVATProps {
   showLabels?: boolean
 }
 
-export const MoneyWithVAT: React.FC<MoneyWithVATProps> = ({
+const MoneyWithVAT: React.FC<MoneyWithVATProps> = ({
   netAmount,
   vatRate,
   currency = 'RUB',

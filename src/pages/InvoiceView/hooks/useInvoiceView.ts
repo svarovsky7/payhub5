@@ -2,7 +2,7 @@
  * Main business logic hook for InvoiceView
  */
 
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { message } from 'antd'
 import {
@@ -51,7 +51,7 @@ export const useInvoiceView = () => {
   const {
     data: documents,
     isLoading: documentsLoading
-  } = useInvoiceDocuments(id!)
+  } = useInvoiceDocuments(id)
 
   // Обработка изменения табов
   const handleTabChange = (key: string) => {
@@ -98,13 +98,13 @@ export const useInvoiceView = () => {
 
   // Расчеты по счету
   const calculateInvoiceAmounts = () => {
-    if (!invoice) return {
+    if (!invoice) {return {
       totalAmount: 0,
       taxRate: DEFAULT_VAT_RATE,
       taxAmount: 0,
       subtotal: 0,
       balance: 0
-    }
+    }}
 
     const totalAmount = invoice.total_amount ?? (invoice.amount || 0)
     const taxRate = invoice.tax_rate || DEFAULT_VAT_RATE

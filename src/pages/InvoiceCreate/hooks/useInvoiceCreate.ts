@@ -2,7 +2,7 @@
  * Main business logic hook for InvoiceCreate
  */
 
-import { useState, useEffect, useCallback } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Form, message } from 'antd'
 import dayjs from 'dayjs'
@@ -12,9 +12,9 @@ import { useContractorsList } from '@/services/hooks/useContractors'
 import { useProjectsList } from '@/services/hooks/useProjects'
 import { useInvoiceTypesList } from '@/services/hooks/useInvoiceTypes'
 import { useMaterialResponsiblePersonsList } from '@/services/hooks/useMaterialResponsiblePersons'
-import { generateInternalNumber, getCurrentYearMonth } from '@/utils/invoice-number-generator'
+import { getCurrentYearMonth } from '@/utils/invoice-number-generator'
 import { getNextSequenceNumber } from '@/services/invoices/sequence'
-import { calculateVATAmounts, calculateDeliveryDate } from '../utils/calculations'
+import { calculateDeliveryDate, calculateVATAmounts } from '../utils/calculations'
 import type { InvoiceFormValues, PaymentRow } from '../types'
 import { DEFAULT_CURRENCY, DEFAULT_VAT_RATE } from '../constants'
 

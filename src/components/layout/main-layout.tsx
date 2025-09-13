@@ -1,16 +1,13 @@
 import React, { useState } from 'react'
 import { MenuDataItem, ProLayout } from '@ant-design/pro-layout'
 import {
-  BarChartOutlined,
   BellOutlined,
   CheckCircleOutlined,
   CreditCardOutlined,
   DashboardOutlined,
   LogoutOutlined,
-  ProjectOutlined,
   SettingOutlined,
   ShoppingCartOutlined,
-  TeamOutlined,
 } from '@ant-design/icons'
 import { Avatar, Badge, Button, Dropdown, Space, theme } from 'antd'
 import { useLocation, useNavigate } from 'react-router-dom'

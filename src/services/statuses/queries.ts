@@ -2,7 +2,7 @@
  * Query layer для работы со статусами
  */
 
-import { StatusCRUD, type Status } from './crud'
+import { type Status, StatusCRUD } from './crud'
 import { handleSupabaseError } from '../supabase'
 
 export class StatusQueryService {
@@ -14,7 +14,7 @@ export class StatusQueryService {
       console.log('[StatusQueryService.getAll] Загрузка всех статусов')
       const { data, error } = await StatusCRUD.getAll()
 
-      if (error) throw error
+      if (error) {throw error}
 
       console.log('[StatusQueryService.getAll] Загружено статусов:', data?.length || 0)
       return data || []
@@ -32,7 +32,7 @@ export class StatusQueryService {
       console.log('[StatusQueryService.getInvoiceStatuses] Загрузка статусов счетов')
       const { data, error } = await StatusCRUD.getByEntityType('invoice')
 
-      if (error) throw error
+      if (error) {throw error}
 
       console.log('[StatusQueryService.getInvoiceStatuses] Загружено статусов:', data?.length || 0)
       return data || []
@@ -50,7 +50,7 @@ export class StatusQueryService {
       console.log('[StatusQueryService.getPaymentStatuses] Загрузка статусов платежей')
       const { data, error } = await StatusCRUD.getByEntityType('payment')
 
-      if (error) throw error
+      if (error) {throw error}
 
       console.log('[StatusQueryService.getPaymentStatuses] Загружено статусов:', data?.length || 0)
       return data || []
@@ -68,7 +68,7 @@ export class StatusQueryService {
       console.log('[StatusQueryService.getProjectStatuses] Загрузка статусов проектов')
       const { data, error } = await StatusCRUD.getByEntityType('project')
 
-      if (error) throw error
+      if (error) {throw error}
 
       console.log('[StatusQueryService.getProjectStatuses] Загружено статусов:', data?.length || 0)
       return data || []
@@ -86,7 +86,7 @@ export class StatusQueryService {
       console.log('[StatusQueryService.getByCode] Загрузка статуса:', { entityType, code })
       const { data, error } = await StatusCRUD.getByCode(entityType, code)
 
-      if (error && error.code !== 'PGRST116') throw error
+      if (error && error.code !== 'PGRST116') {throw error}
 
       console.log('[StatusQueryService.getByCode] Статус загружен:', data?.name)
       return data || null
@@ -104,7 +104,7 @@ export class StatusQueryService {
       console.log('[StatusQueryService.getById] Загрузка статуса по ID:', id)
       const { data, error } = await StatusCRUD.getById(id)
 
-      if (error && error.code !== 'PGRST116') throw error
+      if (error && error.code !== 'PGRST116') {throw error}
 
       console.log('[StatusQueryService.getById] Статус загружен:', data?.name)
       return data || null
@@ -122,7 +122,7 @@ export class StatusQueryService {
       console.log('[StatusQueryService.getInitialStatus] Загрузка начального статуса для:', entityType)
       const { data, error } = await StatusCRUD.getInitialStatus(entityType)
 
-      if (error && error.code !== 'PGRST116') throw error
+      if (error && error.code !== 'PGRST116') {throw error}
 
       console.log('[StatusQueryService.getInitialStatus] Начальный статус:', data?.code)
       return data || null
@@ -140,7 +140,7 @@ export class StatusQueryService {
       console.log('[StatusQueryService.getFinalStatuses] Загрузка финальных статусов для:', entityType)
       const { data, error } = await StatusCRUD.getFinalStatuses(entityType)
 
-      if (error) throw error
+      if (error) {throw error}
 
       console.log('[StatusQueryService.getFinalStatuses] Загружено финальных статусов:', data?.length || 0)
       return data || []
@@ -158,8 +158,8 @@ export class StatusQueryService {
       console.log('[StatusQueryService.create] Создание статуса:', data)
       const { data: status, error } = await StatusCRUD.create(data)
 
-      if (error) throw error
-      if (!status) throw new Error('Статус не создан')
+      if (error) {throw error}
+      if (!status) {throw new Error('Статус не создан')}
 
       console.log('[StatusQueryService.create] Статус создан:', status.id)
       return status
@@ -177,8 +177,8 @@ export class StatusQueryService {
       console.log('[StatusQueryService.update] Обновление статуса:', { id, data })
       const { data: status, error } = await StatusCRUD.update(id, data)
 
-      if (error) throw error
-      if (!status) throw new Error('Статус не обновлен')
+      if (error) {throw error}
+      if (!status) {throw new Error('Статус не обновлен')}
 
       console.log('[StatusQueryService.update] Статус обновлен:', status.id)
       return status
@@ -196,8 +196,8 @@ export class StatusQueryService {
       console.log('[StatusQueryService.delete] Удаление статуса:', id)
       const { data: status, error } = await StatusCRUD.delete(id)
 
-      if (error) throw error
-      if (!status) throw new Error('Статус не удален')
+      if (error) {throw error}
+      if (!status) {throw new Error('Статус не удален')}
 
       console.log('[StatusQueryService.delete] Статус удален:', status.id)
       return status

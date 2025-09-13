@@ -24,7 +24,7 @@ export const useContractorsList = (
 };
 
 // Получить контрагента по ID
-export const useContractor = (id: string) => {
+const useContractor = (id: string) => {
   return useQuery({
     queryKey: queryKeys.contractors.detail(id),
     queryFn: () => ContractorCrudService.getById(id),
@@ -37,7 +37,7 @@ export const useContractor = (id: string) => {
 };
 
 // Получить контрагента со статистикой
-export const useContractorWithStats = (id: string) => {
+const useContractorWithStats = (id: string) => {
   return useQuery({
     queryKey: queryKeys.contractors.detailWithStats(id),
     queryFn: () => ContractorCrudService.getByIdWithStats(id),
@@ -139,7 +139,7 @@ export const useActivateContractor = () => {
 };
 
 // Поиск контрагентов
-export const useSearchContractors = (query: string, limit = 10) => {
+const useSearchContractors = (query: string, limit = 10) => {
   return useQuery({
     queryKey: queryKeys.contractors.search(query),
     queryFn: () => ContractorQueryService.search(query, '', limit),
@@ -152,7 +152,7 @@ export const useSearchContractors = (query: string, limit = 10) => {
 };
 
 // Статистика контрагентов
-export const useContractorsStats = (filters?: ContractorFilters) => {
+const useContractorsStats = (filters?: ContractorFilters) => {
   return useQuery({
     queryKey: queryKeys.contractors.stats(filters),
     queryFn: () => ContractorQueryService.getStats(filters),
@@ -164,7 +164,7 @@ export const useContractorsStats = (filters?: ContractorFilters) => {
 };
 
 // Проверка доступности контрагента
-export const useCheckContractorAvailability = (contractorId: string) => {
+const useCheckContractorAvailability = (contractorId: string) => {
   return useQuery({
     queryKey: queryKeys.contractors.availability(contractorId),
     queryFn: () => ContractorCrudService.checkAvailability(contractorId),

@@ -3,7 +3,7 @@
  */
 
 import React from 'react'
-import { Tag, Skeleton } from 'antd'
+import { Skeleton, Tag } from 'antd'
 import type { TagProps } from 'antd'
 import { useInvoiceStatuses, usePaymentStatuses, useProjectStatuses } from '../services/hooks/useStatuses'
 

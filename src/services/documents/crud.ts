@@ -25,7 +25,7 @@ export interface InvoiceDocument {
     attachment?: Attachment
 }
 
-export interface PaymentDocument {
+interface PaymentDocument {
     id: number
     payment_id: number
     attachment_id: number

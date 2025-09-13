@@ -30,8 +30,7 @@ import {type InvoiceWithRelations} from '../../services/invoices/crud'
 import {type InvoiceFilters} from '../../services/invoices/queries'
 import {DataTable} from '../../components/table'
 import type {BulkAction, DataTableColumn, FilterField} from '../../components/table'
-import {DateCell, LinkCell, MoneyCell, StatusCell, UserCell} from '../../components/table/TableCells'
-import {formatDate} from '../../utils/format'
+import {DateCell, LinkCell, MoneyCell, StatusCell} from '../../components/table/TableCells'
 
 
 interface InvoicesPageProps {

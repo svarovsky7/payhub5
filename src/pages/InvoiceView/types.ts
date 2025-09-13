@@ -19,7 +19,7 @@ export interface PaymentModalFormValues {
   comment?: string
 }
 
-export interface WorkflowModalState {
+interface WorkflowModalState {
   visible: boolean
   payment: any | null
   workflows: any[]
@@ -28,18 +28,18 @@ export interface WorkflowModalState {
   submitting: boolean
 }
 
-export interface FileModalState {
+interface FileModalState {
   visible: boolean
   payment: any | null
   files: File[]
 }
 
-export interface PreviewFile {
+interface PreviewFile {
   url: string
   name: string
 }
 
-export interface TabConfig {
+interface TabConfig {
   key: string
   label: string
   children: React.ReactNode

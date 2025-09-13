@@ -35,7 +35,7 @@ import { useInvoiceCreate } from './hooks/useInvoiceCreate'
 import { useFileUpload } from './hooks/useFileUpload'
 import type { InvoiceFormValues } from './types'
 import { ACCEPTED_FILE_TYPES, CURRENCY_OPTIONS, PRIORITY_OPTIONS, VAT_RATE_OPTIONS } from './constants'
-import { formatFileSize, calculateVATAmounts } from './utils/calculations'
+import { calculateVATAmounts, formatFileSize } from './utils/calculations'
 import { PaymentsTab } from './components/PaymentsTab'
 import type { Payment } from './components/PaymentsTab'
 import './InvoiceCreate.css'
@@ -363,12 +363,12 @@ const InvoiceCreate: React.FC = () => {
                     <InputNumber
                       style={{ width: '100%' }}
                       formatter={value => {
-                        if (!value) return ''
+                        if (!value) {return ''}
                         const formatted = String(value).replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
                         return `${selectedCurrency} ${formatted}`
                       }}
                       parser={value => {
-                        if (!value) return ''
+                        if (!value) {return ''}
                         // Replace comma with dot and remove all non-digit characters except dot
                         const normalized = value.replace(',', '.').replace(/[^\d.]/g, '')
                         // Ensure only one dot and max 2 decimal places

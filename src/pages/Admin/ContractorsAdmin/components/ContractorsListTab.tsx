@@ -9,9 +9,9 @@ import { DataTable } from '@/components/table'
 import { generateFullSupplierCode } from '@/utils/supplier-code-generator'
 import type { Contractor, ContractorType } from '../types'
 import {
+  getContractorBulkActions,
   getContractorColumns,
-  getContractorFilterFields,
-  getContractorBulkActions
+  getContractorFilterFields
 } from '../constants'
 
 interface ContractorsListTabProps {

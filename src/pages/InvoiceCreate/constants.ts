@@ -2,8 +2,8 @@
  * Constants for InvoiceCreate
  */
 
-export const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
-export const MAX_TOTAL_SIZE = 50 * 1024 * 1024 // 50MB
+const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
+const MAX_TOTAL_SIZE = 50 * 1024 * 1024 // 50MB
 
 export const DEFAULT_CURRENCY = 'RUB'
 export const DEFAULT_VAT_RATE = 20
@@ -41,7 +41,7 @@ export const ACCEPTED_FILE_TYPES = [
   '.txt'
 ].join(',')
 
-export const FILE_ICONS: Record<string, any> = {
+const FILE_ICONS: Record<string, any> = {
   'pdf': 'FilePdfOutlined',
   'doc': 'FileWordOutlined',
   'docx': 'FileWordOutlined',

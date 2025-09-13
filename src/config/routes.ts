@@ -63,7 +63,7 @@ export function getFlatRoutes(menuData: MenuDataItem[] = routes): MenuDataItem[]
 
 
 // Хлебные крошки
-export function getBreadcrumbNameMap(): Record<string, string> {
+function getBreadcrumbNameMap(): Record<string, string> {
     const breadcrumbNameMap: Record<string, string> = {};
 
     const loop = (menuData: MenuDataItem[], parentPath = '') => {

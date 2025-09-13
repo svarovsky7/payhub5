@@ -22,6 +22,6 @@ export interface Contractor {
   updated_at?: string
 }
 
-export interface ContractorsAdminProps {
+interface ContractorsAdminProps {
   // No props currently defined
 }

@@ -11,7 +11,6 @@ import {
     Col,
     Collapse,
     Divider,
-    Form,
     Input,
     InputNumber,
     message,
@@ -22,11 +21,9 @@ import {
     Slider,
     Space,
     Spin,
-    Switch,
     Tag,
     Tooltip,
-    Typography,
-    Upload
+    Typography
 } from 'antd'
 import {
     AppstoreOutlined,
@@ -41,10 +38,8 @@ import {
     FontSizeOutlined,
     ImportOutlined,
     MoonOutlined,
-    PlusOutlined,
     ReloadOutlined,
     SaveOutlined,
-    SettingOutlined,
     SunOutlined
 } from '@ant-design/icons'
 import {PageContainer} from '@ant-design/pro-layout'

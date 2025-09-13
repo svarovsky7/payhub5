@@ -23,7 +23,6 @@ import {
   SearchOutlined 
 } from '@ant-design/icons'
 import type { Dayjs } from 'dayjs'
-import dayjs from 'dayjs'
 
 const { RangePicker } = DatePicker
 const { Text } = Typography
