@@ -34,7 +34,8 @@ import 'dayjs/locale/ru'
 import { useInvoiceCreate } from './hooks/useInvoiceCreate'
 import { useFileUpload } from './hooks/useFileUpload'
 import type { InvoiceFormValues } from './types'
-import { ACCEPTED_FILE_TYPES, CURRENCY_OPTIONS, PRIORITY_OPTIONS, VAT_RATE_OPTIONS } from './constants'
+import { ACCEPTED_FILE_TYPES, VAT_RATE_OPTIONS } from './constants'
+import { EnumQueryService } from '@/services/enums/queries'
 import { calculateVATAmounts, formatFileSize } from './utils/calculations'
 import { PaymentsTab } from './components/PaymentsTab'
 import type { Payment } from './components/PaymentsTab'
@@ -53,10 +54,14 @@ const InvoiceCreate: React.FC = () => {
     projects,
     invoiceTypes,
     materialResponsiblePersons,
+    currencies,
+    priorities,
     loadingContractors,
     loadingProjects,
     loadingInvoiceTypes,
     loadingMRPs,
+    loadingCurrencies,
+    loadingPriorities,
     deliveryDate,
     selectedCurrency,
     setSelectedCurrency,
@@ -320,7 +325,8 @@ const InvoiceCreate: React.FC = () => {
                   >
                     <Select
                       placeholder="Приоритет"
-                      options={PRIORITY_OPTIONS}
+                      options={priorities}
+                      loading={loadingPriorities}
                     />
                   </Form.Item>
                 </Col>
@@ -343,7 +349,8 @@ const InvoiceCreate: React.FC = () => {
                     style={{ marginBottom: 12 }}
                   >
                     <Select
-                      options={CURRENCY_OPTIONS}
+                      options={currencies}
+                      loading={loadingCurrencies}
                       onChange={(value) => {
                         setSelectedCurrency(value)
                         // Force re-render of amount fields with new currency
@@ -477,7 +484,7 @@ const InvoiceCreate: React.FC = () => {
                     <InputNumber
                       style={{ width: '100%' }}
                       disabled
-                      formatter={value => `${selectedCurrency} ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ' ')}
+                      formatter={value => `${EnumQueryService.getCurrencySymbol(selectedCurrency)} ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ' ')}
                       precision={2}
                     />
                   </Form.Item>
@@ -491,7 +498,7 @@ const InvoiceCreate: React.FC = () => {
                     <InputNumber
                       style={{ width: '100%' }}
                       disabled
-                      formatter={value => `${selectedCurrency} ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ' ')}
+                      formatter={value => `${EnumQueryService.getCurrencySymbol(selectedCurrency)} ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ' ')}
                       precision={2}
                     />
                   </Form.Item>

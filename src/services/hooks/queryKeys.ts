@@ -111,6 +111,14 @@ export const queryKeys = {
     list: () => [...BASE_KEY, 'roles', 'list'] as const,
     detail: (id: number) => [...BASE_KEY, 'roles', 'detail', id] as const,
   },
+
+  // Enums from database
+  enums: {
+    all: [...BASE_KEY, 'enums'] as const,
+    paymentTypes: () => [...BASE_KEY, 'enums', 'paymentTypes'] as const,
+    currencies: () => [...BASE_KEY, 'enums', 'currencies'] as const,
+    priorities: () => [...BASE_KEY, 'enums', 'priorities'] as const,
+  },
 } as const
 
 // Mutation keys for optimistic updates
@@ -180,4 +188,7 @@ export const QUERY_KEYS = {
   ROLES: 'roles',
   INVOICE_TYPES: 'invoiceTypes',
   MATERIAL_RESPONSIBLE_PERSONS: 'materialResponsiblePersons',
+  PAYMENT_TYPES: 'paymentTypes',
+  CURRENCIES: 'currencies',
+  PRIORITIES: 'priorities',
 } as const

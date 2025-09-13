@@ -16,6 +16,18 @@ export const CURRENCY_OPTIONS = [
   { value: 'GBP', label: '£ (GBP)' }
 ]
 
+export const CURRENCY_SYMBOLS: Record<string, string> = {
+  'RUB': '₽',
+  'USD': '$',
+  'EUR': '€',
+  'CNY': '¥',
+  'GBP': '£'
+}
+
+export const getCurrencySymbol = (currency: string): string => {
+  return CURRENCY_SYMBOLS[currency] || currency
+}
+
 export const VAT_RATE_OPTIONS = [
   { value: 0, label: 'Без НДС (0%)' },
   { value: 5, label: '5%' },

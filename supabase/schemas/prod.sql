@@ -1,5 +1,5 @@
 -- Database Schema SQL Export
--- Generated: 2025-09-13T16:44:26.222216
+-- Generated: 2025-09-13T18:50:59.163618
 -- Database: postgres
 -- Host: 31.128.51.210
 
@@ -593,17 +593,6 @@ COMMENT ON COLUMN public.roles.name IS 'Display name of the role';
 COMMENT ON COLUMN public.roles.description IS 'Optional role description';
 COMMENT ON COLUMN public.roles.is_active IS 'Whether the role is active';
 COMMENT ON COLUMN public.roles.view_own_project_only IS 'If true, users with this role can only see projects specified in their project_ids field';
-
--- Table: public.slow_query_log
-CREATE TABLE IF NOT EXISTS public.slow_query_log (
-    id integer(32) NOT NULL DEFAULT nextval('slow_query_log_id_seq'::regclass),
-    query_text text,
-    execution_time_ms numeric,
-    called_from text,
-    parameters jsonb,
-    created_at timestamp without time zone DEFAULT now(),
-    CONSTRAINT slow_query_log_pkey PRIMARY KEY (id)
-);
 
 -- Table: public.statuses
 -- Description: Справочник статусов для счетов и платежей

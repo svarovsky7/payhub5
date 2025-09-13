@@ -28,14 +28,14 @@ import type {BulkAction, DataTableColumn, FilterField} from '../components/table
 import {DateCell, MoneyCell, StatusCell, TextCell, UserCell} from '../components/table/TableCells'
 import {PaymentWorkflowService} from '../services/admin/payment-workflow'
 import {useAuthStore} from '../models/auth'
-import {PaymentType, PaymentTypeColors, PaymentTypeLabels} from '../types/payment'
+import {usePaymentTypes, EnumQueryService} from '../services/hooks/useEnums'
 
 
 interface Payment {
     id: number
     reference?: string // это payment_number в UI
     internal_number?: string // Уникальный внутренний номер платежа
-    payment_type?: PaymentType
+    payment_type?: string
     invoice_id: number
     invoice?: {
         invoice_number: string
@@ -384,13 +384,13 @@ const PaymentsPage: React.FC<PaymentsPageProps> = ({invoiceId}) => {
             priority: 4,
             exportable: true,
             sorter: (a, b) => (a.payment_type || '').localeCompare(b.payment_type || ''),
-            render: (type: PaymentType) => {
+            render: (type: string) => {
                 if (!type) {
                     return <Tag>Не указан</Tag>
                 }
                 return (
-                    <Tag color={PaymentTypeColors[type]}>
-                        {PaymentTypeLabels[type]}
+                    <Tag color={EnumQueryService.getPaymentTypeColor(type)}>
+                        {EnumQueryService.getPaymentTypeLabel(type)}
                     </Tag>
                 )
             },

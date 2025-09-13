@@ -12,6 +12,7 @@ import { useContractorsList } from '@/services/hooks/useContractors'
 import { useProjectsList } from '@/services/hooks/useProjects'
 import { useInvoiceTypesList } from '@/services/hooks/useInvoiceTypes'
 import { useMaterialResponsiblePersonsList } from '@/services/hooks/useMaterialResponsiblePersons'
+import { useCurrencies, usePriorities } from '@/services/hooks/useEnums'
 import { getCurrentYearMonth } from '@/utils/invoice-number-generator'
 import { getNextSequenceNumber } from '@/services/invoices/sequence'
 import { calculateDeliveryDate, calculateVATAmounts } from '../utils/calculations'
@@ -39,6 +40,10 @@ export const useInvoiceCreate = () => {
     isLoading: loadingMRPs,
     error: mrpsError
   } = useMaterialResponsiblePersonsList({ is_active: true })
+
+  // Load enums from database
+  const { data: currencies, isLoading: loadingCurrencies } = useCurrencies()
+  const { data: priorities, isLoading: loadingPriorities } = usePriorities()
 
   // Logging
   useEffect(() => {
@@ -275,12 +280,16 @@ export const useInvoiceCreate = () => {
     invoiceTypes,
     materialResponsiblePersons,
     user,
+    currencies,
+    priorities,
 
     // Loading states
     loadingContractors,
     loadingProjects,
     loadingInvoiceTypes,
     loadingMRPs,
+    loadingCurrencies,
+    loadingPriorities,
 
     // State
     deliveryDate,

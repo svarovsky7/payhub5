@@ -17,7 +17,7 @@ import {
     DollarOutlined,
     InfoCircleOutlined
 } from '@ant-design/icons'
-import {PaymentType, PaymentTypeColors, PaymentTypeLabels} from '../../types/payment'
+import {usePaymentTypes, useCurrencies, usePriorities, EnumQueryService} from '../../services/hooks/useEnums'
 
 const {Text, Title, Paragraph} = Typography
 
@@ -97,23 +97,23 @@ export const EnumEditor: React.FC<EnumEditorProps> = ({enumType: initialEnumType
     // Данные для таблицы типов платежей
     const paymentTypesData = [
         {
-            key: PaymentType.ADV,
-            code: PaymentType.ADV,
-            name: PaymentTypeLabels[PaymentType.ADV],
+            key: 'ADV',
+            code: 'ADV',
+            name: 'Аванс',
             description: 'Предварительная оплата за товары или услуги до их получения',
             usage: 'Используется при внесении предоплаты поставщикам или подрядчикам'
         },
         {
-            key: PaymentType.RET,
-            code: PaymentType.RET,
-            name: PaymentTypeLabels[PaymentType.RET],
+            key: 'RET',
+            code: 'RET',
+            name: 'Возврат удержаний',
             description: 'Возврат ранее удержанных средств (гарантийные удержания, штрафы и т.д.)',
             usage: 'Применяется при возврате гарантийных сумм после выполнения всех обязательств'
         },
         {
-            key: PaymentType.DEBT,
-            code: PaymentType.DEBT,
-            name: PaymentTypeLabels[PaymentType.DEBT],
+            key: 'DEBT',
+            code: 'DEBT',
+            name: 'Погашение долга',
             description: 'Оплата существующей задолженности по счетам',
             usage: 'Стандартный тип платежа для погашения выставленных счетов'
         }
@@ -125,8 +125,8 @@ export const EnumEditor: React.FC<EnumEditorProps> = ({enumType: initialEnumType
             dataIndex: 'code',
             key: 'code',
             width: 100,
-            render: (code: PaymentType) => (
-                <Tag color={PaymentTypeColors[code]} style={{fontFamily: 'monospace'}}>
+            render: (code: string) => (
+                <Tag color={EnumQueryService.getPaymentTypeColor(code)} style={{fontFamily: 'monospace'}}>
                     {code}
                 </Tag>
             )
