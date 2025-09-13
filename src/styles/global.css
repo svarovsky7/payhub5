@@ -1,0 +1,169 @@
+/* Ant Design styles will be imported in main.tsx */
+
+:root {
+  --primary-color: #1890ff;
+  --success-color: #52c41a;
+  --warning-color: #faad14;
+  --error-color: #ff4d4f;
+  --text-color: #262626;
+  --text-secondary: #8c8c8c;
+  --border-color: #d9d9d9;
+  --background-color: #fafafa;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  width: 100%;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
+    'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
+    'Noto Color Emoji';
+  font-size: 14px;
+  line-height: 1.5715;
+  color: var(--text-color);
+  background-color: var(--background-color);
+}
+
+/* Scrollbar styles */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+/* ProTable adjustments */
+.ant-pro-table {
+  background: white;
+}
+
+.ant-pro-table-search {
+  padding: 16px;
+  background: white;
+  margin-bottom: 16px;
+  border-radius: 8px;
+}
+
+/* ProCard adjustments */
+.ant-pro-card {
+  border-radius: 8px;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+
+/* Status tag colors */
+.status-draft {
+  color: #8c8c8c;
+  background: #fafafa;
+  border-color: #d9d9d9;
+}
+
+.status-in-review {
+  color: #1890ff;
+  background: #e6f7ff;
+  border-color: #91d5ff;
+}
+
+.status-approved {
+  color: #52c41a;
+  background: #f6ffed;
+  border-color: #b7eb8f;
+}
+
+.status-rejected {
+  color: #ff4d4f;
+  background: #fff2f0;
+  border-color: #ffccc7;
+}
+
+.status-paid {
+  color: #52c41a;
+  background: #f6ffed;
+  border-color: #b7eb8f;
+}
+
+.status-partially-paid {
+  color: #faad14;
+  background: #fffbe6;
+  border-color: #ffe58f;
+}
+
+/* Money cell formatting */
+.money-cell {
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+  text-align: right;
+}
+
+.money-positive {
+  color: var(--success-color);
+}
+
+.money-negative {
+  color: var(--error-color);
+}
+
+/* Loading states */
+.loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 400px;
+}
+
+/* Error states */
+.error-container {
+  text-align: center;
+  padding: 48px;
+}
+
+.error-icon {
+  font-size: 48px;
+  color: var(--error-color);
+  margin-bottom: 16px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .ant-pro-table-search {
+    padding: 12px;
+  }
+  
+  .ant-pro-card {
+    margin-bottom: 12px;
+  }
+}
+
+/* Print styles */
+@media print {
+  .ant-pro-layout-header,
+  .ant-pro-layout-sider,
+  .ant-pro-page-container-footer,
+  .ant-btn,
+  .ant-dropdown {
+    display: none !important;
+  }
+  
+  .ant-pro-page-container {
+    padding: 0 !important;
+  }
+}

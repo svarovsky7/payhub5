@@ -1,0 +1,184 @@
+/* Invoice Create Page - Compact Layout Styles */
+
+/* Compact card styles */
+.invoice-create-compact .ant-card-body {
+  padding: 12px !important;
+}
+
+/* Small form items */
+.invoice-create-compact .ant-form-item {
+  margin-bottom: 12px !important;
+}
+
+.invoice-create-compact .ant-form-item-label {
+  padding-bottom: 2px !important;
+}
+
+/* Compact tabs */
+.invoice-create-compact .ant-tabs-card > .ant-tabs-nav .ant-tabs-tab {
+  padding: 6px 12px !important;
+  font-size: 13px !important;
+}
+
+.invoice-create-compact .ant-tabs-tab-icon {
+  margin-right: 4px !important;
+}
+
+/* Compact inputs */
+.invoice-create-compact .ant-input,
+.invoice-create-compact .ant-select-selector,
+.invoice-create-compact .ant-picker,
+.invoice-create-compact .ant-input-number {
+  font-size: 13px !important;
+}
+
+/* Compact upload area */
+.invoice-create-compact .ant-upload-drag {
+  padding: 12px !important;
+}
+
+.invoice-create-compact .ant-upload-drag-icon {
+  margin-bottom: 8px !important;
+}
+
+.invoice-create-compact .ant-upload-text {
+  font-size: 14px !important;
+  margin-bottom: 4px !important;
+}
+
+.invoice-create-compact .ant-upload-hint {
+  font-size: 12px !important;
+  color: #999 !important;
+}
+
+/* Responsive optimizations */
+@media (max-width: 768px) {
+  .invoice-create-compact .ant-tabs-card > .ant-tabs-nav .ant-tabs-tab {
+    padding: 4px 8px !important;
+    font-size: 12px !important;
+  }
+
+  .invoice-create-compact .ant-form-item-label {
+    font-size: 12px !important;
+  }
+
+  .invoice-create-compact .ant-input,
+  .invoice-create-compact .ant-select-selector,
+  .invoice-create-compact .ant-picker,
+  .invoice-create-compact .ant-input-number {
+    font-size: 12px !important;
+  }
+}
+
+/* Header optimization */
+.invoice-create-header {
+  flex-shrink: 0;
+  border-bottom: 1px solid #f0f0f0;
+  padding-bottom: 12px;
+  margin-bottom: 12px;
+}
+
+.invoice-create-header .ant-typography {
+  color: #1890ff;
+  font-weight: 600;
+}
+
+/* Tab content scrolling */
+.invoice-create-tab-content {
+  padding-right: 4px;
+}
+
+.invoice-create-tab-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.invoice-create-tab-content::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.invoice-create-tab-content::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.invoice-create-tab-content::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* Form validation states */
+.invoice-create-compact .ant-form-item-has-error .ant-input,
+.invoice-create-compact .ant-form-item-has-error .ant-select-selector {
+  border-color: #ff4d4f;
+  box-shadow: 0 0 0 2px rgba(255, 77, 79, 0.2);
+}
+
+.invoice-create-compact .ant-form-item-has-success .ant-input,
+.invoice-create-compact .ant-form-item-has-success .ant-select-selector {
+  border-color: #52c41a;
+}
+
+/* Button optimizations */
+.invoice-create-actions .ant-btn {
+  font-size: 13px;
+  height: 32px;
+  padding: 4px 12px;
+}
+
+.invoice-create-actions .ant-btn-icon {
+  font-size: 12px;
+}
+
+/* Alert optimizations */
+.invoice-create-compact .ant-alert {
+  padding: 6px 12px !important;
+  font-size: 12px !important;
+}
+
+.invoice-create-compact .ant-alert-icon {
+  font-size: 14px !important;
+}
+
+/* Enhanced button styles for better visibility */
+.invoice-create-save-btn {
+  background-color: #52c41a !important;
+  border-color: #52c41a !important;
+  box-shadow: 0 2px 8px rgba(82, 196, 26, 0.3) !important;
+  font-weight: 600 !important;
+  transition: all 0.3s ease !important;
+}
+
+.invoice-create-save-btn:hover {
+  background-color: #73d13d !important;
+  border-color: #73d13d !important;
+  box-shadow: 0 4px 12px rgba(82, 196, 26, 0.4) !important;
+  transform: translateY(-1px);
+}
+
+.invoice-create-save-btn:active {
+  background-color: #389e0d !important;
+  border-color: #389e0d !important;
+  transform: translateY(0);
+}
+
+.invoice-create-cancel-btn {
+  border: 2px solid #d9d9d9 !important;
+  transition: all 0.3s ease !important;
+}
+
+.invoice-create-cancel-btn:hover {
+  border-color: #ff4d4f !important;
+  color: #ff4d4f !important;
+  background-color: #fff2f0 !important;
+}
+
+/* Fixed bottom buttons container */
+.invoice-create-bottom-actions {
+  position: sticky;
+  bottom: 0;
+  background: white;
+  padding: 16px 0;
+  margin-top: 24px;
+  border-top: 2px solid #f0f0f0;
+  z-index: 10;
+}

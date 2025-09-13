@@ -1,0 +1,113 @@
+/* Responsive Table Wrapper */
+.responsive-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Responsive Table */
+.responsive-table {
+  width: 100%;
+  min-width: 100%;
+}
+
+/* Auto-sizing columns */
+.responsive-table .ant-table {
+  table-layout: auto !important;
+}
+
+.responsive-table .ant-table-container {
+  overflow-x: auto;
+}
+
+/* Remove fixed column styles */
+.responsive-table .ant-table-cell-fix-left,
+.responsive-table .ant-table-cell-fix-right {
+  position: static !important;
+  background: transparent !important;
+  z-index: auto !important;
+}
+
+.responsive-table .ant-table-cell-fix-left::after,
+.responsive-table .ant-table-cell-fix-right::after {
+  display: none !important;
+}
+
+/* Column auto-width */
+.responsive-table .ant-table-thead > tr > th,
+.responsive-table .ant-table-tbody > tr > td {
+  white-space: nowrap;
+  min-width: auto;
+  width: auto !important;
+  padding: 8px 12px;
+}
+
+/* Text ellipsis for long content */
+.responsive-table .ant-table-cell-ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  word-break: keep-all;
+}
+
+/* Responsive behavior */
+@media (max-width: 768px) {
+  .responsive-table .ant-table-thead > tr > th,
+  .responsive-table .ant-table-tbody > tr > td {
+    padding: 6px 8px;
+    font-size: 12px;
+  }
+  
+  .responsive-table .ant-table-pagination {
+    margin: 8px 0;
+  }
+  
+  .responsive-table .ant-pagination-item {
+    min-width: 28px;
+    height: 28px;
+    line-height: 26px;
+  }
+}
+
+/* Smooth horizontal scroll */
+.responsive-table-wrapper::-webkit-scrollbar {
+  height: 8px;
+}
+
+.responsive-table-wrapper::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.responsive-table-wrapper::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 4px;
+}
+
+.responsive-table-wrapper::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+/* Table should not have min-width constraint */
+.responsive-table .ant-table-content {
+  overflow-x: visible !important;
+}
+
+/* Ensure table takes full width when possible */
+.responsive-table table {
+  width: 100% !important;
+  min-width: unset !important;
+}
+
+/* Flexible column widths */
+.responsive-table th,
+.responsive-table td {
+  min-width: 60px;
+  max-width: none !important;
+}
+
+/* Priority columns for mobile */
+@media (max-width: 576px) {
+  .responsive-table .ant-table-cell[data-priority="low"] {
+    display: none;
+  }
+}
