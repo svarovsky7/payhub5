@@ -18,6 +18,8 @@ npm run type-check   # TypeScript check without emitting
 npm run preview      # Preview production build
 npm run knip         # Check for unused exports and dependencies
 npm run knip:fix     # Auto-fix unused exports
+npm run knip:production # Check production dependencies
+npm run knip:watch   # Watch mode for dead code detection
 ```
 
 **Important**: After completing any code changes, always run `npm run lint` and `npm run type-check` to ensure code quality.
@@ -49,7 +51,8 @@ Located in `src/services/`:
 - Lazy-loaded routes via `React.lazy()` in `app/router.tsx`
 - Protected routes wrapped with `ProtectedRoute` component
 - Authenticated pages use `MainLayout` wrapper
-- Main routes: `/login`, `/dashboard`, `/invoices`, `/admin`, `/payments`
+- Main routes: `/login`, `/invoices`, `/admin`, `/payments`, `/approvals`
+- Invoice sub-routes: `/invoices/create`, `/invoices/:id/view`
 
 ### Database Integration
 
@@ -64,6 +67,15 @@ Located in `src/services/`:
 - Use this file to understand table structures, relationships, constraints, indexes
 - Includes all tables, views, functions, triggers, and enum types
 - This is the authoritative source for database structure when MCP queries are unavailable
+
+**Important Tables**:
+- `invoices` - Main invoice records with workflow integration
+- `payments` - Payment transactions linked to invoices
+- `contractors` - Suppliers and payers (INN validation)
+- `projects` - Project management with addresses and budgets
+- `users` & `user_profiles` - Authentication and user management
+- `workflows` & `workflow_steps` - Configurable approval processes
+- `documents` - File attachments for invoices
 
 ### TypeScript Configuration
 Path aliases configured in both `tsconfig.app.json` and `vite.config.ts`:
@@ -126,6 +138,14 @@ Configured MCP servers (`.mcp.json`):
 - Consider using Vitest for compatibility with Vite configuration
 - Place tests adjacent to source files using `.test.ts` or `.spec.ts` naming convention
 
+## Performance Optimization
+
+- **Code Splitting**: Manual chunks configured for vendor, antd, router, and query libraries
+- **Lazy Loading**: All routes are lazy-loaded to reduce initial bundle size
+- **Dynamic Imports**: xlsx library is dynamically imported for Excel export functionality
+- **Optimized Dependencies**: Pre-bundled critical dependencies in vite config
+- **Performance Monitoring**: Custom implementation in `utils/performance-monitor.ts`
+
 ## Development Guidelines
 
 ### Console Logging
@@ -184,11 +204,14 @@ VITE_SUPABASE_ANON_KEY=<jwt-token>
 VITE_STORAGE_BUCKET=http://31.128.51.210:8002/storage/v1
 VITE_APP_NAME=PayHub
 VITE_APP_VERSION=1.0.0
+VITE_APP_DESCRIPTION=Система управления закупками и платежами
 VITE_API_TIMEOUT=30000
 VITE_API_RETRY_COUNT=3
 VITE_ENABLE_REALTIME=true
 VITE_ENABLE_NOTIFICATIONS=true
 VITE_ENABLE_EXCEL_EXPORT=true
+VITE_DEV_MODE=false
+VITE_SHOW_DEBUG_INFO=false
 ```
 
 ## Key Dependencies

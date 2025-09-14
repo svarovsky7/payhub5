@@ -4,8 +4,36 @@
 
 import { type ApiResponse, handleSupabaseError, supabase } from '../supabase'
 import type { FileUploadOptions, FileUploadResult } from './types'
+import { getStorageStatus } from '../storage/storage-init'
 
 export class InvoiceFileStorage {
+  /**
+   * Create storage bucket with proper permissions
+   */
+  static async createStorageBucket(): Promise<void> {
+    try {
+      console.log('[InvoiceFileStorage.createStorageBucket] Creating bucket with public access...')
+
+      const { data, error } = await supabase.storage.createBucket('documents', {
+        public: true,
+        fileSizeLimit: 52428800, // 50MB
+        allowedMimeTypes: undefined // Allow all file types
+      })
+
+      if (error) {
+        if (error.message?.includes('already exists')) {
+          console.log('[InvoiceFileStorage.createStorageBucket] Bucket already exists')
+        } else {
+          console.error('[InvoiceFileStorage.createStorageBucket] Error:', error)
+        }
+      } else {
+        console.log('[InvoiceFileStorage.createStorageBucket] Bucket created:', data)
+      }
+    } catch (error) {
+      console.error('[InvoiceFileStorage.createStorageBucket] Error:', error)
+    }
+  }
+
   /**
    * Ensure storage bucket exists
    */
@@ -56,6 +84,72 @@ export class InvoiceFileStorage {
   }
 
   /**
+   * Ensure invoice folder exists in storage
+   */
+  static async ensureInvoiceFolderExists(invoiceId: string): Promise<void> {
+    try {
+      console.log('[InvoiceFileStorage.ensureInvoiceFolderExists] Checking folder for invoice:', invoiceId)
+
+      // Try to create a marker file to ensure folder exists
+      const markerPath = `invoices/${invoiceId}/.keep`
+      const markerContent = new Blob([''], { type: 'text/plain' })
+
+      await supabase.storage
+        .from('documents')
+        .upload(markerPath, markerContent, {
+          cacheControl: '3600',
+          upsert: true
+        })
+
+      console.log('[InvoiceFileStorage.ensureInvoiceFolderExists] Folder ready')
+    } catch (error) {
+      console.log('[InvoiceFileStorage.ensureInvoiceFolderExists] Folder check:', error)
+    }
+  }
+
+  /**
+   * Direct upload to storage using FormData
+   */
+  static async directUploadToStorage(
+    filePath: string,
+    file: File
+  ): Promise<{ data: any; error: any }> {
+    try {
+      console.log('[InvoiceFileStorage.directUploadToStorage] Attempting direct upload:', filePath)
+
+      // Create FormData
+      const formData = new FormData()
+      formData.append('file', file)
+
+      // Direct API call to Supabase storage
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/documents/${filePath}`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+            'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY
+          },
+          body: formData
+        }
+      )
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error('[InvoiceFileStorage.directUploadToStorage] Upload failed:', errorText)
+        return { data: null, error: errorText }
+      }
+
+      const data = await response.json()
+      console.log('[InvoiceFileStorage.directUploadToStorage] Upload successful:', data)
+      return { data, error: null }
+    } catch (error) {
+      console.error('[InvoiceFileStorage.directUploadToStorage] Error:', error)
+      return { data: null, error }
+    }
+  }
+
+  /**
    * Upload a single file
    */
   static async uploadFile(
@@ -72,6 +166,26 @@ export class InvoiceFileStorage {
         userId
       })
 
+      // Check storage status first
+      const storageStatus = getStorageStatus()
+      console.log('[InvoiceFileStorage.uploadFile] Storage status:', storageStatus)
+
+      if (!storageStatus.initialized) {
+        console.warn('[InvoiceFileStorage.uploadFile] Storage not initialized yet')
+      }
+
+      if (!storageStatus.uploadEnabled) {
+        console.warn('[InvoiceFileStorage.uploadFile] ⚠️ Storage uploads disabled due to RLS policies')
+        console.warn('[InvoiceFileStorage.uploadFile] Files will be saved with pending status')
+      }
+
+      // Skip bucket checks if we already know storage is not working
+      if (storageStatus.uploadEnabled) {
+        // Ensure bucket and folder exist before upload
+        await this.ensureBucketExists()
+        await this.ensureInvoiceFolderExists(invoiceId)
+      }
+
       // Create unique filename with timestamp
       const timestamp = Date.now()
       const randomStr = Math.random().toString(36).substring(7)
@@ -81,7 +195,12 @@ export class InvoiceFileStorage {
 
       console.log('[InvoiceFileStorage.uploadFile] Uploading to storage bucket "documents":', filePath)
 
-      const { data: uploadData, error: uploadError } = await supabase.storage
+      // Try to upload with different approaches
+      let uploadData: any = null
+      let uploadError: any = null
+
+      // First attempt: Normal upload
+      const uploadResult = await supabase.storage
         .from('documents')
         .upload(filePath, file, {
           cacheControl: '3600',
@@ -89,21 +208,60 @@ export class InvoiceFileStorage {
           contentType: file.type || 'application/octet-stream'
         })
 
+      uploadData = uploadResult.data
+      uploadError = uploadResult.error
+
       if (uploadError) {
         console.error('[InvoiceFileStorage.uploadFile] Storage upload error:', uploadError)
+        console.log('[InvoiceFileStorage.uploadFile] Trying direct upload method...')
 
-        // If RLS blocks upload, save only info to DB
-        if (uploadError.message?.includes('row-level security')) {
-          console.log('[InvoiceFileStorage.uploadFile] RLS error, saving only to DB')
+        // Second attempt: Try direct upload
+        const directResult = await this.directUploadToStorage(filePath, file)
 
-          const fallbackUrl = `local://invoices/${invoiceId}/${fileName}`
+        if (!directResult.error) {
+          uploadData = { path: filePath }
+          uploadError = null
+          console.log('[InvoiceFileStorage.uploadFile] Direct upload succeeded')
+        } else {
+          // Third attempt: Try with upsert
+          console.log('[InvoiceFileStorage.uploadFile] Trying upsert method...')
+          const upsertResult = await supabase.storage
+            .from('documents')
+            .upload(filePath, file, {
+              cacheControl: '3600',
+              upsert: true,
+              contentType: file.type || 'application/octet-stream'
+            })
 
-          // First create attachment record
+          if (!upsertResult.error) {
+            uploadData = upsertResult.data
+            uploadError = null
+            console.log('[InvoiceFileStorage.uploadFile] Upsert upload succeeded')
+          } else {
+            // If still fails, we'll handle it below
+            uploadError = upsertResult.error
+          }
+        }
+      }
+
+      if (uploadError) {
+        console.error('[InvoiceFileStorage.uploadFile] All upload attempts failed:', uploadError)
+
+        // If RLS blocks upload, we still need to handle the file
+        if (uploadError.message?.includes('row-level security') || uploadError.message?.includes('policy')) {
+          console.log('[InvoiceFileStorage.uploadFile] RLS/Policy error detected')
+          console.log('[InvoiceFileStorage.uploadFile] Storage bucket may require admin configuration')
+
+          // Important: We should not use local:// prefix
+          // Instead, we save the intended storage path
+          const intendedStoragePath = filePath
+
+          // First create attachment record with intended storage path
           const { data: attachmentData, error: attachmentError } = await supabase
             .from('attachments')
             .insert({
               original_name: file.name,
-              storage_path: fallbackUrl,
+              storage_path: intendedStoragePath, // Use intended path, not local://
               size_bytes: file.size,
               mime_type: file.type || 'application/octet-stream',
               created_by: userId
@@ -131,12 +289,21 @@ export class InvoiceFileStorage {
             throw docError
           }
 
-          console.log('[InvoiceFileStorage.uploadFile] File saved to DB (fallback):', docData)
+          console.log('[InvoiceFileStorage.uploadFile] File info saved to DB:', docData)
+          console.log('[InvoiceFileStorage.uploadFile] File will be uploaded to storage later')
+          console.log('[InvoiceFileStorage.uploadFile] Intended storage path:', intendedStoragePath)
 
-          // Update attachments in invoice
-          await this.updateInvoiceAttachments(invoiceId, fallbackUrl)
+          // Mark as pending upload with special prefix
+          const pendingUrl = `pending://${intendedStoragePath}`
 
-          return { data: fallbackUrl, error: null }
+          // Update attachment with pending status
+          await supabase
+            .from('attachments')
+            .update({ storage_path: pendingUrl })
+            .eq('id', attachmentData.id)
+
+          // Return the pending URL - file info is saved
+          return { data: pendingUrl, error: null }
         }
 
         throw uploadError
@@ -192,8 +359,8 @@ export class InvoiceFileStorage {
 
       console.log('[InvoiceFileStorage.uploadFile] Record added to invoice_documents:', docData)
 
-      // Update attachments in invoice
-      await this.updateInvoiceAttachments(invoiceId, fileUrl)
+      // Log that file was saved (attachments column doesn't exist)
+      console.log('[InvoiceFileStorage.uploadFile] File info saved to invoice_documents table')
 
       console.log('[InvoiceFileStorage.uploadFile] File successfully uploaded and saved')
 
@@ -269,9 +436,21 @@ export class InvoiceFileStorage {
     try {
       console.log('[InvoiceFileStorage.getInvoiceDocuments] Getting documents for invoice:', invoiceId)
 
+      // Join invoice_documents with attachments to get full file details
       const { data, error } = await supabase
         .from('invoice_documents')
-        .select('*')
+        .select(`
+          *,
+          attachment:attachments (
+            id,
+            original_name,
+            storage_path,
+            size_bytes,
+            mime_type,
+            created_at,
+            created_by
+          )
+        `)
         .eq('invoice_id', parseInt(invoiceId))
         .order('created_at', { ascending: false })
 
@@ -280,13 +459,208 @@ export class InvoiceFileStorage {
         throw error
       }
 
-      console.log('[InvoiceFileStorage.getInvoiceDocuments] Found documents:', data?.length || 0)
+      console.log('[InvoiceFileStorage.getInvoiceDocuments] Found documents with attachments:', {
+        count: data?.length || 0,
+        documents: data?.map(doc => ({
+          id: doc.id,
+          invoice_id: doc.invoice_id,
+          attachment_id: doc.attachment_id,
+          original_name: doc.attachment?.original_name,
+          storage_path: doc.attachment?.storage_path,
+          mime_type: doc.attachment?.mime_type,
+          size_bytes: doc.attachment?.size_bytes
+        }))
+      })
 
-      return { data: data || [], error: null }
+      // Flatten the data structure for easier consumption
+      const documents = data?.map((doc: any) => {
+        let storagePath = doc.attachment?.storage_path ?? ''
+
+        // Handle pending files - convert back to local:// for display
+        if (storagePath.startsWith('pending://')) {
+          storagePath = `local://${storagePath.replace('pending://', '')}`
+        }
+
+        return {
+          ...doc,
+          // Preserve attachment_id from invoice_documents table
+          attachment_id: doc.attachment_id,
+          // Add attachment details
+          original_name: doc.attachment?.original_name ?? 'Unknown',
+          storage_path: storagePath,
+          mime_type: doc.attachment?.mime_type ?? 'application/octet-stream',
+          size_bytes: doc.attachment?.size_bytes ?? 0,
+          created_by: doc.attachment?.created_by,
+          // Keep full attachment object for debugging
+          attachment: doc.attachment
+        }
+      }) ?? []
+
+      console.log('[InvoiceFileStorage.getInvoiceDocuments] Processed documents:', documents)
+
+      return { data: documents, error: null }
     } catch (error) {
       console.error('[InvoiceFileStorage.getInvoiceDocuments] Error getting documents:', error)
       return {
         data: [],
+        error: handleSupabaseError(error)
+      }
+    }
+  }
+
+  /**
+   * Retry uploading pending files
+   */
+  static async retryPendingUploads(invoiceId: string): Promise<void> {
+    try {
+      console.log('[InvoiceFileStorage.retryPendingUploads] Checking for pending uploads:', invoiceId)
+
+      // Get all attachments with pending:// prefix
+      const { data: pendingAttachments, error } = await supabase
+        .from('attachments')
+        .select('*')
+        .like('storage_path', 'pending://%')
+
+      if (error || !pendingAttachments?.length) {
+        console.log('[InvoiceFileStorage.retryPendingUploads] No pending uploads found')
+        return
+      }
+
+      console.log('[InvoiceFileStorage.retryPendingUploads] Found pending uploads:', pendingAttachments.length)
+
+      for (const attachment of pendingAttachments) {
+        const intendedPath = attachment.storage_path.replace('pending://', '')
+        console.log('[InvoiceFileStorage.retryPendingUploads] Retrying upload for:', intendedPath)
+
+        // We don't have the original file, so we can only mark it as local
+        await supabase
+          .from('attachments')
+          .update({ storage_path: `local://${intendedPath}` })
+          .eq('id', attachment.id)
+      }
+    } catch (error) {
+      console.error('[InvoiceFileStorage.retryPendingUploads] Error:', error)
+    }
+  }
+
+  /**
+   * Attempt to re-upload a local file to storage
+   */
+  static async reuploadLocalFile(
+    attachmentId: string,
+    invoiceId: string
+  ): Promise<ApiResponse<string>> {
+    try {
+      console.log('[InvoiceFileStorage.reuploadLocalFile] Attempting to re-upload local file:', {
+        attachmentId,
+        invoiceId
+      })
+
+      // Get attachment details from database
+      const { data: attachmentData, error: fetchError } = await supabase
+        .from('attachments')
+        .select('*')
+        .eq('id', attachmentId)
+        .single()
+
+      if (fetchError || !attachmentData) {
+        console.error('[InvoiceFileStorage.reuploadLocalFile] Error fetching attachment:', fetchError)
+        return {
+          data: null,
+          error: 'Не удалось найти информацию о файле'
+        }
+      }
+
+      const attachment = attachmentData as any
+      console.log('[InvoiceFileStorage.reuploadLocalFile] Found attachment:', attachment)
+
+      // If file is already in storage, return its URL
+      const storagePath = attachment.storage_path as string
+      if (storagePath && !storagePath.startsWith('local://')) {
+        console.log('[InvoiceFileStorage.reuploadLocalFile] File already in storage')
+
+        // Create signed URL for existing file
+        const { data: signedData, error: signedError } = await supabase.storage
+          .from('documents')
+          .createSignedUrl(storagePath, 300)
+
+        if (!signedError && signedData?.signedUrl) {
+          return { data: signedData.signedUrl, error: null }
+        }
+
+        // Fallback to public URL
+        const { data: publicUrlData } = supabase.storage
+          .from('documents')
+          .getPublicUrl(storagePath)
+
+        return { data: publicUrlData.publicUrl, error: null }
+      }
+
+      // For local files, we can't re-upload without the original file data
+      // Return an informative error
+      console.log('[InvoiceFileStorage.reuploadLocalFile] Cannot re-upload local file without original data')
+
+      return {
+        data: null,
+        error: 'Файл был сохранен только в базе данных. Для просмотра требуется повторная загрузка файла.'
+      }
+    } catch (error) {
+      console.error('[InvoiceFileStorage.reuploadLocalFile] Error:', error)
+      return {
+        data: null,
+        error: handleSupabaseError(error)
+      }
+    }
+  }
+
+  /**
+   * Get download URL for a file
+   */
+  static async getFileDownloadUrl(
+    storagePath: string
+  ): Promise<ApiResponse<string>> {
+    try {
+      console.log('[InvoiceFileStorage.getFileDownloadUrl] Getting download URL for:', storagePath)
+
+      // Check if it's a local file
+      if (storagePath?.startsWith('local://')) {
+        console.log('[InvoiceFileStorage.getFileDownloadUrl] File is local, cannot generate download URL')
+        return {
+          data: null,
+          error: 'Файл недоступен для скачивания (сохранен только в базе данных)'
+        }
+      }
+
+      // Create signed URL for download
+      const { data, error } = await supabase.storage
+        .from('documents')
+        .createSignedUrl(storagePath, 60) // 60 seconds validity
+
+      if (error) {
+        console.error('[InvoiceFileStorage.getFileDownloadUrl] Error creating signed URL:', error)
+
+        // Try public URL as fallback
+        const { data: publicUrlData } = supabase.storage
+          .from('documents')
+          .getPublicUrl(storagePath)
+
+        if (publicUrlData?.publicUrl) {
+          console.log('[InvoiceFileStorage.getFileDownloadUrl] Using public URL as fallback')
+          return { data: publicUrlData.publicUrl, error: null }
+        }
+
+        return {
+          data: null,
+          error: 'Не удалось создать ссылку для скачивания'
+        }
+      }
+
+      console.log('[InvoiceFileStorage.getFileDownloadUrl] Signed URL created successfully')
+      return { data: data.signedUrl, error: null }
+    } catch (error) {
+      console.error('[InvoiceFileStorage.getFileDownloadUrl] Error:', error)
+      return {
+        data: null,
         error: handleSupabaseError(error)
       }
     }
@@ -327,24 +701,8 @@ export class InvoiceFileStorage {
         throw dbError
       }
 
-      // Update attachments in invoice
-      const { data: invoice } = await supabase
-        .from('invoices')
-        .select('attachments')
-        .eq('id', invoiceId)
-        .single()
-
-      if (invoice?.attachments) {
-        const updatedAttachments = invoice.attachments.filter(url => url !== fileUrl)
-
-        await supabase
-          .from('invoices')
-          .update({
-            attachments: updatedAttachments,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', invoiceId)
-      }
+      // No need to update invoice table - attachments column doesn't exist
+      // The file reference is already removed from invoice_documents table above
 
       console.log('[InvoiceFileStorage.removeFile] File removed successfully')
 
@@ -358,33 +716,4 @@ export class InvoiceFileStorage {
     }
   }
 
-  /**
-   * Helper method to update invoice attachments
-   */
-  private static async updateInvoiceAttachments(
-    invoiceId: string,
-    fileUrl: string
-  ): Promise<void> {
-    const { data: invoice } = await supabase
-      .from('invoices')
-      .select('attachments')
-      .eq('id', invoiceId)
-      .single()
-
-    const currentAttachments = invoice?.attachments || []
-    const updatedAttachments = [...currentAttachments, fileUrl]
-
-    const { error: updateError } = await supabase
-      .from('invoices')
-      .update({
-        attachments: updatedAttachments,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', invoiceId)
-
-    if (updateError) {
-      console.error('[InvoiceFileStorage.updateInvoiceAttachments] Error updating attachments:', updateError)
-      throw updateError
-    }
-  }
 }

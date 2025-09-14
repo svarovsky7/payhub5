@@ -28,7 +28,9 @@ import {
   Tabs,
   Timeline,
   Upload,
-  List
+  List,
+  Descriptions,
+  Alert
 } from 'antd'
 import {
   CheckCircleOutlined,
@@ -42,6 +44,7 @@ import {
   ExclamationCircleOutlined,
   EyeOutlined,
   FileOutlined,
+  FileExclamationOutlined,
   HistoryOutlined,
   HomeOutlined,
   InfoCircleOutlined,
@@ -96,6 +99,10 @@ export const InvoiceViewNew: React.FC = () => {
     pendingAmount: 0,
     balance: 0
   })
+  // File preview modal state
+  const [previewModalVisible, setPreviewModalVisible] = useState(false)
+  const [previewFile, setPreviewFile] = useState<any>(null)
+  const [previewLoading, setPreviewLoading] = useState(false)
 
   // console.log('[InvoiceViewNew] Инициализация компонента с ID:', id)
 
@@ -959,11 +966,29 @@ const handleUploadDocument = async (file: any) => {
 
     if (result.error) {
       console.error('[InvoiceViewNew.handleUploadDocument] Ошибка от сервиса:', result.error)
-      message.error(`Ошибка загрузки: ${result.error}`)
-    } else {
-      console.log('[InvoiceViewNew.handleUploadDocument] Файл успешно загружен')
+
+      // Проверяем, является ли ошибка строкой или объектом
+      const errorMessage = typeof result.error === 'string'
+        ? result.error
+        : result.error?.message || 'Неизвестная ошибка при загрузке файла'
+
+      message.error(`Ошибка загрузки: ${errorMessage}`)
+    } else if (result.data) {
+      console.log('[InvoiceViewNew.handleUploadDocument] Файл успешно загружен:', result.data)
       message.success(`Документ ${file.name} успешно загружен`)
+
       // Перезагружаем список документов
+      await loadDocuments()
+
+      // Также обновляем счет для получения актуальных данных
+      if (refetchInvoice) {
+        await refetchInvoice()
+      }
+    } else {
+      console.warn('[InvoiceViewNew.handleUploadDocument] Неожиданный результат:', result)
+      message.warning('Файл загружен, но требуется обновление страницы')
+
+      // Все равно пытаемся обновить список документов
       await loadDocuments()
     }
   } catch (error) {
@@ -976,6 +1001,270 @@ const handleUploadDocument = async (file: any) => {
   return false // Prevent default upload behavior
 }
 
+// Handler for file preview
+const handlePreviewDocument = async (doc: any) => {
+  console.log('[InvoiceViewNew.handlePreviewDocument] Открытие документа для просмотра:', {
+    doc,
+    storage_path: doc.storage_path,
+    mime_type: doc.mime_type,
+    original_name: doc.original_name,
+    attachment_id: doc.attachment_id || doc.attachment?.id
+  })
+
+  setPreviewFile(doc)
+  setPreviewModalVisible(true)
+  setPreviewLoading(true)
+
+  try {
+    // Проверяем тип storage_path
+    const isLocalFile = doc.storage_path?.startsWith('local://')
+    const isStorageFile = doc.storage_path?.startsWith('invoices/')
+
+    console.log('[InvoiceViewNew.handlePreviewDocument] Тип файла:', {
+      isLocalFile,
+      isStorageFile,
+      storage_path: doc.storage_path
+    })
+
+    if (isLocalFile) {
+      // Для локальных файлов пытаемся перезагрузить в storage
+      console.log('[InvoiceViewNew.handlePreviewDocument] Попытка перезагрузки локального файла в storage')
+
+      // Пытаемся получить attachment_id
+      const attachmentId = doc.attachment_id || doc.attachment?.id
+      console.log('[InvoiceViewNew.handlePreviewDocument] Attachment ID:', attachmentId)
+
+      if (attachmentId) {
+        // Пытаемся получить URL через reuploadLocalFile
+        const { InvoiceFileStorage } = await import('@/services/invoices/file-storage')
+        const reuploadResult = await InvoiceFileStorage.reuploadLocalFile(attachmentId, id!)
+
+        if (reuploadResult.data) {
+          console.log('[InvoiceViewNew.handlePreviewDocument] Получен URL для просмотра')
+          setPreviewFile({ ...doc, previewUrl: reuploadResult.data })
+          setPreviewLoading(false)
+          return
+        }
+      }
+
+      // Показываем информационное сообщение с предложением повторной загрузки
+      setPreviewFile({
+        ...doc,
+        previewUrl: null,
+        isLocal: true,
+        localMessage: 'Файл был сохранен только в базе данных из-за ограничений безопасности. Для просмотра требуется повторная загрузка.'
+      })
+
+      // Не закрываем модальное окно - показываем информацию о файле
+      setPreviewLoading(false)
+      return
+    }
+
+    // Если файл - изображение, создаем URL для его отображения
+    if (doc.mime_type?.startsWith('image/') || /\.(jpg|jpeg|png|gif|bmp|webp)$/i.test(doc.original_name)) {
+      console.log('[InvoiceViewNew.handlePreviewDocument] Обработка изображения')
+
+      // Для файлов в storage пытаемся получить signed URL
+      if (isStorageFile) {
+        const { supabase } = await import('@/services/supabase')
+
+        console.log('[InvoiceViewNew.handlePreviewDocument] Создание signed URL для изображения:', doc.storage_path)
+
+        const { data, error } = await supabase.storage
+          .from('documents')
+          .createSignedUrl(doc.storage_path, 300) // URL действителен 5 минут
+
+        if (!error && data?.signedUrl) {
+          console.log('[InvoiceViewNew.handlePreviewDocument] Signed URL создан успешно')
+          setPreviewFile({ ...doc, previewUrl: data.signedUrl })
+        } else {
+          console.error('[InvoiceViewNew.handlePreviewDocument] Ошибка получения signed URL:', error)
+
+          // Пробуем получить публичный URL как fallback
+          const { data: publicUrlData } = supabase.storage
+            .from('documents')
+            .getPublicUrl(doc.storage_path)
+
+          if (publicUrlData?.publicUrl) {
+            console.log('[InvoiceViewNew.handlePreviewDocument] Используем публичный URL как fallback')
+            setPreviewFile({ ...doc, previewUrl: publicUrlData.publicUrl })
+          } else {
+            message.warning('Не удалось загрузить изображение для просмотра')
+            setPreviewFile({ ...doc, previewUrl: null, error: 'Не удалось получить URL файла' })
+          }
+        }
+      }
+    } else if (doc.mime_type?.includes('pdf')) {
+      console.log('[InvoiceViewNew.handlePreviewDocument] Обработка PDF')
+
+      // Для PDF файлов также создаем signed URL
+      if (isStorageFile) {
+        const { supabase } = await import('@/services/supabase')
+
+        console.log('[InvoiceViewNew.handlePreviewDocument] Создание signed URL для PDF:', doc.storage_path)
+
+        const { data, error } = await supabase.storage
+          .from('documents')
+          .createSignedUrl(doc.storage_path, 300)
+
+        if (!error && data?.signedUrl) {
+          console.log('[InvoiceViewNew.handlePreviewDocument] Signed URL для PDF создан успешно')
+          setPreviewFile({ ...doc, previewUrl: data.signedUrl })
+        } else {
+          console.error('[InvoiceViewNew.handlePreviewDocument] Ошибка получения URL для PDF:', error)
+
+          // Пробуем публичный URL как fallback
+          const { data: publicUrlData } = supabase.storage
+            .from('documents')
+            .getPublicUrl(doc.storage_path)
+
+          if (publicUrlData?.publicUrl) {
+            console.log('[InvoiceViewNew.handlePreviewDocument] Используем публичный URL для PDF как fallback')
+            setPreviewFile({ ...doc, previewUrl: publicUrlData.publicUrl })
+          } else {
+            message.warning('Не удалось загрузить PDF для просмотра')
+            setPreviewFile({ ...doc, previewUrl: null, error: 'Не удалось получить URL файла' })
+          }
+        }
+      }
+    } else {
+      console.log('[InvoiceViewNew.handlePreviewDocument] Файл другого типа:', doc.mime_type)
+      // Для других типов файлов показываем информацию
+      setPreviewFile({ ...doc, previewUrl: null })
+    }
+  } catch (error) {
+    console.error('[InvoiceViewNew.handlePreviewDocument] Критическая ошибка:', error)
+    message.error('Ошибка при открытии документа')
+    setPreviewFile({ ...doc, previewUrl: null, error: 'Произошла ошибка при загрузке файла' })
+  } finally {
+    setPreviewLoading(false)
+  }
+}
+
+// Render preview modal content
+const renderPreviewContent = () => {
+  if (!previewFile) return null
+
+  if (previewLoading) {
+    return (
+      <div style={{ textAlign: 'center', padding: '50px 0' }}>
+        <Spin size="large" tip="Загрузка файла..." />
+      </div>
+    )
+  }
+
+  // Особая обработка для локальных файлов
+  if (previewFile.isLocal) {
+    return (
+      <div style={{ textAlign: 'center', padding: '50px 20px' }}>
+        <FileExclamationOutlined style={{ fontSize: 64, color: '#faad14' }} />
+        <Title level={4} style={{ marginTop: 24, marginBottom: 16 }}>
+          Файл недоступен для просмотра
+        </Title>
+        <Text type="secondary" style={{ display: 'block', marginBottom: 24 }}>
+          {previewFile.localMessage || 'Файл сохранен только в базе данных'}
+        </Text>
+        <Space direction="vertical" size={16} style={{ width: '100%' }}>
+          <Card type="inner" style={{ backgroundColor: '#f6f8fa' }}>
+            <Space direction="vertical" size={8} style={{ width: '100%' }}>
+              <Text strong>Информация о файле:</Text>
+              <Text>Название: {previewFile.original_name || 'Неизвестно'}</Text>
+              <Text>Тип: {previewFile.mime_type || 'Неизвестно'}</Text>
+              <Text>Размер: {previewFile.size_bytes ? `${(previewFile.size_bytes / 1024).toFixed(1)} KB` : 'Неизвестно'}</Text>
+            </Space>
+          </Card>
+          <Alert
+            message="Что можно сделать?"
+            description="Обратитесь к администратору для настройки прав доступа к хранилищу файлов или попробуйте загрузить файл заново."
+            type="info"
+            showIcon
+          />
+        </Space>
+      </div>
+    )
+  }
+
+  // Обработка ошибок
+  if (previewFile.error) {
+    return (
+      <div style={{ textAlign: 'center', padding: '50px 20px' }}>
+        <FileExclamationOutlined style={{ fontSize: 64, color: '#ff4d4f' }} />
+        <Title level={4} style={{ marginTop: 24, marginBottom: 16, color: '#ff4d4f' }}>
+          Ошибка загрузки файла
+        </Title>
+        <Text type="secondary">{previewFile.error}</Text>
+      </div>
+    )
+  }
+
+  // Для изображений
+  if (previewFile.mime_type?.startsWith('image/') || /\.(jpg|jpeg|png|gif|bmp|webp)$/i.test(previewFile.original_name)) {
+    if (previewFile.previewUrl) {
+      return (
+        <div style={{ textAlign: 'center' }}>
+          <img
+            src={previewFile.previewUrl}
+            alt={previewFile.original_name}
+            style={{ maxWidth: '100%', maxHeight: '70vh', objectFit: 'contain' }}
+            onError={(e) => {
+              console.error('[InvoiceViewNew.renderPreviewContent] Ошибка загрузки изображения')
+              // При ошибке загрузки обновляем состояние
+              setPreviewFile({ ...previewFile, previewUrl: null, error: 'Не удалось загрузить изображение' })
+            }}
+          />
+        </div>
+      )
+    } else {
+      return (
+        <div style={{ textAlign: 'center', padding: '50px 0' }}>
+          <FileImageOutlined style={{ fontSize: 64, color: '#ccc' }} />
+          <p style={{ marginTop: 16, color: '#999' }}>Изображение недоступно для просмотра</p>
+        </div>
+      )
+    }
+  }
+
+  // Для PDF
+  if (previewFile.mime_type?.includes('pdf')) {
+    if (previewFile.previewUrl) {
+      return (
+        <iframe
+          src={previewFile.previewUrl}
+          style={{ width: '100%', height: '70vh', border: 'none' }}
+          title={previewFile.original_name}
+        />
+      )
+    } else {
+      return (
+        <div style={{ textAlign: 'center', padding: '50px 0' }}>
+          <FilePdfOutlined style={{ fontSize: 64, color: '#ff4d4f' }} />
+          <p style={{ marginTop: 16, color: '#999' }}>PDF файл недоступен для просмотра</p>
+        </div>
+      )
+    }
+  }
+
+  // Для остальных файлов показываем информацию
+  return (
+    <div style={{ padding: '20px' }}>
+      <div style={{ textAlign: 'center', marginBottom: 24 }}>
+        {getFileIcon(previewFile.mime_type, previewFile.original_name)}
+      </div>
+      <Descriptions bordered column={1} size="small">
+        <Descriptions.Item label="Название">{previewFile.original_name}</Descriptions.Item>
+        <Descriptions.Item label="Размер">{formatFileSize(previewFile.size_bytes)}</Descriptions.Item>
+        <Descriptions.Item label="Тип">{previewFile.mime_type || 'Неизвестно'}</Descriptions.Item>
+        <Descriptions.Item label="Загружен">
+          {dayjs(previewFile.created_at).format('DD.MM.YYYY HH:mm')}
+        </Descriptions.Item>
+      </Descriptions>
+      <div style={{ marginTop: 24, textAlign: 'center' }}>
+        <Text type="secondary">Предпросмотр недоступен для данного типа файла</Text>
+      </div>
+    </div>
+  )
+}
+
 // Загрузка документов счета
 const loadDocuments = useCallback(async () => {
   if (!id) return
@@ -984,42 +1273,18 @@ const loadDocuments = useCallback(async () => {
   setLoadingDocuments(true)
 
   try {
-    // Получаем связи invoice_documents
-    const invoiceDocsResponse = await fetch(
-      `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/invoice_documents?invoice_id=eq.${id}`,
-      {
-        headers: {
-          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
-          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
-        }
-      }
-    )
-    const invoiceDocs = await invoiceDocsResponse.json()
+    // Используем метод из file-storage.ts который правильно объединяет таблицы
+    const { InvoiceFileStorage } = await import('@/services/invoices/file-storage')
+    const result = await InvoiceFileStorage.getInvoiceDocuments(id)
 
-    console.log('[InvoiceViewNew.loadDocuments] Связи документов:', invoiceDocs)
-
-    if (invoiceDocs && invoiceDocs.length > 0) {
-      // Получаем attachment_ids
-      const attachmentIds = invoiceDocs.map((doc: any) => doc.attachment_id).filter(Boolean)
-
-      if (attachmentIds.length > 0) {
-        // Получаем информацию о вложениях
-        const attachmentsResponse = await fetch(
-          `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/attachments?id=in.(${attachmentIds.join(',')})`,
-          {
-            headers: {
-              'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
-              'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
-            }
-          }
-        )
-        const attachments = await attachmentsResponse.json()
-
-        console.log('[InvoiceViewNew.loadDocuments] Документы:', attachments)
-        setDocuments(attachments || [])
-      }
-    } else {
+    if (result.error) {
+      console.error('[InvoiceViewNew.loadDocuments] Ошибка загрузки документов:', result.error)
+      message.error('Ошибка при загрузке документов')
       setDocuments([])
+    } else {
+      console.log('[InvoiceViewNew.loadDocuments] Загруженные документы:', result.data)
+      // Данные уже содержат всю необходимую информацию из обеих таблиц
+      setDocuments(result.data || [])
     }
   } catch (error) {
     console.error('[InvoiceViewNew.loadDocuments] Ошибка загрузки документов:', error)
@@ -1164,26 +1429,7 @@ const renderDocuments = () => (
                 type="link"
                 icon={<EyeOutlined />}
                 size="small"
-                onClick={() => {
-                  // Формируем URL для просмотра
-                  let viewUrl = ''
-                  if (doc.storage_path?.startsWith('local://')) {
-                    // Для локально сохраненных файлов
-                    viewUrl = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/sign/documents/${doc.storage_path.replace('local://', '')}?token=`
-                  } else if (doc.storage_path?.startsWith('invoices/')) {
-                    // Для файлов в storage - используем signed URL
-                    viewUrl = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/sign/documents/${doc.storage_path}?token=`
-                  } else {
-                    viewUrl = doc.storage_path
-                  }
-
-                  console.log('[InvoiceViewNew] Просмотр документа:', {
-                    originalPath: doc.storage_path,
-                    viewUrl
-                  })
-
-                  window.open(viewUrl, '_blank')
-                }}
+                onClick={() => handlePreviewDocument(doc)}
                 title="Просмотреть"
               />,
               <Button
@@ -1194,36 +1440,39 @@ const renderDocuments = () => (
                   try {
                     console.log('[InvoiceViewNew] Скачивание документа:', {
                       doc,
-                      storagePath: doc.storage_path
+                      storagePath: doc.storage_path,
+                      attachmentId: doc.attachment_id
                     })
 
-                    // Используем Supabase для получения URL
-                    const { supabase } = await import('@/services/supabase')
+                    // Используем метод getFileDownloadUrl для получения URL
+                    const { InvoiceFileStorage } = await import('@/services/invoices/file-storage')
+                    const result = await InvoiceFileStorage.getFileDownloadUrl(doc.storage_path)
 
-                    if (doc.storage_path?.startsWith('invoices/')) {
-                      // Создаем signed URL для скачивания
-                      const { data, error } = await supabase.storage
-                        .from('documents')
-                        .createSignedUrl(doc.storage_path, 60) // URL действителен 60 секунд
+                    if (result.error) {
+                      console.error('[InvoiceViewNew] Ошибка получения URL для скачивания:', result.error)
 
-                      if (error) {
-                        console.error('[InvoiceViewNew] Ошибка создания signed URL:', error)
-                        message.error('Ошибка при скачивании файла')
-                        return
+                      // Для локальных файлов показываем информативное сообщение
+                      if (doc.storage_path?.startsWith('local://')) {
+                        message.info('Файл был сохранен только в базе данных. Для скачивания попробуйте загрузить файл заново.')
+                      } else {
+                        message.error(result.error || 'Ошибка при скачивании файла')
                       }
+                      return
+                    }
 
-                      if (data?.signedUrl) {
-                        // Скачиваем файл
-                        const link = document.createElement('a')
-                        link.href = data.signedUrl
-                        link.download = doc.original_name || 'document'
-                        link.click()
-                      }
-                    } else {
-                      message.warning('Файл недоступен для скачивания')
+                    if (result.data) {
+                      console.log('[InvoiceViewNew] URL для скачивания получен успешно')
+                      // Скачиваем файл
+                      const link = document.createElement('a')
+                      link.href = result.data
+                      link.download = doc.original_name || 'document'
+                      link.target = '_blank' // Открываем в новой вкладке для надежности
+                      document.body.appendChild(link)
+                      link.click()
+                      document.body.removeChild(link)
                     }
                   } catch (error) {
-                    console.error('[InvoiceViewNew] Ошибка скачивания:', error)
+                    console.error('[InvoiceViewNew] Критическая ошибка скачивания:', error)
                     message.error('Ошибка при скачивании файла')
                   }
                 }}
@@ -1773,6 +2022,64 @@ const renderHistory = () => (
             </Row>
           </div>
         </Form>
+      </Modal>
+
+      {/* File Preview Modal */}
+      <Modal
+        title={
+          <Space>
+            <FileOutlined />
+            {previewFile?.original_name || 'Просмотр документа'}
+          </Space>
+        }
+        open={previewModalVisible}
+        onCancel={() => {
+          setPreviewModalVisible(false)
+          setPreviewFile(null)
+        }}
+        footer={[
+          <Button
+            key="download"
+            icon={<DownloadOutlined />}
+            onClick={async () => {
+              if (previewFile?.storage_path?.startsWith('invoices/')) {
+                try {
+                  const { supabase } = await import('@/services/supabase')
+                  const { data, error } = await supabase.storage
+                    .from('documents')
+                    .createSignedUrl(previewFile.storage_path, 60)
+
+                  if (!error && data?.signedUrl) {
+                    const link = document.createElement('a')
+                    link.href = data.signedUrl
+                    link.download = previewFile.original_name || 'document'
+                    link.click()
+                  } else {
+                    message.error('Не удалось скачать файл')
+                  }
+                } catch (error) {
+                  console.error('[InvoiceViewNew] Ошибка скачивания:', error)
+                  message.error('Ошибка при скачивании файла')
+                }
+              } else {
+                message.warning('Файл недоступен для скачивания')
+              }
+            }}
+          >
+            Скачать
+          </Button>,
+          <Button key="close" onClick={() => {
+            setPreviewModalVisible(false)
+            setPreviewFile(null)
+          }}>
+            Закрыть
+          </Button>
+        ]}
+        width={800}
+        centered
+        destroyOnClose
+      >
+        {renderPreviewContent()}
       </Modal>
     </div>
   )

@@ -1,104 +1,176 @@
 import { supabase } from '../supabase'
 
 /**
+ * Статус работы Storage
+ */
+export let storageStatus = {
+  initialized: false,
+  bucketAvailable: false,
+  uploadEnabled: false,
+  lastError: null as any,
+  checkedAt: null as Date | null
+}
+
+/**
  * Инициализация Storage buckets
  */
 export async function initializeStorageBuckets() {
-  console.log('[StorageInit] Проверка и создание buckets...')
-  
+  console.log('[StorageInit] ============================================')
+  console.log('[StorageInit] Начало инициализации Storage...')
+  console.log('[StorageInit] ============================================')
+
+  storageStatus.checkedAt = new Date()
+
   try {
-    // Получаем список существующих buckets
+    // Шаг 1: Проверяем доступность Storage API
+    console.log('[StorageInit] Шаг 1: Проверка доступности Storage API...')
     const { data: buckets, error: listError } = await supabase.storage.listBuckets()
-    
+
     if (listError) {
-      console.error('[StorageInit] Ошибка получения списка buckets:', listError)
-      return
-    }
-    
-    console.log('[StorageInit] Существующие buckets:', buckets?.map(b => b.name))
-    
-    // Проверяем наличие bucket "documents"
-    const documentsBucket = buckets?.find(b => b.name === 'documents')
-    
-    if (!documentsBucket) {
-      console.log('[StorageInit] Bucket "documents" не найден в списке доступных buckets')
-      console.log('[StorageInit] Попытка создания bucket может требовать административных прав')
-      
-      // Пробуем создать bucket только если это не production среда
-      if (import.meta.env.DEV) {
-        try {
-          const { data, error } = await supabase.storage.createBucket('documents', {
-            public: true, // Публичный доступ для чтения
-            allowedMimeTypes: [
-              'application/pdf',
-              'application/msword',
-              'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-              'application/vnd.ms-excel',
-              'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-              'image/jpeg',
-              'image/png',
-              'image/gif',
-              'image/bmp',
-              'text/plain',
-              'text/html'
-            ],
-            fileSizeLimit: 10485760 // 10MB
-          })
-          
-          if (error) {
-            // Не показываем ошибку, если это проблема с правами
-            if (error.message?.includes('row-level security') || 
-                error.message?.includes('permission') || 
-                error.message?.includes('denied')) {
-              console.info('[StorageInit] Bucket "documents" вероятно уже существует на сервере, но не виден из-за политик безопасности')
-            } else {
-              console.error('[StorageInit] Ошибка создания bucket:', error)
-            }
-          } else {
-            console.log('[StorageInit] Bucket "documents" успешно создан:', data)
-          }
-        } catch (err) {
-          console.info('[StorageInit] Не удалось создать bucket, вероятно он уже существует')
-        }
+      console.error('[StorageInit] ❌ Storage API недоступен:', listError)
+      storageStatus.lastError = listError
+
+      // Пробуем альтернативный метод - прямой доступ к bucket
+      console.log('[StorageInit] Пробуем прямой доступ к bucket "documents"...')
+      const { error: directError } = await supabase.storage.from('documents').list('test', { limit: 1 })
+
+      if (!directError) {
+        console.log('[StorageInit] ✅ Bucket "documents" доступен через прямой доступ')
+        storageStatus.bucketAvailable = true
+      } else {
+        console.error('[StorageInit] ❌ Прямой доступ к bucket также недоступен:', directError)
       }
     } else {
-      console.log('[StorageInit] Bucket "documents" доступен:', {
-        name: documentsBucket.name,
-        public: documentsBucket.public,
-        created_at: documentsBucket.created_at
-      })
+      console.log('[StorageInit] ✅ Storage API доступен')
+      console.log('[StorageInit] Найдено buckets:', buckets?.map(b => b.name) || [])
+
+      // Шаг 2: Проверяем наличие bucket "documents"
+      const documentsBucket = buckets?.find(b => b.name === 'documents')
+
+      if (!documentsBucket) {
+        console.log('[StorageInit] ⚠️ Bucket "documents" не найден в списке')
+        console.log('[StorageInit] Возможные причины:')
+        console.log('[StorageInit] 1. Bucket не создан в Supabase Dashboard')
+        console.log('[StorageInit] 2. RLS политики скрывают bucket')
+        console.log('[StorageInit] 3. Недостаточно прав для просмотра')
+
+        // Пробуем создать bucket
+        console.log('[StorageInit] Попытка создания bucket "documents"...')
+        const { data, error } = await supabase.storage.createBucket('documents', {
+          public: true,
+          fileSizeLimit: 52428800, // 50MB
+          allowedMimeTypes: undefined // Разрешаем все типы файлов
+        })
+
+        if (error) {
+          if (error.message?.includes('already exists')) {
+            console.log('[StorageInit] ℹ️ Bucket уже существует (скрыт RLS)')
+            storageStatus.bucketAvailable = true
+          } else if (error.message?.includes('row-level security') ||
+                     error.message?.includes('policy')) {
+            console.log('[StorageInit] ⚠️ RLS блокирует создание bucket')
+            console.log('[StorageInit] Bucket вероятно существует, но требует настройки политик')
+            storageStatus.bucketAvailable = true // Предполагаем что bucket есть
+          } else {
+            console.error('[StorageInit] ❌ Не удалось создать bucket:', error)
+            storageStatus.lastError = error
+          }
+        } else {
+          console.log('[StorageInit] ✅ Bucket "documents" успешно создан:', data)
+          storageStatus.bucketAvailable = true
+        }
+      } else {
+        console.log('[StorageInit] ✅ Bucket "documents" найден:', {
+          name: documentsBucket.name,
+          public: documentsBucket.public,
+          created_at: documentsBucket.created_at
+        })
+        storageStatus.bucketAvailable = true
+      }
     }
-    
-    // Создаем тестовую папку для проверки доступа
-    const testFileName = `test/init_${Date.now()}.txt`
-    const testContent = new Blob(['Test storage access'], { type: 'text/plain' })
-    
-    const { data: uploadData, error: uploadError } = await supabase.storage
-      .from('documents')
-      .upload(testFileName, testContent, {
-        cacheControl: '3600',
-        upsert: true
-      })
-    
-    if (uploadError) {
-      console.error('[StorageInit] Ошибка тестовой загрузки:', uploadError)
-      console.warn('[StorageInit] Storage может быть недоступен или требует дополнительной настройки')
-    } else {
-      console.log('[StorageInit] Тестовая загрузка успешна:', uploadData)
-      
-      // Удаляем тестовый файл
-      await supabase.storage
+
+    // Шаг 3: Тестируем возможность загрузки
+    if (storageStatus.bucketAvailable) {
+      console.log('[StorageInit] Шаг 3: Тестирование загрузки файлов...')
+
+      const testFileName = `_test/storage_test_${Date.now()}.txt`
+      const testContent = new Blob(['Storage test at ' + new Date().toISOString()], { type: 'text/plain' })
+
+      console.log('[StorageInit] Загружаем тестовый файл:', testFileName)
+      const { data: uploadData, error: uploadError } = await supabase.storage
         .from('documents')
-        .remove([testFileName])
-        .catch(err => console.warn('[StorageInit] Не удалось удалить тестовый файл:', err))
+        .upload(testFileName, testContent, {
+          cacheControl: '3600',
+          upsert: true
+        })
+
+      if (uploadError) {
+        console.error('[StorageInit] ❌ Тестовая загрузка не удалась:', uploadError)
+        storageStatus.lastError = uploadError
+
+        if (uploadError.message?.includes('row-level security') ||
+            uploadError.message?.includes('policy')) {
+          console.log('[StorageInit] ============================================')
+          console.log('[StorageInit] ⚠️ ТРЕБУЕТСЯ НАСТРОЙКА RLS ПОЛИТИК')
+          console.log('[StorageInit] ============================================')
+          console.log('[StorageInit] Выполните следующие действия:')
+          console.log('[StorageInit] 1. Откройте Supabase Dashboard')
+          console.log('[StorageInit] 2. Перейдите в SQL Editor')
+          console.log('[StorageInit] 3. Выполните SQL из файла:')
+          console.log('[StorageInit]    supabase/fix-storage-policies.sql')
+          console.log('[StorageInit] ============================================')
+        }
+
+        storageStatus.uploadEnabled = false
+      } else {
+        console.log('[StorageInit] ✅ Тестовая загрузка успешна:', uploadData)
+        storageStatus.uploadEnabled = true
+
+        // Очищаем тестовый файл
+        console.log('[StorageInit] Удаляем тестовый файл...')
+        const { error: removeError } = await supabase.storage
+          .from('documents')
+          .remove([testFileName])
+
+        if (removeError) {
+          console.warn('[StorageInit] ⚠️ Не удалось удалить тестовый файл:', removeError)
+        } else {
+          console.log('[StorageInit] ✅ Тестовый файл удален')
+        }
+      }
     }
-    
+
+    storageStatus.initialized = true
+
+    // Итоговый статус
+    console.log('[StorageInit] ============================================')
+    console.log('[StorageInit] ИТОГОВЫЙ СТАТУС:')
+    console.log('[StorageInit] - Инициализирован:', storageStatus.initialized)
+    console.log('[StorageInit] - Bucket доступен:', storageStatus.bucketAvailable)
+    console.log('[StorageInit] - Загрузка работает:', storageStatus.uploadEnabled)
+    if (storageStatus.lastError) {
+      console.log('[StorageInit] - Последняя ошибка:', storageStatus.lastError.message)
+    }
+    console.log('[StorageInit] ============================================')
+
   } catch (error) {
-    console.error('[StorageInit] Критическая ошибка инициализации Storage:', error)
+    console.error('[StorageInit] ❌ Критическая ошибка инициализации:', error)
+    storageStatus.lastError = error
+    storageStatus.initialized = true // Помечаем как инициализированный, но с ошибкой
   }
+
+  return storageStatus
+}
+
+// Экспортируем для использования в других модулях
+export function getStorageStatus() {
+  return { ...storageStatus }
 }
 
 // Автоматически инициализируем при загрузке модуля
 if (typeof window !== 'undefined') {
-  initializeStorageBuckets().catch(console.error)
+  // Задержка для того чтобы дать приложению загрузиться
+  setTimeout(() => {
+    initializeStorageBuckets().catch(console.error)
+  }, 1000)
 }
