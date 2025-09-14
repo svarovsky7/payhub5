@@ -511,17 +511,6 @@ export const useAuthStore = create<AuthState & AuthActions>()(devtools(
     )
 )
 
-// Хук для получения эффективной роли (тестовой или реальной)
-export const useEffectiveRole = () => {
-    const getEffectiveRole = useAuthStore((state) => state.getEffectiveRole)
-    const testRole = useAuthStore((state) => state.testRole)
-    const profile = useAuthStore((state) => state.profile)
-
-    // Подписываемся на изменения testRole и profile
-    return React.useMemo(() => {
-        return getEffectiveRole()
-    }, [testRole, profile?.roles?.code])
-}
 
 // Provider компонент для авторизации
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({children}) => {
