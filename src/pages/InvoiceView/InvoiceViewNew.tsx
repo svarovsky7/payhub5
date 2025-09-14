@@ -4,7 +4,7 @@
  */
 
 import React, { useCallback, useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
   Form,
   Input,
@@ -65,6 +65,7 @@ import { useProjectsList } from '@/services/hooks/useProjects'
 import { useInvoiceTypesList } from '@/services/hooks/useInvoiceTypes'
 import { useMaterialResponsiblePersonsList } from '@/services/hooks/useMaterialResponsiblePersons'
 import { useCurrencies, usePriorities } from '@/services/hooks/useEnums'
+import { usePaymentsList } from '@/services/hooks/usePayments'
 import { useAuthStore } from '@/models/auth'
 import { calculateDeliveryDate, calculateVATAmounts } from '../InvoiceCreate/utils/calculations'
 import { DEFAULT_CURRENCY, DEFAULT_VAT_RATE } from '../InvoiceCreate/constants'
@@ -77,20 +78,25 @@ const { TextArea } = Input
 export const InvoiceViewNew: React.FC = () => {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [form] = Form.useForm<InvoiceFormValues>()
   const { user } = useAuthStore()
+
+  // Получаем активную вкладку из URL или используем 'info' по умолчанию
+  const tabFromUrl = searchParams.get('tab') || 'info'
 
   // State
   const [isEditing, setIsEditing] = useState(false)
   const [hasChanges, setHasChanges] = useState(false)
   const [deliveryDate, setDeliveryDate] = useState<dayjs.Dayjs | null>(null)
-  const [activeTab, setActiveTab] = useState('info')
+  const [activeTab, setActiveTab] = useState(tabFromUrl)
   // Payment modal state removed - using paymentModalVisible instead
   const [documents, setDocuments] = useState<any[]>([])
   const [loadingDocuments, setLoadingDocuments] = useState(false)
   const [uploadingFile, setUploadingFile] = useState(false)
   const [paymentModalVisible, setPaymentModalVisible] = useState(false)
   const [paymentForm] = Form.useForm()
+  const [currentPaymentAmount, setCurrentPaymentAmount] = useState(0)
   const [financialSummary, setFinancialSummary] = useState({
     amountNet: 0,
     vatAmount: 0,
@@ -104,11 +110,26 @@ export const InvoiceViewNew: React.FC = () => {
   const [previewFile, setPreviewFile] = useState<any>(null)
   const [previewLoading, setPreviewLoading] = useState(false)
 
+  // Document history state
+  const [documentHistory, setDocumentHistory] = useState<any[]>([])
+  const [loadingHistory, setLoadingHistory] = useState(false)
+
+  // Field changes history state
+  const [fieldChangesHistory, setFieldChangesHistory] = useState<any[]>([])
+  const [originalValues, setOriginalValues] = useState<any>(null)
+
   // console.log('[InvoiceViewNew] Инициализация компонента с ID:', id)
 
   // Load invoice data
   const { data: invoice, isLoading: invoiceLoading, refetch: refetchInvoice } = useInvoice(id || '')
   const updateInvoiceMutation = useUpdateInvoice()
+
+  // Load payments for this invoice
+  const { data: paymentsResponse, isLoading: loadingPayments, refetch: refetchPayments } = usePaymentsList(
+    invoice?.id ? Number(invoice.id) : undefined
+  )
+
+  console.log('[InvoiceViewNew] Загрузка платежей для счета:', invoice?.id, 'Результат:', paymentsResponse)
 
   // Load related data
   const { data: contractorsResponse, isLoading: loadingContractors } = useContractorsList()
@@ -123,6 +144,14 @@ export const InvoiceViewNew: React.FC = () => {
   const suppliers = contractors.filter((c: any) => c.type_id === 4)
   const payers = contractors.filter((c: any) => c.type_id === 2)
   const projects = projectsResponse ?? []
+
+  // Синхронизация вкладки с URL при изменении URL
+  useEffect(() => {
+    const tabFromUrl = searchParams.get('tab') || 'info'
+    if (tabFromUrl !== activeTab) {
+      setActiveTab(tabFromUrl)
+    }
+  }, [searchParams, activeTab])
 
   // Set form values when invoice loads
   useEffect(() => {
@@ -169,7 +198,7 @@ export const InvoiceViewNew: React.FC = () => {
       })
 
       // Set form values
-      form.setFieldsValue({
+      const formValues = {
         invoice_number: invoice.invoice_number,
         internal_number: invoice.internal_number,
         invoice_date: invoice.invoice_date ? dayjs(invoice.invoice_date) : dayjs(),
@@ -189,7 +218,12 @@ export const InvoiceViewNew: React.FC = () => {
         priority: invoice.priority || 'normal',
         material_responsible_person_id: invoice.material_responsible_person_id,
         notes: invoice.notes
-      })
+      }
+
+      form.setFieldsValue(formValues)
+
+      // Save original values for comparison
+      setOriginalValues(formValues)
 
       // Calculate delivery date if needed
       if (invoice.delivery_days) {
@@ -272,6 +306,45 @@ export const InvoiceViewNew: React.FC = () => {
         activeTab
       })
 
+      // Определяем изменённые поля
+      const changedFields: string[] = []
+      const fieldNames: Record<string, string> = {
+        invoice_number: 'Номер счета',
+        internal_number: 'Внутренний номер',
+        invoice_date: 'Дата счета',
+        invoice_type_id: 'Тип счета',
+        description: 'Описание',
+        supplier_id: 'Поставщик',
+        payer_id: 'Плательщик',
+        project_id: 'Проект',
+        material_responsible_person_id: 'МОЛ',
+        currency: 'Валюта',
+        amount_with_vat: 'Сумма с НДС',
+        amount_net: 'Сумма без НДС',
+        vat_rate: 'Ставка НДС',
+        vat_amount: 'Сумма НДС',
+        delivery_days: 'Срок поставки',
+        delivery_days_type: 'Тип срока поставки',
+        priority: 'Приоритет',
+        notes: 'Примечания'
+      }
+
+      // Сравниваем текущие значения с оригинальными
+      if (originalValues) {
+        Object.keys(values).forEach(key => {
+          const newValue = values[key]
+          const oldValue = originalValues[key]
+
+          // Преобразуем значения для сравнения
+          const normalizedNew = newValue instanceof dayjs ? newValue.format('YYYY-MM-DD') : newValue
+          const normalizedOld = oldValue instanceof dayjs ? oldValue.format('YYYY-MM-DD') : oldValue
+
+          if (normalizedNew !== normalizedOld && fieldNames[key]) {
+            changedFields.push(fieldNames[key])
+          }
+        })
+      }
+
       const updateData = {
         invoice_number: values.invoice_number,
         internal_number: values.internal_number,
@@ -299,9 +372,21 @@ export const InvoiceViewNew: React.FC = () => {
         companyId: user?.companyId || '1'
       })
 
+      // Добавляем изменения в историю
+      if (changedFields.length > 0) {
+        const changeRecord = {
+          date: new Date().toISOString(),
+          type: 'field_change',
+          fields: changedFields,
+          user: user?.email || 'Пользователь'
+        }
+        setFieldChangesHistory(prev => [...prev, changeRecord])
+      }
+
       message.success('Изменения сохранены')
       setHasChanges(false)
       setIsEditing(false)
+      setOriginalValues(values) // Обновляем оригинальные значения
       refetchInvoice()
       console.log('[InvoiceViewNew.handleSave] Изменения успешно сохранены')
     } catch (error) {
@@ -421,6 +506,16 @@ export const InvoiceViewNew: React.FC = () => {
   const handleTabChange = (key: string) => {
     console.log('[InvoiceViewNew.handleTabChange] Переключение вкладки:', { from: activeTab, to: key })
     setActiveTab(key)
+
+    // Обновляем URL с параметром tab
+    const newParams = new URLSearchParams(searchParams)
+    if (key === 'info') {
+      // Для вкладки по умолчанию удаляем параметр из URL
+      newParams.delete('tab')
+    } else {
+      newParams.set('tab', key)
+    }
+    setSearchParams(newParams, { replace: true })
   }
 
   // Render main form content
@@ -860,14 +955,21 @@ const handleAddPayment = () => {
   }
 
   // Устанавливаем начальные значения для формы платежа
+  const remainingAmount = invoice.total_amount - (invoice.paid_amount || 0)
+  const vatRate = invoice.vat_rate || 20
+  const vatAmount = remainingAmount * vatRate / (100 + vatRate)
+  const amountNet = remainingAmount - vatAmount
+
   paymentForm.setFieldsValue({
     payment_date: dayjs(),
-    amount: invoice.total_amount - (invoice.paid_amount || 0), // Остаток к оплате
-    currency: invoice.currency || 'RUB',
-    payment_method: 'bank_transfer',
-    status: 'pending'
+    total_amount: remainingAmount > 0 ? remainingAmount : 0,
+    vat_rate: vatRate,
+    vat_amount: parseFloat(vatAmount.toFixed(2)),
+    amount_net: parseFloat(amountNet.toFixed(2)),
+    payment_type: 'DEBT'
   })
 
+  setCurrentPaymentAmount(remainingAmount)
   setPaymentModalVisible(true)
 }
 
@@ -878,56 +980,50 @@ const handleCreatePayment = async () => {
 
     console.log('[InvoiceViewNew.handleCreatePayment] Создание платежа:', {
       invoiceId: id,
+      invoice: invoice,
       values
     })
 
-    const { supabase } = await import('@/services/supabase')
+    const { PaymentCrudService } = await import('@/services/payments/crud')
 
-    // Создаем запись платежа
-    const { data, error } = await supabase
-      .from('payments')
-      .insert({
-        invoice_id: parseInt(id!),
-        payment_date: values.payment_date.format('YYYY-MM-DD'),
-        amount: values.amount,
-        currency: values.currency,
-        payment_method: values.payment_method,
-        status: values.status,
-        description: values.description,
-        created_by: user?.id
-      })
-      .select()
-      .single()
-
-    if (error) {
-      console.error('[InvoiceViewNew.handleCreatePayment] Ошибка создания платежа:', error)
-      throw error
+    // Создаем запись платежа через PaymentCrudService
+    const paymentData = {
+      invoice_id: parseInt(id!),
+      payment_date: values.payment_date.format('YYYY-MM-DD'),
+      payer_id: invoice?.payer_id || 1,
+      payment_type: values.payment_type || 'DEBT',
+      total_amount: values.total_amount,
+      comment: values.comment || '',
+      status: 'draft', // Используем статус 'draft' (Черновик) по умолчанию
+      created_by: user?.id,
+      // VAT поля для сохранения в БД
+      vat_rate: values.vat_rate || invoice?.vat_rate || 20,
+      vat_amount: values.vat_amount || 0,
+      amount_net: values.amount_net || 0
     }
 
-    console.log('[InvoiceViewNew.handleCreatePayment] Платеж создан:', data)
+    console.log('[InvoiceViewNew.handleCreatePayment] Данные для создания платежа:', paymentData)
 
-    // Обновляем paid_amount в счете если платеж завершен
-    if (values.status === 'completed') {
-      const newPaidAmount = (invoice?.paid_amount || 0) + values.amount
-      const { error: updateError } = await supabase
-        .from('invoices')
-        .update({
-          paid_amount: newPaidAmount,
-          status: newPaidAmount >= (invoice?.total_amount || 0) ? 'paid' : invoice?.status
-        })
-        .eq('id', parseInt(id!))
+    const response = await PaymentCrudService.create(paymentData as any)
 
-      if (updateError) {
-        console.error('[InvoiceViewNew.handleCreatePayment] Ошибка обновления счета:', updateError)
-      }
+    if (response.error) {
+      console.error('[InvoiceViewNew.handleCreatePayment] Ошибка создания платежа:', response.error)
+      throw new Error(response.error)
     }
+
+    console.log('[InvoiceViewNew.handleCreatePayment] Платеж создан:', response.data)
+
+    // Платежи создаются со статусом 'draft' (Черновик), поэтому не обновляем paid_amount
+    // paid_amount обновляется только когда платеж будет согласован и оплачен
 
     message.success('Платеж успешно создан')
     setPaymentModalVisible(false)
     paymentForm.resetFields()
+    setCurrentPaymentAmount(0)
 
-    // Перезагружаем данные счета
+    // Перезагружаем данные счета и платежи
     refetchInvoice()
+    refetchPayments()
   } catch (error) {
     console.error('[InvoiceViewNew.handleCreatePayment] Ошибка:', error)
     message.error('Ошибка при создании платежа')
@@ -979,6 +1075,11 @@ const handleUploadDocument = async (file: any) => {
 
       // Перезагружаем список документов
       await loadDocuments()
+
+      // Обновляем историю если мы на вкладке истории
+      if (activeTab === 'history') {
+        await loadDocumentHistory()
+      }
 
       // Также обновляем счет для получения актуальных данных
       if (refetchInvoice) {
@@ -1294,12 +1395,83 @@ const loadDocuments = useCallback(async () => {
   }
 }, [id])
 
+// Функция загрузки истории документов
+const loadDocumentHistory = useCallback(async () => {
+  if (!id) return
+
+  console.log('[InvoiceViewNew.loadDocumentHistory] Загрузка истории документов для счета:', id)
+  setLoadingHistory(true)
+
+  try {
+    // Получаем историю документов из invoice_documents с информацией о пользователях
+    const { supabase } = await import('@/services/supabase')
+    const { data, error } = await supabase
+      .from('invoice_documents')
+      .select(`
+        *,
+        attachment:attachments (
+          id,
+          original_name,
+          storage_path,
+          size_bytes,
+          mime_type,
+          created_at,
+          created_by
+        )
+      `)
+      .eq('invoice_id', parseInt(id))
+      .order('created_at', { ascending: false })
+
+    // Если есть документы, загружаем информацию о пользователях отдельно
+    if (data && data.length > 0) {
+      const userIds = [...new Set(data
+        .filter(d => d.attachment?.created_by)
+        .map(d => d.attachment.created_by))]
+
+      if (userIds.length > 0) {
+        const { data: users } = await supabase
+          .from('users')
+          .select('id, full_name, email')
+          .in('id', userIds)
+
+        // Добавляем информацию о пользователях к документам
+        if (users) {
+          data.forEach(doc => {
+            if (doc.attachment?.created_by) {
+              const user = users.find(u => u.id === doc.attachment.created_by)
+              if (user) {
+                doc.attachment.creator = user
+              }
+            }
+          })
+        }
+      }
+    }
+
+    if (error) {
+      console.error('[InvoiceViewNew.loadDocumentHistory] Ошибка загрузки истории:', error)
+      message.error('Ошибка при загрузке истории документов')
+      setDocumentHistory([])
+    } else {
+      console.log('[InvoiceViewNew.loadDocumentHistory] История документов:', data)
+      setDocumentHistory(data || [])
+    }
+  } catch (error) {
+    console.error('[InvoiceViewNew.loadDocumentHistory] Ошибка загрузки истории:', error)
+    message.error('Ошибка при загрузке истории документов')
+  } finally {
+    setLoadingHistory(false)
+  }
+}, [id])
+
 // Загружаем документы при монтировании компонента
 useEffect(() => {
   if (activeTab === 'documents') {
     loadDocuments()
+  } else if (activeTab === 'history') {
+    loadDocumentHistory()
   }
-}, [activeTab, loadDocuments])
+}, [activeTab, loadDocuments, loadDocumentHistory])
 
 // Получение иконки для файла
 const getFileIcon = (mimeType: string, fileName: string = '') => {
@@ -1327,32 +1499,61 @@ const formatFileSize = (bytes: number): string => {
   return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i]
 }
 
-const renderPayments = () => (
-  <Card type="inner" title={<><CreditCardOutlined style={{ marginRight: 8 }} />Управление платежами</>}>
-    <div style={{ marginBottom: 16 }}>
-      <Button
-        type="primary"
-        icon={<PlusOutlined />}
-        size="small"
-        onClick={handleAddPayment}
-      >
-        Добавить платеж
-      </Button>
-    </div>
-    <Table
-      dataSource={invoice?.payments || []}
-      size="small"
+const renderPayments = () => {
+  console.log('[InvoiceViewNew.renderPayments] Отображение платежей:', paymentsResponse)
+
+  return (
+    <Card type="inner" title={<><CreditCardOutlined style={{ marginRight: 8 }} />Управление платежами</>}>
+      <div style={{ marginBottom: 16 }}>
+        <Button
+          type="primary"
+          icon={<PlusOutlined />}
+          size="small"
+          onClick={handleAddPayment}
+        >
+          Добавить платеж
+        </Button>
+      </div>
+      {loadingPayments ? (
+        <Spin tip="Загрузка платежей..." />
+      ) : (
+        <Table
+          dataSource={paymentsResponse?.data || []}
+          size="small"
       pagination={{ pageSize: 10, size: 'small' }}
       columns={[
+        {
+          title: 'Номер',
+          dataIndex: 'internal_number',
+          key: 'internal_number',
+          width: 200,
+          render: (text: string) => text || '-'
+        },
         {
           title: 'Дата',
           dataIndex: 'payment_date',
           key: 'payment_date',
+          width: 100,
           render: (date: string) => dayjs(date).format('DD.MM.YYYY')
         },
         {
+          title: 'Тип',
+          dataIndex: 'payment_type',
+          key: 'payment_type',
+          width: 100,
+          render: (type: string) => {
+            const typeConfig: Record<string, { color: string, text: string }> = {
+              'ADV': { color: 'blue', text: 'Аванс' },
+              'DEBT': { color: 'green', text: 'Оплата' },
+              'RET': { color: 'orange', text: 'Возврат' }
+            }
+            const config = typeConfig[type] || { color: 'default', text: type }
+            return <Tag color={config.color}>{config.text}</Tag>
+          }
+        },
+        {
           title: 'Сумма',
-          dataIndex: 'amount_with_vat',
+          dataIndex: 'total_amount',
           key: 'amount',
           align: 'right',
           render: (amount: number) => (
@@ -1360,7 +1561,7 @@ const renderPayments = () => (
               {new Intl.NumberFormat('ru-RU', {
                 style: 'currency',
                 currency: invoice?.currency || 'RUB'
-              }).format(amount)}
+              }).format(amount || 0)}
             </Text>
           )
         },
@@ -1370,10 +1571,15 @@ const renderPayments = () => (
           key: 'status',
           render: (status: string) => {
             const statusConfig: Record<string, { color: string, icon: React.ReactNode, text: string }> = {
-              completed: { color: 'success', icon: <CheckCircleOutlined />, text: 'Оплачено' },
-              pending: { color: 'warning', icon: <ClockCircleOutlined />, text: 'Ожидает' },
+              draft: { color: 'default', icon: <FileTextOutlined />, text: 'Черновик' },
+              pending: { color: 'warning', icon: <ClockCircleOutlined />, text: 'На согласовании' },
+              approved: { color: 'volcano', icon: <CheckCircleOutlined />, text: 'Согласован' },
+              scheduled: { color: 'magenta', icon: <ClockCircleOutlined />, text: 'В графике' },
+              paid: { color: 'success', icon: <CheckCircleOutlined />, text: 'Оплачен' },
+              completed: { color: 'success', icon: <CheckCircleOutlined />, text: 'Завершен' },
               processing: { color: 'processing', icon: <ClockCircleOutlined />, text: 'В обработке' },
-              failed: { color: 'error', icon: <ExclamationCircleOutlined />, text: 'Ошибка' }
+              failed: { color: 'error', icon: <ExclamationCircleOutlined />, text: 'Ошибка' },
+              cancelled: { color: 'error', icon: <CloseOutlined />, text: 'Отменен' }
             }
             const config = statusConfig[status] || { color: 'default', icon: null, text: status }
             return (
@@ -1385,14 +1591,16 @@ const renderPayments = () => (
         },
         {
           title: 'Примечания',
-          dataIndex: 'description',
-          key: 'description',
+          dataIndex: 'comment',
+          key: 'comment',
           ellipsis: true
         }
       ]}
-    />
-  </Card>
-)
+        />
+      )}
+    </Card>
+  )
+}
 
 // Render documents tab
 const renderDocuments = () => (
@@ -1462,14 +1670,47 @@ const renderDocuments = () => (
 
                     if (result.data) {
                       console.log('[InvoiceViewNew] URL для скачивания получен успешно')
-                      // Скачиваем файл
-                      const link = document.createElement('a')
-                      link.href = result.data
-                      link.download = doc.original_name || 'document'
-                      link.target = '_blank' // Открываем в новой вкладке для надежности
-                      document.body.appendChild(link)
-                      link.click()
-                      document.body.removeChild(link)
+
+                      // Принудительно скачиваем файл через fetch + blob
+                      try {
+                        const response = await fetch(result.data)
+                        if (!response.ok) {
+                          throw new Error('Ошибка загрузки файла')
+                        }
+
+                        const blob = await response.blob()
+                        const url = window.URL.createObjectURL(blob)
+
+                        const link = document.createElement('a')
+                        link.href = url
+                        link.download = doc.original_name || 'document'
+                        link.style.display = 'none'
+                        document.body.appendChild(link)
+                        link.click()
+
+                        // Очищаем ресурсы
+                        setTimeout(() => {
+                          document.body.removeChild(link)
+                          window.URL.revokeObjectURL(url)
+                        }, 100)
+
+                        console.log('[InvoiceViewNew] Файл успешно скачан:', doc.original_name)
+                      } catch (fetchError) {
+                        console.error('[InvoiceViewNew] Ошибка загрузки через fetch:', fetchError)
+
+                        // Fallback: пробуем обычный способ с добавлением параметра download
+                        const link = document.createElement('a')
+                        link.href = result.data + (result.data.includes('?') ? '&' : '?') + 'download=1'
+                        link.download = doc.original_name || 'document'
+                        link.setAttribute('download', doc.original_name || 'document')
+                        link.style.display = 'none'
+                        document.body.appendChild(link)
+                        link.click()
+
+                        setTimeout(() => {
+                          document.body.removeChild(link)
+                        }, 100)
+                      }
                     }
                   } catch (error) {
                     console.error('[InvoiceViewNew] Критическая ошибка скачивания:', error)
@@ -1530,6 +1771,11 @@ const renderDocuments = () => (
 
                         message.success('Документ удален')
                         await loadDocuments()
+
+                        // Обновляем историю если мы на вкладке истории
+                        if (activeTab === 'history') {
+                          await loadDocumentHistory()
+                        }
                       } catch (error) {
                         console.error('[InvoiceViewNew] Ошибка удаления документа:', error)
                         message.error('Ошибка при удалении документа')
@@ -1565,40 +1811,137 @@ const renderDocuments = () => (
 )
 
 // Render history tab
-const renderHistory = () => (
-  <Card type="inner" title={<><HistoryOutlined style={{ marginRight: 8 }} />История изменений</>}>
-    <Timeline
-      size="small"
-      items={[
-        {
-          color: 'blue',
-          children: (
-            <div>
-              <Text strong>Счет создан</Text>
+const renderHistory = () => {
+  // Формируем элементы истории с датами для сортировки
+  const historyItems = []
+
+  // Добавляем событие создания счета
+  if (invoice?.created_at) {
+    historyItems.push({
+      date: invoice.created_at,
+      color: 'blue',
+      children: (
+        <div>
+          <Text strong>Счет создан</Text>
+          <br />
+          <Text type="secondary">{dayjs(invoice.created_at).format('DD.MM.YYYY HH:mm')}</Text>
+          {invoice.created_by && (
+            <>
               <br />
-              <Text type="secondary">{dayjs(invoice?.created_at).format('DD.MM.YYYY HH:mm')}</Text>
-            </div>
-          )
-        },
-        {
-          color: 'green',
-          children: (
-            <div>
-              <Text strong>Статус: {invoice?.status}</Text>
-              <br />
-              <Text type="secondary">Текущий статус счета</Text>
-            </div>
-          )
-        }
-      ]}
-    />
-    <div style={{ marginTop: 16, padding: 16, background: '#fafafa', borderRadius: 6 }}>
-      <Text type="secondary" style={{ fontSize: 12 }}>
-        Детальная история изменений будет добавлена в следующих версиях
-      </Text>
-    </div>
-  </Card>
-)
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                Создал: {invoice.created_by_name || 'Пользователь'}
+              </Text>
+            </>
+          )}
+        </div>
+      )
+    })
+  }
+
+  // Добавляем события загрузки документов
+  documentHistory.forEach((doc) => {
+    if (doc.attachment) {
+      const isDeleted = !doc.attachment.storage_path || doc.attachment.storage_path.startsWith('deleted://')
+
+      historyItems.push({
+        date: doc.created_at,
+        color: isDeleted ? 'red' : 'green',
+        children: (
+          <div>
+            <Text strong>
+              {isDeleted ? 'Документ удален' : 'Документ загружен'}: {doc.attachment.original_name}
+            </Text>
+            <br />
+            <Text type="secondary">
+              {dayjs(doc.created_at).format('DD.MM.YYYY HH:mm')}
+            </Text>
+            <br />
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              {doc.attachment.creator?.full_name || doc.attachment.creator?.email || 'Неизвестный пользователь'}
+            </Text>
+            {!isDeleted && doc.attachment.size_bytes && (
+              <>
+                <br />
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  Размер: {(doc.attachment.size_bytes / 1024).toFixed(2)} КБ
+                </Text>
+              </>
+            )}
+          </div>
+        )
+      })
+    }
+  })
+
+  // Добавляем события изменения полей
+  fieldChangesHistory.forEach((change) => {
+    historyItems.push({
+      date: change.date,
+      color: 'orange',
+      children: (
+        <div>
+          <Text strong>Изменены поля:</Text>
+          <br />
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            {change.fields.join(', ')}
+          </Text>
+          <br />
+          <Text type="secondary">
+            {dayjs(change.date).format('DD.MM.YYYY HH:mm')}
+          </Text>
+          <br />
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            Изменил: {change.user}
+          </Text>
+        </div>
+      )
+    })
+  })
+
+  // Добавляем текущий статус
+  if (invoice?.status) {
+    historyItems.push({
+      date: new Date().toISOString(),
+      color: 'green',
+      children: (
+        <div>
+          <Text strong>Текущий статус: {invoice.status}</Text>
+          <br />
+          <Text type="secondary">{dayjs().format('DD.MM.YYYY HH:mm')}</Text>
+        </div>
+      )
+    })
+  }
+
+  // Сортируем по дате - новые события сверху
+  historyItems.sort((a, b) => {
+    const dateA = new Date(a.date).getTime()
+    const dateB = new Date(b.date).getTime()
+    return dateB - dateA // Сортировка по убыванию (новые сверху)
+  })
+
+  // Удаляем временное поле date перед передачей в Timeline
+  const sortedItems = historyItems.map(({ date, ...item }) => item)
+
+  return (
+    <Card type="inner" title={<><HistoryOutlined style={{ marginRight: 8 }} />История изменений</>}>
+      {loadingHistory ? (
+        <div style={{ textAlign: 'center', padding: 50 }}>
+          <Spin size="large" />
+        </div>
+      ) : sortedItems.length > 0 ? (
+        <Timeline
+          size="small"
+          items={sortedItems}
+        />
+      ) : (
+        <div style={{ textAlign: 'center', padding: 50 }}>
+          <Text type="secondary">История пуста</Text>
+        </div>
+      )}
+    </Card>
+  )
+}
 
   if (invoiceLoading) {
     return (
@@ -1616,7 +1959,10 @@ const renderHistory = () => (
     )
   }
 
-  const canEdit = invoice.status === 'draft' || invoice.status === 'rejected'
+  // Разрешаем редактирование для всех статусов кроме 'cancelled'
+  // paid и partially_paid - можно продолжать редактировать и добавлять платежи/документы
+  // Это позволяет корректировать счета даже после оплаты
+  const canEdit = invoice.status !== 'cancelled'
 
   return (
     <div style={{ padding: '24px' }}>
@@ -1646,8 +1992,23 @@ const renderHistory = () => (
         <Title level={2}>
           Счет №{invoice.invoice_number} от {dayjs(invoice.invoice_date).format('DD.MM.YYYY')}
         </Title>
-
       </div>
+
+      {/* Информационное сообщение для оплаченных счетов */}
+      {(invoice.status === 'paid' || invoice.status === 'partially_paid') && (
+        <Alert
+          message="Возможность редактирования"
+          description={
+            invoice.status === 'paid'
+              ? "Счет полностью оплачен, но вы можете продолжать добавлять платежи и документы для корректировки."
+              : "Счет частично оплачен. Вы можете продолжать редактировать счет, добавлять платежи и документы."
+          }
+          type="info"
+          showIcon
+          icon={<InfoCircleOutlined />}
+          style={{ marginBottom: 16 }}
+        />
+      )}
 
       <Form
         form={form}
@@ -1895,6 +2256,7 @@ const renderHistory = () => (
         onCancel={() => {
           setPaymentModalVisible(false)
           paymentForm.resetFields()
+          setCurrentPaymentAmount(0)
         }}
         okText="Создать"
         cancelText="Отмена"
@@ -1916,8 +2278,25 @@ const renderHistory = () => (
             </Col>
             <Col span={12}>
               <Form.Item
-                name="amount"
-                label="Сумма"
+                name="payment_type"
+                label="Тип платежа"
+                rules={[{ required: true, message: 'Выберите тип платежа' }]}
+                initialValue="DEBT"
+              >
+                <Select>
+                  <Select.Option value="DEBT">Погашение долга</Select.Option>
+                  <Select.Option value="ADV">Аванс</Select.Option>
+                  <Select.Option value="RET">Возврат удержаний</Select.Option>
+                </Select>
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Row gutter={16}>
+            <Col span={8}>
+              <Form.Item
+                name="total_amount"
+                label="Сумма с НДС"
                 rules={[
                   { required: true, message: 'Введите сумму' },
                   { type: 'number', min: 0.01, message: 'Сумма должна быть больше 0' }
@@ -1937,6 +2316,48 @@ const renderHistory = () => (
                     if (!value) { return '' }
                     return value.replace(/\s/g, '').replace(',', '.')
                   }}
+                  onChange={(value) => {
+                    setCurrentPaymentAmount(value || 0)
+                    // Пересчитываем сумму НДС
+                    const vatRate = invoice?.vat_rate || 20
+                    const vatAmount = (value || 0) * vatRate / (100 + vatRate)
+                    const amountNet = (value || 0) - vatAmount
+                    paymentForm.setFieldsValue({
+                      vat_amount: parseFloat(vatAmount.toFixed(2)),
+                      amount_net: parseFloat(amountNet.toFixed(2))
+                    })
+                  }}
+                />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item
+                name="vat_rate"
+                label="НДС %"
+              >
+                <InputNumber
+                  style={{ width: '100%' }}
+                  disabled
+                  formatter={value => `${value}%`}
+                  parser={value => value?.replace('%', '')}
+                />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item
+                name="vat_amount"
+                label="Сумма НДС"
+              >
+                <InputNumber
+                  style={{ width: '100%' }}
+                  disabled
+                  precision={2}
+                  formatter={value => {
+                    if (!value) { return '' }
+                    const parts = value.toString().split('.')
+                    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
+                    return parts.join(',')
+                  }}
                 />
               </Form.Item>
             </Col>
@@ -1945,59 +2366,33 @@ const renderHistory = () => (
           <Row gutter={16}>
             <Col span={12}>
               <Form.Item
-                name="currency"
-                label="Валюта"
-                rules={[{ required: true, message: 'Выберите валюту' }]}
+                name="amount_net"
+                label="Сумма без НДС"
               >
-                <Select>
-                  <Select.Option value="RUB">RUB - Рубль</Select.Option>
-                  <Select.Option value="USD">USD - Доллар</Select.Option>
-                  <Select.Option value="EUR">EUR - Евро</Select.Option>
-                  <Select.Option value="CNY">CNY - Юань</Select.Option>
-                </Select>
+                <InputNumber
+                  style={{ width: '100%' }}
+                  disabled
+                  precision={2}
+                  formatter={value => {
+                    if (!value) { return '' }
+                    const parts = value.toString().split('.')
+                    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
+                    return parts.join(',')
+                  }}
+                />
               </Form.Item>
             </Col>
             <Col span={12}>
               <Form.Item
-                name="payment_method"
-                label="Способ оплаты"
-                rules={[{ required: true, message: 'Выберите способ оплаты' }]}
+                name="comment"
+                label="Комментарий"
               >
-                <Select>
-                  <Select.Option value="bank_transfer">Банковский перевод</Select.Option>
-                  <Select.Option value="cash">Наличные</Select.Option>
-                  <Select.Option value="card">Карта</Select.Option>
-                  <Select.Option value="other">Другое</Select.Option>
-                </Select>
+                <Input.TextArea rows={2} placeholder="Дополнительная информация" />
               </Form.Item>
             </Col>
           </Row>
 
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item
-                name="status"
-                label="Статус"
-                rules={[{ required: true, message: 'Выберите статус' }]}
-              >
-                <Select>
-                  <Select.Option value="pending">Ожидает обработки</Select.Option>
-                  <Select.Option value="processing">В обработке</Select.Option>
-                  <Select.Option value="completed">Завершен</Select.Option>
-                  <Select.Option value="failed">Ошибка</Select.Option>
-                  <Select.Option value="cancelled">Отменен</Select.Option>
-                </Select>
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item
-                name="description"
-                label="Описание"
-              >
-                <Input.TextArea rows={1} placeholder="Дополнительная информация" />
-              </Form.Item>
-            </Col>
-          </Row>
+          {/* Статус будет присвоен автоматически как 'Черновик' */}
 
           <div style={{ marginTop: 16, padding: 12, background: '#f0f2f5', borderRadius: 4 }}>
             <Row>
@@ -2010,13 +2405,20 @@ const renderHistory = () => (
                 </div>
               </Col>
               <Col span={12}>
-                <Text>Остаток к оплате:</Text>
+                <Text>Остаток к оплате после этого платежа:</Text>
                 <div>
-                  <Text strong style={{ fontSize: 16, color: '#ff4d4f' }}>
+                  <Text strong style={{ fontSize: 16, color: currentPaymentAmount > 0 ? '#52c41a' : '#ff4d4f' }}>
                     {new Intl.NumberFormat('ru-RU').format(
-                      (invoice?.total_amount || 0) - (invoice?.paid_amount || 0)
+                      Math.max(0, (invoice?.total_amount || 0) - (invoice?.paid_amount || 0) - currentPaymentAmount)
                     )} {invoice?.currency || 'RUB'}
                   </Text>
+                  {currentPaymentAmount > 0 && (
+                    <div style={{ marginTop: 4 }}>
+                      <Text type="secondary" style={{ fontSize: 12 }}>
+                        Текущий платеж: {new Intl.NumberFormat('ru-RU').format(currentPaymentAmount)} {invoice?.currency || 'RUB'}
+                      </Text>
+                    </div>
+                  )}
                 </div>
               </Col>
             </Row>

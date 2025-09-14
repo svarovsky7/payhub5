@@ -56,14 +56,14 @@ export const formatNumber = (
 }
 
 
-// Форматирование дат
-export const formatDate = (
-  date: string | Date | dayjs.Dayjs,
-  format = 'DD.MM.YYYY'
-): string => {
-  if (!date) {return ''}
-  return dayjs(date).format(format)
-}
+// Форматирование дат (unused - removed)
+// export const formatDate = (
+//   date: string | Date | dayjs.Dayjs,
+//   format = 'DD.MM.YYYY'
+// ): string => {
+//   if (!date) {return ''}
+//   return dayjs(date).format(format)
+// }
 
 
 // Создание инициалов из имени

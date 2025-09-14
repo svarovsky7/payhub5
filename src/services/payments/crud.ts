@@ -39,7 +39,7 @@ export class PaymentCrudService {
       // Проверяем, что заявка существует и готова к оплате
       const { data: invoice, error: invoiceError } = await supabase
         .from('invoices')
-        .select('id, total_amount, status, payer_id, type_id')
+        .select('id, invoice_number, internal_number, total_amount, status, payer_id, type_id')
         .eq('id', payment.invoice_id)
         .single()
 
@@ -71,24 +71,30 @@ export class PaymentCrudService {
         }
       }
 
-      // Генерируем reference если не указан
-      if (!payment.reference) {
-        const { data: lastPayment } = await supabase
+      // Генерируем internal_number если не указан
+      let generatedInternalNumber: string | undefined
+      if (!(payment as any).internal_number) {
+        // Получаем последние платежи по этому счету
+        const { data: existingInvoicePayments } = await supabase
           .from('payments')
-          .select('reference')
+          .select('internal_number')
+          .eq('invoice_id', payment.invoice_id)
           .order('created_at', { ascending: false })
           .limit(1)
-          .single()
 
         let nextNumber = 1
-        if (lastPayment?.reference) {
-          const match = lastPayment.reference.match(/\d+$/)
+        if (existingInvoicePayments && existingInvoicePayments.length > 0 && existingInvoicePayments[0]?.internal_number) {
+          // Парсим номер из формата /PAY-NN-TYPE
+          const match = existingInvoicePayments[0].internal_number.match(/PAY-(\d+)-/)
           if (match) {
-            nextNumber = parseInt(match[0]) + 1
+            nextNumber = parseInt(match[1]) + 1
           }
         }
 
-        payment.reference = `PAY-${nextNumber.toString().padStart(6, '0')}`
+        // Генерируем internal_number в формате {номер счета}/PAY-NN-TYPE
+        const typeStr = payment.payment_type === 'ADV' ? 'ADV' : payment.payment_type === 'RET' ? 'RET' : 'DEBT'
+        const invoiceNum = invoice.internal_number || invoice.invoice_number || invoice.id
+        generatedInternalNumber = `${invoiceNum}/PAY-${nextNumber.toString().padStart(2, '0')}-${typeStr}`
       }
 
       // Подготавливаем данные для вставки в соответствии со схемой БД
@@ -99,10 +105,14 @@ export class PaymentCrudService {
         payment_type: payment.payment_type, // Добавляем тип платежа
         payer_id: payment.payer_id || invoice.payer_id, // Используем payer_id из invoice если не указан
         type_id: invoice.type_id, // Наследуем тип счета от связанного счета
-        reference: payment.reference,
+        internal_number: generatedInternalNumber || (payment as any).internal_number,
         comment: payment.comment || (payment as any).description || (payment as any).notes,
         created_by: payment.created_by,
-        status: payment.status || 'pending',
+        status: payment.status || 'draft', // По умолчанию используем статус 'draft' (Черновик)
+        // VAT поля
+        vat_rate: (payment as any).vat_rate || 20,
+        vat_amount: (payment as any).vat_amount || 0,
+        amount_net: (payment as any).amount_net || payment.total_amount,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       }
@@ -261,7 +271,7 @@ export class PaymentCrudService {
         status: 'completed',
         approved_by: processedBy,
         approved_at: data?.processed_date || new Date().toISOString(),
-        reference: data?.reference_number,
+        internal_number: data?.reference_number,
         comment: data?.comment,
         updated_at: new Date().toISOString(),
       }
@@ -367,7 +377,7 @@ export class PaymentCrudService {
 
       const updateData: PaymentUpdate = {
         status: 'cancelled',
-        processed_by: userId,
+        approved_by: userId,
         approved_at: new Date().toISOString(),
         comment: reason || 'Платеж отменен пользователем',
         updated_at: new Date().toISOString(),
@@ -396,7 +406,7 @@ export class PaymentCrudService {
    * Загрузить файл для платежа
    */
   static async uploadFile(
-    paymentId: string, 
+    paymentId: string,
     file: File
   ): Promise<ApiResponse<string>> {
     try {
@@ -413,25 +423,9 @@ export class PaymentCrudService {
 
       if (uploadError) {throw uploadError}
 
-      // Добавляем файл к списку вложений платежа
-      const { data: payment } = await supabase
-        .from('payments')
-        .select('attachments')
-        .eq('id', paymentId)
-        .single()
-
-      const currentAttachments = payment?.attachments || []
-      const updatedAttachments = [...currentAttachments, filePath]
-
-      const { error: updateError } = await supabase
-        .from('payments')
-        .update({ 
-          attachments: updatedAttachments,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', paymentId)
-
-      if (updateError) {throw updateError}
+      // Файл загружен успешно
+      // В будущем можно добавить запись в таблицу attachments,
+      // если потребуется отслеживание вложений
 
       return { data: filePath, error: null }
     } catch (error) {

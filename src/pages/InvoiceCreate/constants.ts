@@ -8,25 +8,28 @@ const MAX_TOTAL_SIZE = 50 * 1024 * 1024 // 50MB
 export const DEFAULT_CURRENCY = 'RUB'
 export const DEFAULT_VAT_RATE = 20
 
-export const CURRENCY_OPTIONS = [
-  { value: 'RUB', label: '₽ (RUB)' },
-  { value: 'USD', label: '$ (USD)' },
-  { value: 'EUR', label: '€ (EUR)' },
-  { value: 'CNY', label: '¥ (CNY)' },
-  { value: 'GBP', label: '£ (GBP)' }
-]
+// Unused export - removed
+// export const CURRENCY_OPTIONS = [
+//   { value: 'RUB', label: '₽ (RUB)' },
+//   { value: 'USD', label: '$ (USD)' },
+//   { value: 'EUR', label: '€ (EUR)' },
+//   { value: 'CNY', label: '¥ (CNY)' },
+//   { value: 'GBP', label: '£ (GBP)' }
+// ]
 
-export const CURRENCY_SYMBOLS: Record<string, string> = {
-  'RUB': '₽',
-  'USD': '$',
-  'EUR': '€',
-  'CNY': '¥',
-  'GBP': '£'
-}
+// Unused export - removed
+// const CURRENCY_SYMBOLS: Record<string, string> = {
+//   'RUB': '₽',
+//   'USD': '$',
+//   'EUR': '€',
+//   'CNY': '¥',
+//   'GBP': '£'
+// }
 
-export const getCurrencySymbol = (currency: string): string => {
-  return CURRENCY_SYMBOLS[currency] || currency
-}
+// Unused export - removed
+// export const getCurrencySymbol = (currency: string): string => {
+//   return CURRENCY_SYMBOLS[currency] || currency
+// }
 
 export const VAT_RATE_OPTIONS = [
   { value: 0, label: 'Без НДС (0%)' },
@@ -36,12 +39,13 @@ export const VAT_RATE_OPTIONS = [
   { value: 20, label: '20%' }
 ]
 
-export const PRIORITY_OPTIONS = [
-  { value: 'low', label: 'Низкий' },
-  { value: 'normal', label: 'Средний' },
-  { value: 'high', label: 'Высокий' },
-  { value: 'urgent', label: 'Срочный' }
-]
+// Unused export - removed
+// export const PRIORITY_OPTIONS = [
+//   { value: 'low', label: 'Низкий' },
+//   { value: 'normal', label: 'Средний' },
+//   { value: 'high', label: 'Высокий' },
+//   { value: 'urgent', label: 'Срочный' }
+// ]
 
 export const ACCEPTED_FILE_TYPES = [
   'image/*',

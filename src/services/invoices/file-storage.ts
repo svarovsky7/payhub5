@@ -631,13 +631,15 @@ export class InvoiceFileStorage {
         }
       }
 
-      // Create signed URL for download
+      // Create signed URL for download with download parameter
       const { data, error } = await supabase.storage
         .from('documents')
-        .createSignedUrl(storagePath, 60) // 60 seconds validity
+        .createSignedUrl(storagePath, 60, {
+          download: true // This forces download instead of opening in browser
+        })
 
       if (error) {
-        console.error('[InvoiceFileStorage.getFileDownloadUrl] Error creating signed URL:', error)
+        console.error('[InvoiceFileStorage.getFileDownloadUrl] Error creating signed URL with download:', error)
 
         // Try public URL as fallback
         const { data: publicUrlData } = supabase.storage

@@ -129,10 +129,10 @@ export class PaymentQueryService {
 
       // Фильтры по сумме
       if (filters.amountFrom) {
-        query = query.gte('amount', filters.amountFrom)
+        query = query.gte('total_amount', filters.amountFrom)
       }
       if (filters.amountTo) {
-        query = query.lte('amount', filters.amountTo)
+        query = query.lte('total_amount', filters.amountTo)
       }
 
       // Фильтры по датам
@@ -152,9 +152,8 @@ export class PaymentQueryService {
       // Поисковый запрос
       if (filters.search) {
         query = query.or(
-          `payment_number.ilike.%${filters.search}%,` +
-          `reference_number.ilike.%${filters.search}%,` +
-          `description.ilike.%${filters.search}%`
+          `internal_number.ilike.%${filters.search}%,` +
+          `comment.ilike.%${filters.search}%`
         )
       }
 
@@ -336,10 +335,10 @@ export class PaymentQueryService {
 
       // Фильтры по сумме
       if (filters.amountFrom) {
-        query = query.gte('amount', filters.amountFrom)
+        query = query.gte('total_amount', filters.amountFrom)
       }
       if (filters.amountTo) {
-        query = query.lte('amount', filters.amountTo)
+        query = query.lte('total_amount', filters.amountTo)
       }
 
       // Фильтры по датам
@@ -353,7 +352,7 @@ export class PaymentQueryService {
       // Поисковый запрос
       if (filters.search) {
         query = query.or(
-          `reference.ilike.%${filters.search}%,` +
+          `internal_number.ilike.%${filters.search}%,` +
           `comment.ilike.%${filters.search}%`
         )
       }
@@ -422,9 +421,8 @@ export class PaymentQueryService {
         `)
         .eq('company_id', companyId)
         .or(
-          `payment_number.ilike.%${query}%,` +
-          `reference_number.ilike.%${query}%,` +
-          `description.ilike.%${query}%`
+          `internal_number.ilike.%${query}%,` +
+          `comment.ilike.%${query}%`
         )
         .order('created_at', { ascending: false })
         .limit(limit)
@@ -448,7 +446,7 @@ export class PaymentQueryService {
     try {
       let query = supabase
         .from('payments')
-        .select('amount, status, payment_method, created_at, processed_date')
+        .select('total_amount, status, payment_method, created_at, approved_at')
         .eq('company_id', companyId)
 
       // Применяем те же фильтры что и в getList
@@ -488,22 +486,22 @@ export class PaymentQueryService {
         cancelled: 0,
       }
 
-      // Группировка по методам платежа
-      const byMethod: Record<Payment['payment_method'], number> = {
-        bank_transfer: 0,
-        cash: 0,
-        card: 0,
-        check: 0,
-        other: 0,
-      }
+      // Группировка по методам платежа (закомментировано - не используется)
+      // const byMethod: Record<Payment['payment_method'], number> = {
+      //   bank_transfer: 0,
+      //   cash: 0,
+      //   card: 0,
+      //   check: 0,
+      //   other: 0,
+      // }
 
-      const byMethodAmount: Record<Payment['payment_method'], number> = {
-        bank_transfer: 0,
-        cash: 0,
-        card: 0,
-        check: 0,
-        other: 0,
-      }
+      // const byMethodAmount: Record<Payment['payment_method'], number> = {
+      //   bank_transfer: 0,
+      //   cash: 0,
+      //   card: 0,
+      //   check: 0,
+      //   other: 0,
+      // }
 
       // Расчет среднего времени обработки
       let totalProcessingTime = 0
@@ -512,14 +510,14 @@ export class PaymentQueryService {
       payments.forEach(payment => {
         byStatus[payment.status]++
         byStatusAmount[payment.status] += payment.total_amount
-        
-        byMethod[payment.payment_method]++
-        byMethodAmount[payment.payment_method] += payment.total_amount
+
+        // byMethod[payment.payment_method]++
+        // byMethodAmount[payment.payment_method] += payment.total_amount
 
         // Рассчитываем время обработки для завершенных платежей
-        if (payment.processed_date && payment.status === 'completed') {
+        if (payment.approved_at && payment.status === 'completed') {
           const createdAt = new Date(payment.created_at)
-          const processedAt = new Date(payment.processed_date)
+          const processedAt = new Date(payment.approved_at)
           const processingTime = (processedAt.getTime() - createdAt.getTime()) / (1000 * 60 * 60) // в часах
           
           totalProcessingTime += processingTime
@@ -534,8 +532,8 @@ export class PaymentQueryService {
         totalAmount,
         byStatus,
         byStatusAmount,
-        byMethod,
-        byMethodAmount,
+        // byMethod,
+        // byMethodAmount,
         avgAmount,
         avgProcessingTime,
       }
@@ -696,7 +694,7 @@ export class PaymentQueryService {
       }
 
       const columns = [
-        { key: 'payment_number', label: 'Номер платежа' },
+        { key: 'internal_number', label: 'Номер платежа' },
         { key: 'invoiceNumber', label: 'Номер заявки' },
         { key: 'invoiceTitle', label: 'Название заявки' },
         { key: 'contractorName', label: 'Поставщик' },
@@ -707,7 +705,7 @@ export class PaymentQueryService {
         { key: 'formattedProcessedDate', label: 'Дата обработки' },
         { key: 'createdByName', label: 'Создал' },
         { key: 'processedByName', label: 'Обработал' },
-        { key: 'reference_number', label: 'Номер ссылки' },
+        { key: 'internal_number', label: 'Внутренний номер' },
       ]
 
       // Форматируем данные
@@ -720,11 +718,11 @@ export class PaymentQueryService {
         formattedPaymentDate: payment.payment_date 
           ? new Date(payment.payment_date).toLocaleDateString('ru-RU') 
           : '',
-        formattedProcessedDate: payment.processed_date 
-          ? new Date(payment.processed_date).toLocaleDateString('ru-RU') 
+        formattedProcessedDate: payment.approved_at
+          ? new Date(payment.approved_at).toLocaleDateString('ru-RU')
           : '',
         createdByName: payment.created_by || '',
-        processedByName: payment.processed_by || '',
+        processedByName: payment.approved_by || '',
         statusLabel: this.getStatusLabel(payment.status),
         methodLabel: this.getMethodLabel(payment.payment_method),
       }))
@@ -748,7 +746,7 @@ export class PaymentQueryService {
     try {
       const { data, error } = await supabase
         .from('payments')
-        .select('amount, status, created_at, payment_method')
+        .select('total_amount, status, created_at, payment_method')
         .eq('company_id', companyId)
         .gte('created_at', dateFrom)
         .lte('created_at', dateTo)

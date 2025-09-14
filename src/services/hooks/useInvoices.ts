@@ -105,35 +105,36 @@ const useMyInvoiceTasks = (
   })
 }
 
-export const useInvoiceWorkflowHistory = (
-  invoiceId: string,
-  options?: UseQueryOptions<WorkflowAction[]>
-) => {
-  return useQuery({
-    queryKey: queryKeys.invoices.workflowHistory(invoiceId),
-    queryFn: () => InvoiceWorkflowService.getWorkflowHistory(invoiceId),
-    enabled: !!invoiceId,
-    staleTime: 30000, // 30 seconds
-    ...options,
-  })
-}
+// Unused exports - removed
+// export const useInvoiceWorkflowHistory = (
+//   invoiceId: string,
+//   options?: UseQueryOptions<WorkflowAction[]>
+// ) => {
+//   return useQuery({
+//     queryKey: queryKeys.invoices.workflowHistory(invoiceId),
+//     queryFn: () => InvoiceWorkflowService.getWorkflowHistory(invoiceId),
+//     enabled: !!invoiceId,
+//     staleTime: 30000, // 30 seconds
+//     ...options,
+//   })
+// }
 
-export const useInvoiceApprovalHistory = (
-  invoiceId: string,
-  options?: UseQueryOptions<any[]>
-) => {
-  return useQuery({
-    queryKey: ['invoices', 'approvals', invoiceId],
-    queryFn: async () => {
-      console.log('[useInvoiceApprovalHistory] Fetching approval history for invoice:', invoiceId)
-      // For now, return mock data until we have the proper service
-      return []
-    },
-    enabled: !!invoiceId,
-    staleTime: 30000, // 30 seconds
-    ...options,
-  })
-}
+// export const useInvoiceApprovalHistory = (
+//   invoiceId: string,
+//   options?: UseQueryOptions<any[]>
+// ) => {
+//   return useQuery({
+//     queryKey: ['invoices', 'approvals', invoiceId],
+//     queryFn: async () => {
+//       console.log('[useInvoiceApprovalHistory] Fetching approval history for invoice:', invoiceId)
+//       // For now, return mock data until we have the proper service
+//       return []
+//     },
+//     enabled: !!invoiceId,
+//     staleTime: 30000, // 30 seconds
+//     ...options,
+//   })
+// }
 
 // Mutation hooks
 export const useCreateInvoice = (

@@ -2,22 +2,23 @@
  * Types and interfaces for InvoiceView components
  */
 
-export interface InvoiceViewPageProps {
-  userId?: string
-  companyId?: string
-}
+// Unused exported types - removed
+// export interface InvoiceViewPageProps {
+//   userId?: string
+//   companyId?: string
+// }
 
-export interface PaymentModalFormValues {
-  amount_with_vat: number
-  amount_net: number // Amount excluding VAT
-  vat_amount: number
-  vat_rate: number
-  payment_date: any
-  currency: string
-  type: string
-  reference: string
-  comment?: string
-}
+// export interface PaymentModalFormValues {
+//   amount_with_vat: number
+//   amount_net: number // Amount excluding VAT
+//   vat_amount: number
+//   vat_rate: number
+//   payment_date: any
+//   currency: string
+//   type: string
+//   reference: string
+//   comment?: string
+// }
 
 interface WorkflowModalState {
   visible: boolean

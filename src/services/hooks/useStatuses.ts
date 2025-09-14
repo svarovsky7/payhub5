@@ -21,38 +21,39 @@ export const useStatuses = () => {
 // Алиас для обратной совместимости
 export const useStatusesList = useStatuses
 
-/**
- * Хук для получения статусов счетов
- */
-export const useInvoiceStatuses = () => {
-  return useQuery({
-    queryKey: [QUERY_KEYS.STATUSES, 'invoice'],
-    queryFn: () => StatusQueryService.getInvoiceStatuses(),
-    staleTime: 1000 * 60 * 5, // 5 минут
-  })
-}
+// Unused exports - removed
+// /**
+//  * Хук для получения статусов счетов
+//  */
+// export const useInvoiceStatuses = () => {
+//   return useQuery({
+//     queryKey: [QUERY_KEYS.STATUSES, 'invoice'],
+//     queryFn: () => StatusQueryService.getInvoiceStatuses(),
+//     staleTime: 1000 * 60 * 5, // 5 минут
+//   })
+// }
 
-/**
- * Хук для получения статусов платежей
- */
-export const usePaymentStatuses = () => {
-  return useQuery({
-    queryKey: [QUERY_KEYS.STATUSES, 'payment'],
-    queryFn: () => StatusQueryService.getPaymentStatuses(),
-    staleTime: 1000 * 60 * 5, // 5 минут
-  })
-}
+// /**
+//  * Хук для получения статусов платежей
+//  */
+// export const usePaymentStatuses = () => {
+//   return useQuery({
+//     queryKey: [QUERY_KEYS.STATUSES, 'payment'],
+//     queryFn: () => StatusQueryService.getPaymentStatuses(),
+//     staleTime: 1000 * 60 * 5, // 5 минут
+//   })
+// }
 
-/**
- * Хук для получения статусов проектов
- */
-export const useProjectStatuses = () => {
-  return useQuery({
-    queryKey: [QUERY_KEYS.STATUSES, 'project'],
-    queryFn: () => StatusQueryService.getProjectStatuses(),
-    staleTime: 1000 * 60 * 5, // 5 минут
-  })
-}
+// /**
+//  * Хук для получения статусов проектов
+//  */
+// export const useProjectStatuses = () => {
+//   return useQuery({
+//     queryKey: [QUERY_KEYS.STATUSES, 'project'],
+//     queryFn: () => StatusQueryService.getProjectStatuses(),
+//     staleTime: 1000 * 60 * 5, // 5 минут
+//   })
+// }
 
 /**
  * Хук для получения статуса по коду

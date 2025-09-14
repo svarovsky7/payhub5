@@ -9,19 +9,19 @@ export enum PaymentType {
   DEBT = 'DEBT'  // Погашение долга
 }
 
-// Описания типов платежей для UI
-export const PaymentTypeLabels: Record<PaymentType, string> = {
-  [PaymentType.ADV]: 'Аванс',
-  [PaymentType.RET]: 'Возврат удержаний',
-  [PaymentType.DEBT]: 'Погашение долга'
-}
+// Описания типов платежей для UI (unused - removed)
+// const PaymentTypeLabels: Record<PaymentType, string> = {
+//   [PaymentType.ADV]: 'Аванс',
+//   [PaymentType.RET]: 'Возврат удержаний',
+//   [PaymentType.DEBT]: 'Погашение долга'
+// }
 
-// Цвета для отображения типов платежей
-export const PaymentTypeColors: Record<PaymentType, string> = {
-  [PaymentType.ADV]: 'blue',
-  [PaymentType.RET]: 'green',
-  [PaymentType.DEBT]: 'orange'
-}
+// Цвета для отображения типов платежей (unused - removed)
+// const PaymentTypeColors: Record<PaymentType, string> = {
+//   [PaymentType.ADV]: 'blue',
+//   [PaymentType.RET]: 'green',
+//   [PaymentType.DEBT]: 'orange'
+// }
 
 // Расширенный интерфейс для платежа с типом
 interface PaymentWithType {

@@ -25,12 +25,7 @@
   ],
   "ignoreDependencies": [
     "@types/*",
-    "eslint*",
-    "prettier*",
-    "vite*",
-    "@vitejs/*",
-    "typescript*",
-    "@tanstack/react-query-devtools"
+    "eslint*"
   ],
   "ignoreExportsUsedInFile": true,
   "typescript": {

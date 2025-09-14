@@ -19,7 +19,9 @@ export const usePaymentsList = (invoiceId?: number, filters?: any, pagination?: 
       );
       console.log('[usePaymentsList] Результат загрузки:', {
         count: result.count,
-        dataLength: result.data?.length
+        dataLength: result.data?.length,
+        data: result.data,
+        error: result.error
       });
       return {
         data: result.data || [],
@@ -30,22 +32,22 @@ export const usePaymentsList = (invoiceId?: number, filters?: any, pagination?: 
   });
 };
 
-// Создание платежа
-export const useCreatePayment = () => {
-  const queryClient = useQueryClient();
-  
-  return useMutation({
-    mutationFn: PaymentCrudService.create,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.payments.all });
-      queryClient.invalidateQueries({ queryKey: queryKeys.invoices.all });
-      message.success('Платеж создан');
-    },
-    onError: (error: any) => {
-      message.error(error.message || 'Ошибка создания платежа');
-    },
-  });
-};
+// Создание платежа (unused - removed)
+// export const useCreatePayment = () => {
+//   const queryClient = useQueryClient();
+//
+//   return useMutation({
+//     mutationFn: PaymentCrudService.create,
+//     onSuccess: () => {
+//       queryClient.invalidateQueries({ queryKey: queryKeys.payments.all });
+//       queryClient.invalidateQueries({ queryKey: queryKeys.invoices.all });
+//       message.success('Платеж создан');
+//     },
+//     onError: (error: any) => {
+//       message.error(error.message || 'Ошибка создания платежа');
+//     },
+//   });
+// };
 
 // Подтверждение платежа
 export const useConfirmPayment = () => {

@@ -1,5 +1,5 @@
 -- Database Schema SQL Export
--- Generated: 2025-09-14T15:28:14.394768
+-- Generated: 2025-09-14T18:16:35.518804
 -- Database: postgres
 -- Host: 31.128.51.210
 
@@ -2299,46 +2299,46 @@ CREATE OR REPLACE FUNCTION public.calculate_payment_vat()
 AS $function$
 BEGIN
     -- Если указана общая сумма и ставка НДС, но не указаны детали НДС
-    IF NEW.amount IS NOT NULL 
-       AND NEW.vat_rate IS NOT NULL 
-       AND NEW.amount_without_vat IS NULL 
+    IF NEW.total_amount IS NOT NULL
+       AND NEW.vat_rate IS NOT NULL
+       AND NEW.amount_net IS NULL
        AND NEW.vat_amount IS NULL THEN
-        
-        -- Рассчитываем НДС и сумму без НДС
+
+        -- Рассчитываем НДС и сумму без НДС (обратный расчет от суммы с НДС)
         IF NEW.vat_rate > 0 THEN
-            NEW.vat_amount := NEW.amount * NEW.vat_rate / (100 + NEW.vat_rate);
-            NEW.amount_without_vat := NEW.amount - NEW.vat_amount;
+            NEW.vat_amount := ROUND(NEW.total_amount * NEW.vat_rate / (100 + NEW.vat_rate), 2);
+            NEW.amount_net := NEW.total_amount - NEW.vat_amount;
         ELSE
             NEW.vat_amount := 0;
-            NEW.amount_without_vat := NEW.amount;
+            NEW.amount_net := NEW.total_amount;
         END IF;
-    
+
     -- Если указана сумма без НДС и ставка НДС
-    ELSIF NEW.amount_without_vat IS NOT NULL 
-          AND NEW.vat_rate IS NOT NULL 
-          AND NEW.amount IS NULL THEN
-        
-        -- Рассчитываем НДС и общую сумму
+    ELSIF NEW.amount_net IS NOT NULL
+          AND NEW.vat_rate IS NOT NULL
+          AND NEW.total_amount IS NULL THEN
+
+        -- Рассчитываем НДС и общую сумму (прямой расчет)
         IF NEW.vat_rate > 0 THEN
-            NEW.vat_amount := NEW.amount_without_vat * NEW.vat_rate / 100;
-            NEW.amount := NEW.amount_without_vat + NEW.vat_amount;
+            NEW.vat_amount := ROUND(NEW.amount_net * NEW.vat_rate / 100, 2);
+            NEW.total_amount := NEW.amount_net + NEW.vat_amount;
         ELSE
             NEW.vat_amount := 0;
-            NEW.amount := NEW.amount_without_vat;
+            NEW.total_amount := NEW.amount_net;
         END IF;
-    
+
     -- Если указаны все суммы, проверяем корректность
-    ELSIF NEW.amount IS NOT NULL 
-          AND NEW.amount_without_vat IS NOT NULL 
+    ELSIF NEW.total_amount IS NOT NULL
+          AND NEW.amount_net IS NOT NULL
           AND NEW.vat_amount IS NOT NULL THEN
-        
-        -- Проверяем, что сумма = сумма_без_ндс + ндс
-        IF ABS(NEW.amount - (NEW.amount_without_vat + NEW.vat_amount)) > 0.01 THEN
-            RAISE EXCEPTION 'Некорректные суммы НДС: amount (%) != amount_without_vat (%) + vat_amount (%)', 
-                            NEW.amount, NEW.amount_without_vat, NEW.vat_amount;
+
+        -- Проверяем, что total_amount = amount_net + vat_amount
+        IF ABS(NEW.total_amount - (NEW.amount_net + NEW.vat_amount)) > 0.01 THEN
+            RAISE EXCEPTION 'Некорректные суммы НДС: total_amount (%) != amount_net (%) + vat_amount (%)',
+                            NEW.total_amount, NEW.amount_net, NEW.vat_amount;
         END IF;
     END IF;
-    
+
     RETURN NEW;
 END;
 $function$
@@ -2512,7 +2512,7 @@ $function$
 
 
 -- Function: public.fn_sync_invoice_payment
--- Description: Synchronizes invoice paid amount and status based on payment records
+-- Description: Синхронизирует paid_amount и статус счета на основе платежей. Исключает платежи со статусами draft, cancelled, failed
 CREATE OR REPLACE FUNCTION public.fn_sync_invoice_payment()
  RETURNS trigger
  LANGUAGE plpgsql
@@ -2530,11 +2530,12 @@ BEGIN
     END IF;
 
     -- Calculate total paid amount for the invoice (using new column name)
+    -- Исключаем платежи со статусами: draft (черновик), cancelled (отменен), failed (ошибка)
     SELECT COALESCE(SUM(total_amount), 0)
     INTO total_paid
     FROM payments
     WHERE invoice_id = target_invoice_id
-    AND status NOT IN ('cancelled', 'failed');
+    AND status NOT IN ('draft', 'cancelled', 'failed');
 
     -- Get invoice total amount
     SELECT total_amount
