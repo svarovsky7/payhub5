@@ -17,7 +17,7 @@ import {
     DollarOutlined,
     InfoCircleOutlined
 } from '@ant-design/icons'
-import {usePaymentTypes, useCurrencies, usePriorities, EnumQueryService} from '../../services/hooks/useEnums'
+import { EnumQueryService} from '../../services/hooks/useEnums'
 
 const {Text, Title, Paragraph} = Typography
 

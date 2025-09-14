@@ -19,7 +19,6 @@ import {
   type InvoiceWithRelations,
   InvoiceWorkflowService
 } from '../invoices'
-import { type WorkflowAction } from '../invoices/workflow'
 import { 
   type Invoice, 
   type InvoiceInsert, 

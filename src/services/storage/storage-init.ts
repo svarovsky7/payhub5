@@ -3,7 +3,7 @@ import { supabase } from '../supabase'
 /**
  * Статус работы Storage
  */
-export let storageStatus = {
+export const storageStatus = {
   initialized: false,
   bucketAvailable: false,
   uploadEnabled: false,

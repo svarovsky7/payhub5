@@ -502,8 +502,8 @@ export class PaymentQueryService {
       // }
 
       // Расчет среднего времени обработки
-      let totalProcessingTime = 0
-      let processedCount = 0
+      const totalProcessingTime = 0
+      const processedCount = 0
 
       payments.forEach(payment => {
         byStatus[payment.status]++

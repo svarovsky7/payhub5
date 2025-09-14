@@ -28,7 +28,7 @@ import type {BulkAction, DataTableColumn, FilterField} from '../components/table
 import {DateCell, MoneyCell, StatusCell, TextCell, UserCell} from '../components/table/TableCells'
 import {PaymentWorkflowService} from '../services/admin/payment-workflow'
 import {useAuthStore} from '../models/auth'
-import {usePaymentTypes, EnumQueryService} from '../services/hooks/useEnums'
+import { EnumQueryService} from '../services/hooks/useEnums'
 
 
 interface Payment {

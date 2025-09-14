@@ -318,8 +318,8 @@ export class OptimizedPaymentQueryService {
         bank_transfer: 0, cash: 0, card: 0, check: 0, other: 0,
       }
 
-      let totalProcessingTime = 0
-      let processedCount = 0
+      const totalProcessingTime = 0
+      const processedCount = 0
 
       payments.forEach(payment => {
         if (byStatus[payment.status] !== undefined) {

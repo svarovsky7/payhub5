@@ -2,7 +2,7 @@
  * Invoices page with ProTable and filters
  */
 
-import React, {useMemo, useState, useEffect} from 'react'
+import React, {useEffect, useMemo, useState} from 'react'
 import {
     Button,
     message,
@@ -18,7 +18,6 @@ import {
     SendOutlined
 } from '@ant-design/icons'
 import {useNavigate} from 'react-router-dom'
-import dayjs from 'dayjs'
 import { calculateDeliveryDate } from '../InvoiceCreate/utils/calculations'
 
 import {
@@ -26,7 +25,6 @@ import {
     useInvoiceExport,
     useInvoicesList
 } from '../../services/hooks/useInvoices'
-import { usePaymentsList } from '../../services/hooks/usePayments'
 import {useAuthStore} from '../../models/auth'
 import {type InvoiceWithRelations} from '../../services/invoices/crud'
 import {type InvoiceFilters} from '../../services/invoices/queries'
@@ -93,7 +91,7 @@ export const InvoicesPage: React.FC<InvoicesPageProps> = ({companyId = '1'}) => 
     // Загружаем информацию о платежах для всех счетов
     useEffect(() => {
         const checkPaymentsForInvoices = async () => {
-            if (!invoicesData?.data || invoicesData.data.length === 0) return
+            if (!invoicesData?.data || invoicesData.data.length === 0) {return}
 
             console.log('[InvoicesPage] Проверка наличия платежей для счетов')
 

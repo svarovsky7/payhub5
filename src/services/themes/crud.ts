@@ -3,7 +3,7 @@
  * Direct Supabase API calls for theme management
  */
 
-import { supabase, handleSupabaseError } from '../supabase'
+import { handleSupabaseError, supabase } from '../supabase'
 import type { CustomThemeConfig } from '@/models/theme'
 
 // Database table interfaces

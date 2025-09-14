@@ -26,7 +26,6 @@ import {
 import {useApprovePayment, useMyApprovals, useRejectPayment} from '../../services/hooks/useApprovals'
 import {useAuth} from '../../models/auth'
 import type {ApprovalItem} from '../../services/approvals/queries'
-import {supabase} from '../../services/supabase'
 import dayjs from 'dayjs'
 import {DataTable} from '../../components/table'
 import type {BulkAction, DataTableColumn, FilterField} from '../../components/table'

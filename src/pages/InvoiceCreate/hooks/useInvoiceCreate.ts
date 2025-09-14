@@ -17,7 +17,7 @@ import { getCurrentYearMonth } from '@/utils/invoice-number-generator'
 import { getNextSequenceNumber } from '@/services/invoices/sequence'
 import { calculateDeliveryDate, calculateVATAmounts } from '../utils/calculations'
 import type { InvoiceFormValues, PaymentRow } from '../types'
-import { DEFAULT_CURRENCY, DEFAULT_VAT_RATE } from '../constants'
+import { DEFAULT_VAT_RATE } from '../constants'
 import { InvoiceFileStorage } from '@/services/invoices/file-storage'
 import type { UploadFile } from 'antd/es/upload/interface'
 

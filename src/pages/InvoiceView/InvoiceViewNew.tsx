@@ -6,33 +6,36 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
+  Alert,
+  Breadcrumb,
+  Button,
+  Card,
+  Col,
+  DatePicker,
+  Descriptions,
+  Divider,
   Form,
   Input,
   InputNumber,
-  Select,
-  DatePicker,
-  Button,
-  Card,
+  List,
+  message,
+  Modal,
   Row,
-  Col,
+  Select,
   Space,
   Spin,
-  message,
-  Typography,
-  Divider,
   Statistic,
   Table,
-  Tag,
-  Modal,
-  Breadcrumb,
   Tabs,
+  Tag,
   Timeline,
-  Upload,
-  List,
-  Descriptions,
-  Alert
+  Typography,
+  Upload
 } from 'antd'
 import {
+  ArrowLeftOutlined,
+  AuditOutlined,
+  BankOutlined,
   CheckCircleOutlined,
   ClockCircleOutlined,
   CloseOutlined,
@@ -40,33 +43,30 @@ import {
   DeleteOutlined,
   DollarOutlined,
   DownloadOutlined,
+  EditOutlined,
   ExclamationCircleFilled,
   ExclamationCircleOutlined,
   EyeOutlined,
-  FileOutlined,
+  FallOutlined,
+  FileExcelOutlined,
   FileExclamationOutlined,
+  FileImageOutlined,
+  FileOutlined,
+  FilePdfOutlined,
+  FileTextOutlined,
+  FileWordOutlined,
   HistoryOutlined,
   HomeOutlined,
   InfoCircleOutlined,
   PlusOutlined,
-  SaveOutlined,
-  UploadOutlined,
-  FilePdfOutlined,
-  FileImageOutlined,
-  FileTextOutlined,
-  FileExcelOutlined,
-  FileWordOutlined,
-  SendOutlined,
-  AuditOutlined,
   RiseOutlined,
-  FallOutlined,
-  SwapOutlined,
-  BankOutlined,
   RocketOutlined,
-  TeamOutlined,
   SafetyCertificateOutlined,
-  ArrowLeftOutlined,
-  EditOutlined
+  SaveOutlined,
+  SendOutlined,
+  SwapOutlined,
+  TeamOutlined,
+  UploadOutlined
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import 'dayjs/locale/ru'
@@ -528,7 +528,7 @@ export const InvoiceViewNew: React.FC = () => {
   // Group payments by status
   const paymentsByStatus = React.useMemo(() => {
     // Используем платежи из paymentsResponse вместо invoice.payments
-    if (!paymentsResponse?.data || paymentsResponse.data.length === 0) return []
+    if (!paymentsResponse?.data || paymentsResponse.data.length === 0) {return []}
 
     console.log('[InvoiceViewNew.paymentsByStatus] Группировка платежей:', {
       paymentsCount: paymentsResponse.data.length,
@@ -764,7 +764,7 @@ export const InvoiceViewNew: React.FC = () => {
               formatter={value => {
                 // Сохраняем десятичные знаки при форматировании
                 console.log('[InvoiceViewNew.formatter] Форматирование значения:', value, 'тип:', typeof value)
-                if (!value) return ''
+                if (!value) {return ''}
                 const strValue = value.toString()
                 // Разделяем целую и дробную части
                 const parts = strValue.split('.')
@@ -781,7 +781,7 @@ export const InvoiceViewNew: React.FC = () => {
               parser={value => {
                 // Обрабатываем ввод с поддержкой запятой и точки
                 console.log('[InvoiceViewNew.parser] Парсинг значения:', value)
-                if (!value) return ''
+                if (!value) {return ''}
 
                 // Удаляем пробелы
                 let parsed = value.replace(/\s/g, '')
@@ -860,7 +860,7 @@ export const InvoiceViewNew: React.FC = () => {
               stringMode // Строковый режим для точного отображения
               formatter={value => {
                 // Сохраняем десятичные знаки при форматировании
-                if (!value) return ''
+                if (!value) {return ''}
                 const strValue = value.toString()
                 const parts = strValue.split('.')
                 parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
@@ -887,7 +887,7 @@ export const InvoiceViewNew: React.FC = () => {
               stringMode // Строковый режим для точного отображения
               formatter={value => {
                 // Сохраняем десятичные знаки при форматировании
-                if (!value) return ''
+                if (!value) {return ''}
                 const strValue = value.toString()
                 const parts = strValue.split('.')
                 parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
@@ -1479,7 +1479,7 @@ const handlePreviewDocument = async (doc: any) => {
 
 // Render preview modal content
 const renderPreviewContent = () => {
-  if (!previewFile) return null
+  if (!previewFile) {return null}
 
   if (previewLoading) {
     return (
@@ -1603,7 +1603,7 @@ const renderPreviewContent = () => {
 
 // Загрузка документов счета
 const loadDocuments = useCallback(async () => {
-  if (!id) return
+  if (!id) {return}
 
   console.log('[InvoiceViewNew.loadDocuments] Загрузка документов для счета:', id)
   setLoadingDocuments(true)
@@ -1632,7 +1632,7 @@ const loadDocuments = useCallback(async () => {
 
 // Функция загрузки истории документов
 const loadDocumentHistory = useCallback(async () => {
-  if (!id) return
+  if (!id) {return}
 
   console.log('[InvoiceViewNew.loadDocumentHistory] Загрузка истории документов для счета:', id)
   setLoadingHistory(true)
@@ -1727,7 +1727,7 @@ const getFileIcon = (mimeType: string, fileName: string = '') => {
 
 // Форматирование размера файла
 const formatFileSize = (bytes: number): string => {
-  if (bytes === 0) return '0 B'
+  if (bytes === 0) {return '0 B'}
   const k = 1024
   const sizes = ['B', 'KB', 'MB', 'GB']
   const i = Math.floor(Math.log(bytes) / Math.log(k))

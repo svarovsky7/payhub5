@@ -2,7 +2,6 @@
  * CRUD operations for database enums
  */
 
-import { supabase } from '../supabase'
 
 export interface EnumValue {
   value: string

@@ -56,7 +56,12 @@
       "Bash(npx knip:*)",
       "Bash(del:*)",
       "Bash(git merge:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(git checkout:*)",
+      "Bash(npx depcheck:*)",
+      "Bash(git add:*)",
+      "Bash(git push:*)",
+      "Bash(git stash:*)"
     ]
   },
   "enableAllProjectMcpServers": true,
