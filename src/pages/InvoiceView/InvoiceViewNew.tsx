@@ -3,7 +3,7 @@
  * Основана на форме создания счета с добавлением финансового блока
  */
 
-import React, { useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   Form,
@@ -20,29 +20,39 @@ import {
   message,
   Typography,
   Divider,
-  Alert,
   Statistic,
   Table,
   Tag,
   Modal,
   Breadcrumb,
   Tabs,
-  Timeline
+  Timeline,
+  Upload,
+  List
 } from 'antd'
 import {
-  SaveOutlined,
-  CloseOutlined,
-  ArrowLeftOutlined,
-  DollarOutlined,
   CheckCircleOutlined,
   ClockCircleOutlined,
-  ExclamationCircleOutlined,
-  HomeOutlined,
-  InfoCircleOutlined,
+  CloseOutlined,
   CreditCardOutlined,
+  DeleteOutlined,
+  DollarOutlined,
+  DownloadOutlined,
+  ExclamationCircleFilled,
+  ExclamationCircleOutlined,
+  EyeOutlined,
   FileOutlined,
   HistoryOutlined,
-  PlusOutlined
+  HomeOutlined,
+  InfoCircleOutlined,
+  PlusOutlined,
+  SaveOutlined,
+  UploadOutlined,
+  FilePdfOutlined,
+  FileImageOutlined,
+  FileTextOutlined,
+  FileExcelOutlined,
+  FileWordOutlined
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import 'dayjs/locale/ru'
@@ -55,6 +65,7 @@ import { useCurrencies, usePriorities } from '@/services/hooks/useEnums'
 import { useAuthStore } from '@/models/auth'
 import { calculateDeliveryDate, calculateVATAmounts } from '../InvoiceCreate/utils/calculations'
 import { DEFAULT_CURRENCY, DEFAULT_VAT_RATE } from '../InvoiceCreate/constants'
+import { InvoiceFileStorage } from '@/services/invoices/file-storage'
 import type { InvoiceFormValues } from '../InvoiceCreate/types'
 
 const { Title, Text } = Typography
@@ -71,6 +82,12 @@ export const InvoiceViewNew: React.FC = () => {
   const [hasChanges, setHasChanges] = useState(false)
   const [deliveryDate, setDeliveryDate] = useState<dayjs.Dayjs | null>(null)
   const [activeTab, setActiveTab] = useState('info')
+  // Payment modal state removed - using paymentModalVisible instead
+  const [documents, setDocuments] = useState<any[]>([])
+  const [loadingDocuments, setLoadingDocuments] = useState(false)
+  const [uploadingFile, setUploadingFile] = useState(false)
+  const [paymentModalVisible, setPaymentModalVisible] = useState(false)
+  const [paymentForm] = Form.useForm()
   const [financialSummary, setFinancialSummary] = useState({
     amountNet: 0,
     vatAmount: 0,
@@ -108,8 +125,15 @@ export const InvoiceViewNew: React.FC = () => {
         number: invoice.invoice_number,
         status: invoice.status,
         totalAmount: invoice.total_amount,
+        currency: invoice.currency,
+        vatRate: invoice.vat_rate,
+        mrpId: invoice.material_responsible_person_id,
         paymentsCount: invoice.payments?.length || 0
       })
+
+      console.log('[InvoiceViewNew.useEffect] Доступные МОЛ:', materialResponsiblePersons)
+      console.log('[InvoiceViewNew.useEffect] Доступные валюты:', currencies)
+      console.log('[InvoiceViewNew.useEffect] Доступные приоритеты:', priorities)
 
       // Calculate financial summary
       const amountNet = Number(invoice.amount_net || 0)
@@ -155,7 +179,7 @@ export const InvoiceViewNew: React.FC = () => {
         vat_amount: vatAmount,
         delivery_days: invoice.delivery_days,
         delivery_days_type: invoice.delivery_days_type || 'calendar',
-        priority: invoice.priority,
+        priority: invoice.priority || 'normal',
         material_responsible_person_id: invoice.material_responsible_person_id,
         notes: invoice.notes
       })
@@ -181,11 +205,31 @@ export const InvoiceViewNew: React.FC = () => {
   }
 
   // Calculate VAT amounts
-  const handleCalculateAmounts = () => {
-    const amountWithVat = form.getFieldValue('amount_with_vat') || 0
-    const vatRate = form.getFieldValue('vat_rate') || DEFAULT_VAT_RATE
+  const handleCalculateAmounts = (newAmountWithVat?: number) => {
+    // Если передано новое значение, используем его, иначе берем из формы
+    const amountWithVat = newAmountWithVat !== undefined ? newAmountWithVat : (form.getFieldValue('amount_with_vat') || 0)
+    const vatRate = form.getFieldValue('vat_rate')
 
-    const { amountNet, vatAmount } = calculateVATAmounts(amountWithVat, vatRate)
+    // Используем 0 для ставки НДС если она явно 0, иначе DEFAULT_VAT_RATE
+    const actualVatRate = vatRate === 0 ? 0 : (vatRate || DEFAULT_VAT_RATE)
+
+    console.log('[InvoiceViewNew.handleCalculateAmounts] Начало расчета НДС:', {
+      amountWithVat,
+      newAmountWithVat,
+      vatRate,
+      actualVatRate,
+      isZeroRate: actualVatRate === 0,
+      DEFAULT_VAT_RATE
+    })
+
+    const { amountNet, vatAmount } = calculateVATAmounts(amountWithVat, actualVatRate)
+
+    console.log('[InvoiceViewNew.handleCalculateAmounts] Результат расчета:', {
+      amountNet,
+      vatAmount,
+      totalAmount: amountWithVat,
+      formula: actualVatRate === 0 ? 'без НДС (сумма без НДС = сумме с НДС)' : `с НДС ${actualVatRate}%`
+    })
 
     form.setFieldsValue({
       amount_net: amountNet,
@@ -285,7 +329,7 @@ export const InvoiceViewNew: React.FC = () => {
             vat_amount: Number(invoice.vat_amount || 0),
             delivery_days: invoice.delivery_days,
             delivery_days_type: invoice.delivery_days_type || 'calendar',
-            priority: invoice.priority,
+            priority: invoice.priority || 'normal',
             material_responsible_person_id: invoice.material_responsible_person_id
           })
         }
@@ -298,8 +342,14 @@ export const InvoiceViewNew: React.FC = () => {
   // Format MRP display
   const getMRPDisplay = (mrpId: string | number) => {
     const person = materialResponsiblePersons?.find((p: any) => p.id === mrpId)
-    if (!person) return mrpId
-    return person.phone ? `${person.name} (${person.phone})` : person.name
+    console.log('[InvoiceViewNew.getMRPDisplay] Поиск МОЛ:', { mrpId, person, allPersons: materialResponsiblePersons })
+    if (!person) {
+      console.warn('[InvoiceViewNew.getMRPDisplay] МОЛ не найден для ID:', mrpId)
+      return `МОЛ ID: ${mrpId}`
+    }
+    // Используем full_name вместо name, так как в БД поле называется full_name
+    const name = person.full_name || person.name || 'Без имени'
+    return person.phone ? `${name} (${person.phone})` : name
   }
 
   // Payment status columns
@@ -506,10 +556,14 @@ export const InvoiceViewNew: React.FC = () => {
                 allowClear
                 size="small"
                 optionFilterProp="children"
-                options={materialResponsiblePersons?.map((person: any) => ({
-                  label: person.phone ? `${person.name} (${person.phone})` : person.name,
-                  value: person.id
-                }))}
+                options={materialResponsiblePersons?.map((person: any) => {
+                  // Используем full_name из БД
+                  const name = person.full_name || person.name || 'Без имени'
+                  return {
+                    label: person.phone ? `${name} (${person.phone})` : name,
+                    value: person.id
+                  }
+                })}
               />
             </Form.Item>
           </Space>
@@ -530,10 +584,14 @@ export const InvoiceViewNew: React.FC = () => {
               placeholder="Выберите валюту"
               loading={loadingCurrencies}
               size="small"
-              options={currencies?.map((curr: any) => ({
-                label: `${curr.code} - ${curr.name}`,
-                value: curr.code
-              }))}
+              options={currencies?.map((curr: any) => {
+                console.log('[InvoiceViewNew] Валюта:', curr)
+                // Для enum используем value и label из ответа
+                return {
+                  label: curr.label || `${curr.value} - ${curr.name || curr.value}`,
+                  value: curr.value || curr.code
+                }
+              })}
             />
           </Form.Item>
         </Col>
@@ -549,9 +607,63 @@ export const InvoiceViewNew: React.FC = () => {
               size="small"
               min={0}
               precision={2}
-              formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ' ')}
-              parser={value => value!.replace(/\s?/g, '')}
-              onChange={handleCalculateAmounts}
+              stringMode // Используем строковый режим для точного сохранения десятичных знаков
+              formatter={value => {
+                // Сохраняем десятичные знаки при форматировании
+                console.log('[InvoiceViewNew.formatter] Форматирование значения:', value, 'тип:', typeof value)
+                if (!value) return ''
+                const strValue = value.toString()
+                // Разделяем целую и дробную части
+                const parts = strValue.split('.')
+                // Добавляем пробелы в целую часть
+                parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
+                // Ограничиваем дробную часть до 2 знаков
+                if (parts[1] && parts[1].length > 2) {
+                  parts[1] = parts[1].substring(0, 2)
+                }
+                const result = parts.join(',') // Используем запятую для отображения
+                console.log('[InvoiceViewNew.formatter] Результат форматирования:', result)
+                return result
+              }}
+              parser={value => {
+                // Обрабатываем ввод с поддержкой запятой и точки
+                console.log('[InvoiceViewNew.parser] Парсинг значения:', value)
+                if (!value) return ''
+
+                // Удаляем пробелы
+                let parsed = value.replace(/\s/g, '')
+
+                // Заменяем запятую на точку для правильной работы с числами
+                parsed = parsed.replace(',', '.')
+
+                // Проверяем и ограничиваем количество знаков после разделителя
+                const parts = parsed.split('.')
+                if (parts.length > 1) {
+                  // Оставляем только первую точку и ограничиваем дробную часть
+                  parsed = parts[0] + '.' + (parts[1] || '').substring(0, 2)
+                }
+
+                console.log('[InvoiceViewNew.parser] Результат парсинга:', parsed)
+                return parsed
+              }}
+              onChange={(value) => {
+                console.log('[InvoiceViewNew.onChange] Изменение суммы с НДС:', value, 'тип:', typeof value)
+                // В строковом режиме value приходит как строка
+                if (value !== undefined && value !== null && value !== '') {
+                  // Преобразуем строку с точкой (после парсера) в число
+                  const strValue = value.toString().replace(',', '.')
+                  const numValue = parseFloat(strValue)
+                  console.log('[InvoiceViewNew.onChange] Числовое значение:', numValue)
+                  if (!isNaN(numValue)) {
+                    handleCalculateAmounts(numValue)
+                  }
+                }
+              }}
+              onBlur={(e) => {
+                const currentValue = form.getFieldValue('amount_with_vat')
+                console.log('[InvoiceViewNew.onBlur] Потеря фокуса, текущее значение в форме:', currentValue)
+                console.log('[InvoiceViewNew.onBlur] Значение в поле:', e.target.value)
+              }}
             />
           </Form.Item>
         </Col>
@@ -564,9 +676,15 @@ export const InvoiceViewNew: React.FC = () => {
             <Select
               style={{ width: '100%' }}
               size="small"
-              onChange={handleCalculateAmounts}
+              onChange={(value) => {
+                console.log('[InvoiceViewNew] Изменена ставка НДС на:', value)
+                // Важно: вызываем handleCalculateAmounts после обновления значения в форме
+                setTimeout(() => {
+                  handleCalculateAmounts()
+                }, 0)
+              }}
               options={[
-                { label: '0%', value: 0 },
+                { label: '0% (Без НДС)', value: 0 },
                 { label: '5%', value: 5 },
                 { label: '7%', value: 7 },
                 { label: '10%', value: 10 },
@@ -586,7 +704,19 @@ export const InvoiceViewNew: React.FC = () => {
               size="small"
               disabled
               precision={2}
-              formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ' ')}
+              stringMode // Строковый режим для точного отображения
+              formatter={value => {
+                // Сохраняем десятичные знаки при форматировании
+                if (!value) return ''
+                const strValue = value.toString()
+                const parts = strValue.split('.')
+                parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
+                // Ограничиваем дробную часть до 2 знаков
+                if (parts[1] && parts[1].length > 2) {
+                  parts[1] = parts[1].substring(0, 2)
+                }
+                return parts.join(',') // Используем запятую для отображения
+              }}
             />
           </Form.Item>
         </Col>
@@ -601,7 +731,19 @@ export const InvoiceViewNew: React.FC = () => {
               size="small"
               disabled
               precision={2}
-              formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ' ')}
+              stringMode // Строковый режим для точного отображения
+              formatter={value => {
+                // Сохраняем десятичные знаки при форматировании
+                if (!value) return ''
+                const strValue = value.toString()
+                const parts = strValue.split('.')
+                parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
+                // Ограничиваем дробную часть до 2 знаков
+                if (parts[1] && parts[1].length > 2) {
+                  parts[1] = parts[1].substring(0, 2)
+                }
+                return parts.join(',') // Используем запятую для отображения
+              }}
             />
           </Form.Item>
         </Col>
@@ -643,16 +785,31 @@ export const InvoiceViewNew: React.FC = () => {
               </Form.Item>
             </Col>
             <Col xs={24}>
-              <Form.Item
-                label="Предварительная дата поставки"
-                style={{ marginBottom: 12 }}
-              >
-                <Input
-                  value={deliveryDate ? `${deliveryDate.locale('ru').format('DD.MM.YYYY')} (${deliveryDate.locale('ru').format('dddd')})` : '—'}
-                  disabled
-                  size="small"
-                />
-              </Form.Item>
+              <div style={{ marginBottom: 12 }}>
+                <label style={{ fontSize: 13, color: 'rgba(0, 0, 0, 0.85)', marginBottom: 4, display: 'block' }}>
+                  Предварительная дата поставки
+                </label>
+                <div style={{
+                  padding: '8px 12px',
+                  background: '#f5f5f5',
+                  borderRadius: 4,
+                  minHeight: 32,
+                  display: 'flex',
+                  alignItems: 'center',
+                  color: deliveryDate ? 'rgba(0, 0, 0, 0.85)' : 'rgba(0, 0, 0, 0.25)'
+                }}>
+                  {deliveryDate ? (
+                    <>
+                      <strong>{deliveryDate.format('DD.MM.YYYY')}</strong>
+                      <span style={{ marginLeft: 8, color: '#1890ff' }}>
+                        ({deliveryDate.locale('ru').format('dddd')})
+                      </span>
+                    </>
+                  ) : (
+                    <span>Не указана</span>
+                  )}
+                </div>
+              </div>
             </Col>
           </Row>
         </Card>
@@ -669,18 +826,15 @@ export const InvoiceViewNew: React.FC = () => {
               loading={loadingPriorities}
               allowClear
               size="small"
-              options={priorities?.map((priority: any) => ({
-                label: priority.name,
-                value: priority.code
-              }))}
+              options={priorities?.map((priority: any) => {
+                console.log('[InvoiceViewNew] Приоритет:', priority)
+                // Для enum используем value и label
+                return {
+                  label: priority.label || priority.name,
+                  value: priority.value || priority.code
+                }
+              })}
             />
-          </Form.Item>
-          <Form.Item
-            name="notes"
-            label="Примечания"
-            style={{ marginBottom: 0 }}
-          >
-            <TextArea rows={2} placeholder="Дополнительная информация" size="small" />
           </Form.Item>
         </Card>
       </Col>
@@ -689,10 +843,234 @@ export const InvoiceViewNew: React.FC = () => {
 )
 
 // Render payments tab
+// Обработчик добавления платежа
+const handleAddPayment = () => {
+  console.log('[InvoiceViewNew.handleAddPayment] Открытие модального окна добавления платежа')
+
+  if (!invoice) {
+    message.error('Не загружена информация о счете')
+    return
+  }
+
+  // Устанавливаем начальные значения для формы платежа
+  paymentForm.setFieldsValue({
+    payment_date: dayjs(),
+    amount: invoice.total_amount - (invoice.paid_amount || 0), // Остаток к оплате
+    currency: invoice.currency || 'RUB',
+    payment_method: 'bank_transfer',
+    status: 'pending'
+  })
+
+  setPaymentModalVisible(true)
+}
+
+// Обработчик создания платежа
+const handleCreatePayment = async () => {
+  try {
+    const values = await paymentForm.validateFields()
+
+    console.log('[InvoiceViewNew.handleCreatePayment] Создание платежа:', {
+      invoiceId: id,
+      values
+    })
+
+    const { supabase } = await import('@/services/supabase')
+
+    // Создаем запись платежа
+    const { data, error } = await supabase
+      .from('payments')
+      .insert({
+        invoice_id: parseInt(id!),
+        payment_date: values.payment_date.format('YYYY-MM-DD'),
+        amount: values.amount,
+        currency: values.currency,
+        payment_method: values.payment_method,
+        status: values.status,
+        description: values.description,
+        created_by: user?.id
+      })
+      .select()
+      .single()
+
+    if (error) {
+      console.error('[InvoiceViewNew.handleCreatePayment] Ошибка создания платежа:', error)
+      throw error
+    }
+
+    console.log('[InvoiceViewNew.handleCreatePayment] Платеж создан:', data)
+
+    // Обновляем paid_amount в счете если платеж завершен
+    if (values.status === 'completed') {
+      const newPaidAmount = (invoice?.paid_amount || 0) + values.amount
+      const { error: updateError } = await supabase
+        .from('invoices')
+        .update({
+          paid_amount: newPaidAmount,
+          status: newPaidAmount >= (invoice?.total_amount || 0) ? 'paid' : invoice?.status
+        })
+        .eq('id', parseInt(id!))
+
+      if (updateError) {
+        console.error('[InvoiceViewNew.handleCreatePayment] Ошибка обновления счета:', updateError)
+      }
+    }
+
+    message.success('Платеж успешно создан')
+    setPaymentModalVisible(false)
+    paymentForm.resetFields()
+
+    // Перезагружаем данные счета
+    refetchInvoice()
+  } catch (error) {
+    console.error('[InvoiceViewNew.handleCreatePayment] Ошибка:', error)
+    message.error('Ошибка при создании платежа')
+  }
+}
+
+// Обработчик загрузки документов
+const handleUploadDocument = async (file: any) => {
+  console.log('[InvoiceViewNew.handleUploadDocument] Загрузка документа:', {
+    fileName: file.name,
+    fileSize: file.size,
+    fileType: file.type,
+    invoiceId: id
+  })
+
+  if (!id) {
+    console.error('[InvoiceViewNew.handleUploadDocument] Нет ID счета')
+    message.error('Ошибка: не определен ID счета')
+    return false
+  }
+
+  setUploadingFile(true)
+
+  try {
+    // Сначала проверяем, что bucket существует
+    await InvoiceFileStorage.ensureBucketExists()
+
+    // Получаем ID текущего пользователя
+    const userId = user?.id
+    console.log('[InvoiceViewNew.handleUploadDocument] ID пользователя:', userId)
+
+    // Загружаем файл
+    const result = await InvoiceFileStorage.uploadFile(id, file, userId)
+
+    console.log('[InvoiceViewNew.handleUploadDocument] Результат загрузки:', result)
+
+    if (result.error) {
+      console.error('[InvoiceViewNew.handleUploadDocument] Ошибка от сервиса:', result.error)
+      message.error(`Ошибка загрузки: ${result.error}`)
+    } else {
+      console.log('[InvoiceViewNew.handleUploadDocument] Файл успешно загружен')
+      message.success(`Документ ${file.name} успешно загружен`)
+      // Перезагружаем список документов
+      await loadDocuments()
+    }
+  } catch (error) {
+    console.error('[InvoiceViewNew.handleUploadDocument] Ошибка загрузки:', error)
+    message.error('Ошибка при загрузке документа')
+  } finally {
+    setUploadingFile(false)
+  }
+
+  return false // Prevent default upload behavior
+}
+
+// Загрузка документов счета
+const loadDocuments = useCallback(async () => {
+  if (!id) return
+
+  console.log('[InvoiceViewNew.loadDocuments] Загрузка документов для счета:', id)
+  setLoadingDocuments(true)
+
+  try {
+    // Получаем связи invoice_documents
+    const invoiceDocsResponse = await fetch(
+      `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/invoice_documents?invoice_id=eq.${id}`,
+      {
+        headers: {
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
+        }
+      }
+    )
+    const invoiceDocs = await invoiceDocsResponse.json()
+
+    console.log('[InvoiceViewNew.loadDocuments] Связи документов:', invoiceDocs)
+
+    if (invoiceDocs && invoiceDocs.length > 0) {
+      // Получаем attachment_ids
+      const attachmentIds = invoiceDocs.map((doc: any) => doc.attachment_id).filter(Boolean)
+
+      if (attachmentIds.length > 0) {
+        // Получаем информацию о вложениях
+        const attachmentsResponse = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/attachments?id=in.(${attachmentIds.join(',')})`,
+          {
+            headers: {
+              'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+              'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
+            }
+          }
+        )
+        const attachments = await attachmentsResponse.json()
+
+        console.log('[InvoiceViewNew.loadDocuments] Документы:', attachments)
+        setDocuments(attachments || [])
+      }
+    } else {
+      setDocuments([])
+    }
+  } catch (error) {
+    console.error('[InvoiceViewNew.loadDocuments] Ошибка загрузки документов:', error)
+    message.error('Ошибка при загрузке документов')
+  } finally {
+    setLoadingDocuments(false)
+  }
+}, [id])
+
+// Загружаем документы при монтировании компонента
+useEffect(() => {
+  if (activeTab === 'documents') {
+    loadDocuments()
+  }
+}, [activeTab, loadDocuments])
+
+// Получение иконки для файла
+const getFileIcon = (mimeType: string, fileName: string = '') => {
+  if (mimeType?.includes('pdf') || fileName.endsWith('.pdf')) {
+    return <FilePdfOutlined style={{ fontSize: 24, color: '#ff4d4f' }} />
+  }
+  if (mimeType?.includes('image') || /\.(jpg|jpeg|png|gif|bmp)$/i.test(fileName)) {
+    return <FileImageOutlined style={{ fontSize: 24, color: '#1890ff' }} />
+  }
+  if (mimeType?.includes('excel') || /\.(xls|xlsx)$/i.test(fileName)) {
+    return <FileExcelOutlined style={{ fontSize: 24, color: '#52c41a' }} />
+  }
+  if (mimeType?.includes('word') || /\.(doc|docx)$/i.test(fileName)) {
+    return <FileWordOutlined style={{ fontSize: 24, color: '#1890ff' }} />
+  }
+  return <FileTextOutlined style={{ fontSize: 24, color: '#8c8c8c' }} />
+}
+
+// Форматирование размера файла
+const formatFileSize = (bytes: number): string => {
+  if (bytes === 0) return '0 B'
+  const k = 1024
+  const sizes = ['B', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i]
+}
+
 const renderPayments = () => (
   <Card type="inner" title={<><CreditCardOutlined style={{ marginRight: 8 }} />Управление платежами</>}>
     <div style={{ marginBottom: 16 }}>
-      <Button type="primary" icon={<PlusOutlined />} size="small">
+      <Button
+        type="primary"
+        icon={<PlusOutlined />}
+        size="small"
+        onClick={handleAddPayment}
+      >
         Добавить платеж
       </Button>
     </div>
@@ -754,13 +1132,186 @@ const renderPayments = () => (
 // Render documents tab
 const renderDocuments = () => (
   <Card type="inner" title={<><FileOutlined style={{ marginRight: 8 }} />Документы</>}>
-    <div style={{ textAlign: 'center', padding: '40px 0', color: '#999' }}>
-      <FileOutlined style={{ fontSize: 48, marginBottom: 16 }} />
-      <div>Функция управления документами будет добавлена позже</div>
-      <Button type="link" style={{ marginTop: 8 }}>
-        Загрузить документ
-      </Button>
+    <div style={{ marginBottom: 16 }}>
+      <Upload
+        beforeUpload={handleUploadDocument}
+        showUploadList={false}
+        multiple
+        accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
+      >
+        <Button
+          icon={<UploadOutlined />}
+          loading={uploadingFile}
+          disabled={uploadingFile}
+        >
+          {uploadingFile ? 'Загрузка...' : 'Загрузить документ'}
+        </Button>
+      </Upload>
     </div>
+
+    {loadingDocuments ? (
+      <div style={{ textAlign: 'center', padding: '40px 0' }}>
+        <Spin size="large" />
+      </div>
+    ) : documents.length > 0 ? (
+      <List
+        dataSource={documents}
+        renderItem={(doc: any) => (
+          <List.Item
+            key={doc.id}
+            actions={[
+              <Button
+                type="link"
+                icon={<EyeOutlined />}
+                size="small"
+                onClick={() => {
+                  // Формируем URL для просмотра
+                  let viewUrl = ''
+                  if (doc.storage_path?.startsWith('local://')) {
+                    // Для локально сохраненных файлов
+                    viewUrl = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/sign/documents/${doc.storage_path.replace('local://', '')}?token=`
+                  } else if (doc.storage_path?.startsWith('invoices/')) {
+                    // Для файлов в storage - используем signed URL
+                    viewUrl = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/sign/documents/${doc.storage_path}?token=`
+                  } else {
+                    viewUrl = doc.storage_path
+                  }
+
+                  console.log('[InvoiceViewNew] Просмотр документа:', {
+                    originalPath: doc.storage_path,
+                    viewUrl
+                  })
+
+                  window.open(viewUrl, '_blank')
+                }}
+                title="Просмотреть"
+              />,
+              <Button
+                type="link"
+                icon={<DownloadOutlined />}
+                size="small"
+                onClick={async () => {
+                  try {
+                    console.log('[InvoiceViewNew] Скачивание документа:', {
+                      doc,
+                      storagePath: doc.storage_path
+                    })
+
+                    // Используем Supabase для получения URL
+                    const { supabase } = await import('@/services/supabase')
+
+                    if (doc.storage_path?.startsWith('invoices/')) {
+                      // Создаем signed URL для скачивания
+                      const { data, error } = await supabase.storage
+                        .from('documents')
+                        .createSignedUrl(doc.storage_path, 60) // URL действителен 60 секунд
+
+                      if (error) {
+                        console.error('[InvoiceViewNew] Ошибка создания signed URL:', error)
+                        message.error('Ошибка при скачивании файла')
+                        return
+                      }
+
+                      if (data?.signedUrl) {
+                        // Скачиваем файл
+                        const link = document.createElement('a')
+                        link.href = data.signedUrl
+                        link.download = doc.original_name || 'document'
+                        link.click()
+                      }
+                    } else {
+                      message.warning('Файл недоступен для скачивания')
+                    }
+                  } catch (error) {
+                    console.error('[InvoiceViewNew] Ошибка скачивания:', error)
+                    message.error('Ошибка при скачивании файла')
+                  }
+                }}
+                title="Скачать"
+              />,
+              <Button
+                type="link"
+                icon={<DeleteOutlined />}
+                size="small"
+                danger
+                onClick={async () => {
+                  Modal.confirm({
+                    title: 'Удалить документ?',
+                    content: `Вы уверены, что хотите удалить документ "${doc.original_name}"?`,
+                    okText: 'Удалить',
+                    cancelText: 'Отмена',
+                    okType: 'danger',
+                    onOk: async () => {
+                      try {
+                        console.log('[InvoiceViewNew] Удаление документа:', doc.id)
+
+                        // Удаляем связь из invoice_documents
+                        const { supabase } = await import('@/services/supabase')
+                        const { error } = await supabase
+                          .from('invoice_documents')
+                          .delete()
+                          .eq('attachment_id', doc.id)
+
+                        if (error) {
+                          console.error('[InvoiceViewNew] Ошибка удаления связи:', error)
+                          throw error
+                        }
+
+                        // Удаляем запись из attachments
+                        const { error: attachmentError } = await supabase
+                          .from('attachments')
+                          .delete()
+                          .eq('id', doc.id)
+
+                        if (attachmentError) {
+                          console.error('[InvoiceViewNew] Ошибка удаления attachment:', attachmentError)
+                          throw attachmentError
+                        }
+
+                        // Если файл в storage, пытаемся удалить
+                        if (doc.storage_path?.startsWith('invoices/')) {
+                          const { error: storageError } = await supabase.storage
+                            .from('documents')
+                            .remove([doc.storage_path])
+
+                          if (storageError) {
+                            console.warn('[InvoiceViewNew] Не удалось удалить файл из storage:', storageError)
+                          }
+                        }
+
+                        message.success('Документ удален')
+                        await loadDocuments()
+                      } catch (error) {
+                        console.error('[InvoiceViewNew] Ошибка удаления документа:', error)
+                        message.error('Ошибка при удалении документа')
+                      }
+                    }
+                  })
+                }}
+                title="Удалить"
+              />
+            ]}
+          >
+            <List.Item.Meta
+              avatar={getFileIcon(doc.mime_type, doc.original_name)}
+              title={doc.original_name}
+              description={
+                <Space>
+                  <span>{formatFileSize(doc.size_bytes)}</span>
+                  <span>•</span>
+                  <span>{dayjs(doc.created_at).format('DD.MM.YYYY HH:mm')}</span>
+                </Space>
+              }
+            />
+          </List.Item>
+        )}
+      />
+    ) : (
+      <div style={{ textAlign: 'center', padding: '40px 0', color: '#999' }}>
+        <FileOutlined style={{ fontSize: 48, marginBottom: 16 }} />
+        <div>Нет загруженных документов</div>
+      </div>
+    )}
   </Card>
 )
 
@@ -847,24 +1398,6 @@ const renderHistory = () => (
           Счет №{invoice.invoice_number} от {dayjs(invoice.invoice_date).format('DD.MM.YYYY')}
         </Title>
 
-        {hasChanges && (
-          <Alert
-            message="Есть несохраненные изменения"
-            type="warning"
-            showIcon
-            style={{ marginBottom: 16 }}
-            action={
-              <Space>
-                <Button size="small" onClick={handleCancel}>
-                  Отменить
-                </Button>
-                <Button size="small" type="primary" onClick={handleSave}>
-                  Сохранить
-                </Button>
-              </Space>
-            }
-          />
-        )}
       </div>
 
       <Form
@@ -1068,34 +1601,179 @@ const renderHistory = () => (
             left: 0,
             right: 0,
             padding: '16px 24px',
-            background: 'rgba(255, 255, 255, 0.95)',
-            borderTop: '1px solid #f0f0f0',
+            background: 'linear-gradient(to bottom, #fffbe6, #fff7db)',
+            borderTop: '1px solid #fadb14',
             boxShadow: '0 -2px 8px rgba(0, 0, 0, 0.08)',
             zIndex: 1000,
             backdropFilter: 'blur(8px)'
           }}
         >
           <div style={{ maxWidth: 1200, margin: '0 auto' }}>
-            <Space style={{ float: 'right' }}>
-              <Button
-                icon={<CloseOutlined />}
-                onClick={handleCancel}
-                size="middle"
-              >
-                Отменить
-              </Button>
-              <Button
-                type="primary"
-                icon={<SaveOutlined />}
-                onClick={handleSave}
-                size="middle"
-              >
-                Сохранить
-              </Button>
-            </Space>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Space>
+                <ExclamationCircleFilled style={{ color: '#faad14', fontSize: 16 }} />
+                <Text style={{ color: '#8c6800', fontWeight: 500 }}>
+                  Есть несохраненные изменения
+                </Text>
+              </Space>
+              <Space>
+                <Button
+                  icon={<CloseOutlined />}
+                  onClick={handleCancel}
+                  size="middle"
+                >
+                  Отменить
+                </Button>
+                <Button
+                  type="primary"
+                  icon={<SaveOutlined />}
+                  onClick={() => void handleSave()}
+                  size="middle"
+                >
+                  Сохранить
+                </Button>
+              </Space>
+            </div>
           </div>
         </div>
       )}
+
+      {/* Modal для добавления платежа */}
+      <Modal
+        title="Добавить платеж"
+        open={paymentModalVisible}
+        onOk={() => void handleCreatePayment()}
+        onCancel={() => {
+          setPaymentModalVisible(false)
+          paymentForm.resetFields()
+        }}
+        okText="Создать"
+        cancelText="Отмена"
+        width={600}
+      >
+        <Form
+          form={paymentForm}
+          layout="vertical"
+        >
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                name="payment_date"
+                label="Дата платежа"
+                rules={[{ required: true, message: 'Выберите дату платежа' }]}
+              >
+                <DatePicker style={{ width: '100%' }} format="DD.MM.YYYY" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                name="amount"
+                label="Сумма"
+                rules={[
+                  { required: true, message: 'Введите сумму' },
+                  { type: 'number', min: 0.01, message: 'Сумма должна быть больше 0' }
+                ]}
+              >
+                <InputNumber
+                  style={{ width: '100%' }}
+                  min={0.01}
+                  precision={2}
+                  formatter={value => {
+                    if (!value) { return '' }
+                    const parts = value.toString().split('.')
+                    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
+                    return parts.join(',')
+                  }}
+                  parser={value => {
+                    if (!value) { return '' }
+                    return value.replace(/\s/g, '').replace(',', '.')
+                  }}
+                />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                name="currency"
+                label="Валюта"
+                rules={[{ required: true, message: 'Выберите валюту' }]}
+              >
+                <Select>
+                  <Select.Option value="RUB">RUB - Рубль</Select.Option>
+                  <Select.Option value="USD">USD - Доллар</Select.Option>
+                  <Select.Option value="EUR">EUR - Евро</Select.Option>
+                  <Select.Option value="CNY">CNY - Юань</Select.Option>
+                </Select>
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                name="payment_method"
+                label="Способ оплаты"
+                rules={[{ required: true, message: 'Выберите способ оплаты' }]}
+              >
+                <Select>
+                  <Select.Option value="bank_transfer">Банковский перевод</Select.Option>
+                  <Select.Option value="cash">Наличные</Select.Option>
+                  <Select.Option value="card">Карта</Select.Option>
+                  <Select.Option value="other">Другое</Select.Option>
+                </Select>
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                name="status"
+                label="Статус"
+                rules={[{ required: true, message: 'Выберите статус' }]}
+              >
+                <Select>
+                  <Select.Option value="pending">Ожидает обработки</Select.Option>
+                  <Select.Option value="processing">В обработке</Select.Option>
+                  <Select.Option value="completed">Завершен</Select.Option>
+                  <Select.Option value="failed">Ошибка</Select.Option>
+                  <Select.Option value="cancelled">Отменен</Select.Option>
+                </Select>
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                name="description"
+                label="Описание"
+              >
+                <Input.TextArea rows={1} placeholder="Дополнительная информация" />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <div style={{ marginTop: 16, padding: 12, background: '#f0f2f5', borderRadius: 4 }}>
+            <Row>
+              <Col span={12}>
+                <Text>Сумма счета:</Text>
+                <div>
+                  <Text strong style={{ fontSize: 16 }}>
+                    {new Intl.NumberFormat('ru-RU').format(invoice?.total_amount || 0)} {invoice?.currency || 'RUB'}
+                  </Text>
+                </div>
+              </Col>
+              <Col span={12}>
+                <Text>Остаток к оплате:</Text>
+                <div>
+                  <Text strong style={{ fontSize: 16, color: '#ff4d4f' }}>
+                    {new Intl.NumberFormat('ru-RU').format(
+                      (invoice?.total_amount || 0) - (invoice?.paid_amount || 0)
+                    )} {invoice?.currency || 'RUB'}
+                  </Text>
+                </div>
+              </Col>
+            </Row>
+          </div>
+        </Form>
+      </Modal>
     </div>
   )
 }

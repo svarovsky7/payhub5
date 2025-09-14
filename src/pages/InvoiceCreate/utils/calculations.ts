@@ -11,17 +11,26 @@ export const calculateVATAmounts = (
   amountWithVat: number,
   vatRate: number
 ): { amountNet: number; vatAmount: number } => {
+  console.log('[calculateVATAmounts] Входные параметры:', {
+    amountWithVat,
+    vatRate,
+    vatRateType: typeof vatRate,
+    isZero: vatRate === 0
+  })
+
   if (!amountWithVat || amountWithVat <= 0) {
+    console.log('[calculateVATAmounts] Нулевая или отрицательная сумма, возвращаем нули')
     return { amountNet: 0, vatAmount: 0 }
   }
 
   // When VAT rate is 0 (Без НДС), amount without VAT equals amount with VAT
   if (vatRate === 0) {
-    console.log('[InvoiceCreate.calculateAmounts] Расчет без НДС:', {
+    console.log('[calculateVATAmounts] Расчет БЕЗ НДС (ставка 0%):', {
       amountWithVat,
       vatRate: 0,
       amountNet: amountWithVat,
-      vatAmount: 0
+      vatAmount: 0,
+      result: 'Сумма без НДС = Сумме с НДС'
     })
     return { amountNet: amountWithVat, vatAmount: 0 }
   }
@@ -29,9 +38,10 @@ export const calculateVATAmounts = (
   const amountNet = Number((amountWithVat / (1 + vatRate / 100)).toFixed(2))
   const vatAmount = Number((amountWithVat - amountNet).toFixed(2))
 
-  console.log('[InvoiceCreate.calculateAmounts] Расчет НДС:', {
+  console.log('[calculateVATAmounts] Расчет С НДС:', {
     amountWithVat,
-    vatRate,
+    vatRate: `${vatRate}%`,
+    formula: `${amountWithVat} / (1 + ${vatRate}/100)`,
     amountNet,
     vatAmount
   })

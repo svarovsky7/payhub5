@@ -16,6 +16,8 @@ npm run lint:fix     # Auto-fix ESLint issues
 npm run format       # Prettier formatting
 npm run type-check   # TypeScript check without emitting
 npm run preview      # Preview production build
+npm run knip         # Check for unused exports and dependencies
+npm run knip:fix     # Auto-fix unused exports
 ```
 
 **Important**: After completing any code changes, always run `npm run lint` and `npm run type-check` to ensure code quality.
@@ -165,6 +167,14 @@ Configured MCP servers (`.mcp.json`):
    ```
 
 Это упрощает отладку и помогает быстро находить проблемы в production среде.
+
+## Knip Configuration
+
+The project uses Knip for dead code detection (`knip.json`):
+- Entry points: `src/main.tsx`, `src/App.tsx`, `src/app/router.tsx`
+- Ignored patterns: optimized queries, test files, dashboard services
+- Run `npm run knip` to detect unused code
+- Run `npm run knip:fix` to auto-remove unused exports
 
 ## Environment Variables
 
