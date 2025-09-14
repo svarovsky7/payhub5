@@ -35,6 +35,12 @@ export class PaymentCrudService {
    */
   static async create(payment: PaymentInsertWithType): Promise<ApiResponse<Payment>> {
     try {
+      console.log('[PaymentCrudService.create] Создание платежа:', {
+        invoice_id: payment.invoice_id,
+        total_amount: payment.total_amount,
+        payment_type: payment.payment_type,
+        status: payment.status || 'draft'
+      })
       
       // Проверяем, что заявка существует и готова к оплате
       const { data: invoice, error: invoiceError } = await supabase
@@ -117,15 +123,21 @@ export class PaymentCrudService {
         updated_at: new Date().toISOString(),
       }
 
-      
+
+      console.log('[PaymentCrudService.create] Подготовленные данные для вставки:', paymentData)
+
       const { data, error } = await supabase
         .from('payments')
         .insert([paymentData])
         .select()
         .single()
 
-      if (error) {throw error}
+      if (error) {
+        console.error('[PaymentCrudService.create] Ошибка при вставке платежа:', error)
+        throw error
+      }
 
+      console.log('[PaymentCrudService.create] Платеж успешно создан:', data)
       return { data: data as Payment, error: null }
     } catch (error) {
       console.error('Ошибка создания платежа:', error)
@@ -198,7 +210,7 @@ export class PaymentCrudService {
   }
 
   /**
-   * Удалить платеж (только в статусе pending)
+   * Удалить платеж (только в статусе draft или pending)
    */
   static async delete(id: string): Promise<ApiResponse<null>> {
     try {
@@ -211,10 +223,10 @@ export class PaymentCrudService {
 
       if (fetchError) {throw fetchError}
 
-      if (payment.status !== 'pending') {
+      if (payment.status !== 'draft' && payment.status !== 'pending') {
         return {
           data: null,
-          error: 'Можно удалять только платежи в статусе "В ожидании"'
+          error: 'Можно удалять только платежи в статусе "Черновик" или "На согласовании"'
         }
       }
 
@@ -259,7 +271,7 @@ export class PaymentCrudService {
         return { data: null, error: 'Платеж не найден' }
       }
 
-      if (payment.status === 'completed') {
+      if (payment.status === 'completed' || payment.status === 'paid') {
         return { data: null, error: 'Платеж уже подтвержден' }
       }
 
@@ -267,10 +279,13 @@ export class PaymentCrudService {
         return { data: null, error: 'Нельзя подтвердить отмененный или провалившийся платеж' }
       }
 
+      // Разрешаем подтверждение платежей в статусах draft, pending, approved, scheduled
+      if (!['draft', 'pending', 'approved', 'scheduled'].includes(payment.status)) {
+        return { data: null, error: `Нельзя подтвердить платеж в статусе "${payment.status}"` }
+      }
+
       const updateData: PaymentUpdate = {
         status: 'completed',
-        approved_by: processedBy,
-        approved_at: data?.processed_date || new Date().toISOString(),
         internal_number: data?.reference_number,
         comment: data?.comment,
         updated_at: new Date().toISOString(),
@@ -321,8 +336,6 @@ export class PaymentCrudService {
     try {
       const updateData: PaymentUpdate = {
         status: 'failed',
-        approved_by: processedBy,
-        approved_at: new Date().toISOString(),
         comment: reason,
         updated_at: new Date().toISOString(),
       }
@@ -366,8 +379,8 @@ export class PaymentCrudService {
         return { data: null, error: 'Платеж не найден' }
       }
 
-      if (payment.status === 'completed') {
-        return { data: null, error: 'Нельзя отменить завершенный платеж' }
+      if (payment.status === 'completed' || payment.status === 'paid') {
+        return { data: null, error: 'Нельзя отменить оплаченный платеж' }
       }
 
       // Проверяем права (только автор может отменить)
@@ -377,8 +390,6 @@ export class PaymentCrudService {
 
       const updateData: PaymentUpdate = {
         status: 'cancelled',
-        approved_by: userId,
-        approved_at: new Date().toISOString(),
         comment: reason || 'Платеж отменен пользователем',
         updated_at: new Date().toISOString(),
       }

@@ -92,8 +92,6 @@ export interface Database {
           payer_id: number
           comment: string | null
           created_by: string // uuid
-          approved_by: string | null // uuid
-          approved_at: string | null
           created_at: string
           updated_at: string
           status: string // Dynamic status from database
@@ -112,8 +110,6 @@ export interface Database {
           payer_id: number
           comment?: string | null
           created_by: string
-          approved_by?: string | null
-          approved_at?: string | null
           created_at?: string
           updated_at?: string
           status?: string
@@ -130,8 +126,6 @@ export interface Database {
           total_amount?: number // Total amount including VAT
           payer_id?: number
           comment?: string | null
-          approved_by?: string | null
-          approved_at?: string | null
           updated_at?: string
           status?: string
           type_id?: number | null
@@ -341,46 +335,26 @@ export interface Database {
           id: number
           name: string
           description: string | null
-          project_required: boolean
-          created_by: string
           is_active: boolean
-          is_default: boolean
-          priority: number
-          rules: Record<string, any>
           created_at: string
           updated_at: string
           invoice_type_ids: number[] | null
-          contractor_type_ids: number[] | null
-          project_ids: number[] | null
         }
         Insert: {
           id?: number
           name: string
           description?: string | null
-          project_required?: boolean
-          created_by?: string
           is_active?: boolean
-          is_default?: boolean
-          priority?: number
-          rules?: Record<string, any>
           created_at?: string
           updated_at?: string
           invoice_type_ids?: number[] | null
-          contractor_type_ids?: number[] | null
-          project_ids?: number[] | null
         }
         Update: {
           name?: string
           description?: string | null
-          project_required?: boolean
           is_active?: boolean
-          is_default?: boolean
-          priority?: number
-          rules?: Record<string, any>
           updated_at?: string
           invoice_type_ids?: number[] | null
-          contractor_type_ids?: number[] | null
-          project_ids?: number[] | null
         }
       }
       workflow_stages: {
@@ -391,34 +365,10 @@ export interface Database {
           name: string
           description: string | null
           stage_type: string
-          approval_type: string | null
-          approval_quorum: number | null
-          approval_percentage: number | null
-          auto_approve_timeout_hours: number | null
-          rejection_stops_flow: boolean
-          can_view: boolean
-          can_comment: boolean
-          can_edit_amount: boolean
-          can_edit_description: boolean
-          can_attach_files: boolean
-          can_delegate: boolean
-          skip_if_amount_less: number | null
-          skip_if_same_approver: boolean
-          assignment_type: string | null
           assigned_users: string[] | null
           assigned_roles: string[] | null
-          assigned_departments: string[] | null // Will be removed in migration
-          use_hierarchy_level: number | null
-          notify_on_receive: boolean
-          notify_on_approve: boolean
-          notify_on_reject: boolean
-          reminder_hours: number | null
-          escalation_hours: number | null
-          escalation_user_id: string | null
           created_at: string
           updated_at: string
-          timeout_days: number | null
-          permissions: Record<string, any>
         }
         Insert: {
           id?: number
@@ -427,34 +377,10 @@ export interface Database {
           name: string
           description?: string | null
           stage_type?: string
-          approval_type?: string | null
-          approval_quorum?: number | null
-          approval_percentage?: number | null
-          auto_approve_timeout_hours?: number | null
-          rejection_stops_flow?: boolean
-          can_view?: boolean
-          can_comment?: boolean
-          can_edit_amount?: boolean
-          can_edit_description?: boolean
-          can_attach_files?: boolean
-          can_delegate?: boolean
-          skip_if_amount_less?: number | null
-          skip_if_same_approver?: boolean
-          assignment_type?: string | null
           assigned_users?: string[] | null
           assigned_roles?: string[] | null
-          assigned_departments?: string[] | null
-          use_hierarchy_level?: number | null
-          notify_on_receive?: boolean
-          notify_on_approve?: boolean
-          notify_on_reject?: boolean
-          reminder_hours?: number | null
-          escalation_hours?: number | null
-          escalation_user_id?: string | null
           created_at?: string
           updated_at?: string
-          timeout_days?: number | null
-          permissions?: Record<string, any>
         }
         Update: {
           workflow_id?: number
@@ -462,33 +388,9 @@ export interface Database {
           name?: string
           description?: string | null
           stage_type?: string
-          approval_type?: string | null
-          approval_quorum?: number | null
-          approval_percentage?: number | null
-          auto_approve_timeout_hours?: number | null
-          rejection_stops_flow?: boolean
-          can_view?: boolean
-          can_comment?: boolean
-          can_edit_amount?: boolean
-          can_edit_description?: boolean
-          can_attach_files?: boolean
-          can_delegate?: boolean
-          skip_if_amount_less?: number | null
-          skip_if_same_approver?: boolean
-          assignment_type?: string | null
           assigned_users?: string[] | null
           assigned_roles?: string[] | null
-          assigned_departments?: string[] | null
-          use_hierarchy_level?: number | null
-          notify_on_receive?: boolean
-          notify_on_approve?: boolean
-          notify_on_reject?: boolean
-          reminder_hours?: number | null
-          escalation_hours?: number | null
-          escalation_user_id?: string | null
           updated_at?: string
-          timeout_days?: number | null
-          permissions?: Record<string, any>
         }
       }
       payment_workflows: {

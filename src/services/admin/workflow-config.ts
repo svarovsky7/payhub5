@@ -10,12 +10,9 @@ interface WorkflowDefinition {
     id: number
     name: string
     description?: string
-    created_by: string
     is_active: boolean
     // Условия для платежей
     invoice_type_ids?: number[] // ID типов заявок из invoice_types
-    contractor_type_ids?: number[] // ID типов контрагентов из contractor_types
-    project_ids?: number[]
     created_at: string
     updated_at: string
     stages?: WorkflowStage[]
@@ -27,32 +24,19 @@ export interface WorkflowStage {
     position: number
     name: string
     description?: string
-    approval_quorum: number
-    timeout_days?: number
-    is_final?: boolean
-    permissions: StagePermissions
+    stage_type: string
     assigned_roles?: string[]
-    assigned_users?: string[]
     created_at: string
     updated_at: string
 }
 
-export interface StagePermissions {
-    can_view: boolean
-    can_edit: boolean
-    can_approve: boolean
-    can_reject: boolean
-    can_cancel: boolean
-}
+// StagePermissions interface removed - permissions field no longer exists in database
 
 export interface CreateWorkflowInput {
     name: string
     description?: string
-    created_by: string
     is_active?: boolean
     invoice_type_ids?: number[]
-    contractor_type_ids?: number[]
-    project_ids?: number[]
     stages?: Omit<WorkflowStage, 'id' | 'workflow_id' | 'created_at' | 'updated_at'>[]
 }
 
@@ -61,8 +45,6 @@ export interface UpdateWorkflowInput {
     description?: string
     is_active?: boolean
     invoice_type_ids?: number[]
-    contractor_type_ids?: number[]
-    project_ids?: number[]
 }
 
 export interface CreateStageInput {
@@ -70,12 +52,8 @@ export interface CreateStageInput {
     position: number
     name: string
     description?: string
-    approval_quorum?: number
-    timeout_days?: number
-    is_final?: boolean
-    permissions?: StagePermissions
+    stage_type?: string
     assigned_roles?: string[]
-    assigned_users?: string[]
 }
 
 export class WorkflowConfigService {
@@ -172,11 +150,8 @@ export class WorkflowConfigService {
                 .insert({
                     name: workflow.name,
                     description: workflow.description,
-                    created_by: workflow.created_by || '1',
                     is_active: workflow.is_active ?? true,
-                    invoice_type_ids: workflow.invoice_type_ids ?? [],
-                    contractor_type_ids: workflow.contractor_type_ids ?? [],
-                    project_ids: workflow.project_ids ?? []
+                    invoice_type_ids: workflow.invoice_type_ids ?? []
                 })
                 .select()
                 .single()
@@ -195,18 +170,8 @@ export class WorkflowConfigService {
                     position: stage.position,
                     name: stage.name,
                     description: stage.description,
-                    approval_quorum: stage.approval_quorum || 1,
-                    timeout_days: stage.timeout_days,
-                    stage_type: stage.is_final ? 'final' : 'approval',
-                    permissions: stage.permissions ?? {
-                        can_view: true,
-                        can_edit: false,
-                        can_approve: true,
-                        can_reject: true,
-                        can_cancel: false
-                    },
-                    assigned_roles: stage.assigned_roles ?? [],
-                    assigned_users: stage.assigned_users ?? []
+                    stage_type: (stage as any).stage_type || 'approval',
+                    assigned_roles: stage.assigned_roles ?? []
                 }))
 
                 const {error: stagesError} = await supabase
@@ -323,19 +288,8 @@ export class WorkflowConfigService {
                     position: stage.position,
                     name: stage.name,
                     description: stage.description,
-                    approval_quorum: stage.approval_quorum || 1,
-                    timeout_days: stage.timeout_days,
-                    // Store is_final in stage_type field
-                    stage_type: stage.is_final ? 'final' : 'approval',
-                    permissions: stage.permissions ?? {
-                        can_view: true,
-                        can_edit: false,
-                        can_approve: true,
-                        can_reject: true,
-                        can_cancel: false
-                    },
-                    assigned_roles: stage.assigned_roles ?? [],
-                    assigned_users: stage.assigned_users ?? []
+                    stage_type: stage.stage_type || 'approval',
+                    assigned_roles: stage.assigned_roles ?? []
                 })
                 .select()
                 .single()
@@ -476,20 +430,14 @@ export class WorkflowConfigService {
             const newWorkflow: CreateWorkflowInput = {
                 name: newName,
                 description: `Копия: ${original.description ?? original.name}`,
-                created_by: userId ?? original.created_by,
                 is_active: false, // Новые workflow создаются неактивными
                 invoice_type_ids: original.invoice_type_ids,
-                contractor_type_ids: original.contractor_type_ids,
-                project_ids: original.project_ids,
                 stages: original.stages?.map((stage: WorkflowStage) => ({
                     position: stage.position,
                     name: stage.name,
                     description: stage.description,
-                    approval_quorum: stage.approval_quorum,
-                    timeout_days: stage.timeout_days,
-                    permissions: stage.permissions,
-                    assigned_roles: stage.assigned_roles,
-                    assigned_users: stage.assigned_users
+                    stage_type: stage.stage_type,
+                    assigned_roles: stage.assigned_roles
                 }))
             }
 

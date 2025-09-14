@@ -176,7 +176,6 @@ export class PaymentQueryService {
       const userIds = new Set<string>()
       data?.forEach(payment => {
         if (payment.created_by) {userIds.add(payment.created_by)}
-        if (payment.approved_by) {userIds.add(payment.approved_by)}
         if (payment.confirmed_by) {userIds.add(payment.confirmed_by)}
       })
 
@@ -225,7 +224,6 @@ export class PaymentQueryService {
         // Добавляем информацию о пользователях
         creator: payment.created_by ? usersMap[payment.created_by] : null,
         confirmed_by: payment.confirmed_by ? usersMap[payment.confirmed_by] : null,
-        approved_by: payment.approved_by ? usersMap[payment.approved_by] : null,
         // Добавляем информацию о workflow
         workflow: workflowsMap[payment.id] || null,
         // Преобразуем данные счета
@@ -446,7 +444,7 @@ export class PaymentQueryService {
     try {
       let query = supabase
         .from('payments')
-        .select('total_amount, status, payment_method, created_at, approved_at')
+        .select('total_amount, status, payment_method, created_at')
         .eq('company_id', companyId)
 
       // Применяем те же фильтры что и в getList
@@ -514,15 +512,7 @@ export class PaymentQueryService {
         // byMethod[payment.payment_method]++
         // byMethodAmount[payment.payment_method] += payment.total_amount
 
-        // Рассчитываем время обработки для завершенных платежей
-        if (payment.approved_at && payment.status === 'completed') {
-          const createdAt = new Date(payment.created_at)
-          const processedAt = new Date(payment.approved_at)
-          const processingTime = (processedAt.getTime() - createdAt.getTime()) / (1000 * 60 * 60) // в часах
-          
-          totalProcessingTime += processingTime
-          processedCount++
-        }
+        // Processing time calculation removed since approved_at is no longer available
       })
 
       const avgProcessingTime = processedCount > 0 ? totalProcessingTime / processedCount : 0
@@ -718,11 +708,9 @@ export class PaymentQueryService {
         formattedPaymentDate: payment.payment_date 
           ? new Date(payment.payment_date).toLocaleDateString('ru-RU') 
           : '',
-        formattedProcessedDate: payment.approved_at
-          ? new Date(payment.approved_at).toLocaleDateString('ru-RU')
-          : '',
+        formattedProcessedDate: '',
         createdByName: payment.created_by || '',
-        processedByName: payment.approved_by || '',
+        processedByName: '',
         statusLabel: this.getStatusLabel(payment.status),
         methodLabel: this.getMethodLabel(payment.payment_method),
       }))

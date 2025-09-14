@@ -1,12 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { message } from 'antd';
-import { 
+import {
   ContractorCrudService,
   type ContractorFilters,
   ContractorQueryService
 } from '../contractors';
 import { queryKeys } from './queryKeys';
 import type { ContractorInsert, ContractorUpdate, PaginationParams } from '../supabase';
+import { useAuth } from '../../models/auth';
 
 // Список контрагентов
 export const useContractorsList = (
@@ -52,11 +53,17 @@ const useContractorWithStats = (id: string) => {
 // Создание контрагента
 export const useCreateContractor = () => {
   const queryClient = useQueryClient();
-  
+  const { user } = useAuth();
+
   return useMutation({
     mutationFn: (data: ContractorInsert) => {
-      console.log('[useCreateContractor] Calling create with data:', data);
-      return ContractorCrudService.create(data);
+      // Добавляем created_by из текущего пользователя
+      const contractorWithCreator = {
+        ...data,
+        created_by: user?.id
+      };
+      console.log('[useCreateContractor] Calling create with data:', contractorWithCreator);
+      return ContractorCrudService.create(contractorWithCreator);
     },
     onSuccess: (result) => {
       console.log('[useCreateContractor] Success result:', result);

@@ -1,5 +1,5 @@
 -- Database Schema SQL Export
--- Generated: 2025-09-14T18:16:35.518804
+-- Generated: 2025-09-14T23:45:41.814035
 -- Database: postgres
 -- Host: 31.128.51.210
 
@@ -498,22 +498,10 @@ CREATE TABLE IF NOT EXISTS public.payment_workflows (
     current_stage_id integer(32),
     current_stage_position integer(32) DEFAULT 1,
     status character varying(50) DEFAULT 'pending'::character varying,
-    amount numeric(15,2) NOT NULL,
-    currency character varying(10) DEFAULT 'RUB'::character varying,
-    description text,
-    contractor_id character varying(50),
-    project_id character varying(50),
-    payment_date date,
     stages_total integer(32) NOT NULL DEFAULT 0,
     stages_completed integer(32) DEFAULT 0,
-    approval_progress jsonb DEFAULT '[]'::jsonb,
     started_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     started_by character varying(50),
-    completed_at timestamp with time zone,
-    completed_by character varying(50),
-    cancelled_at timestamp with time zone,
-    cancelled_by character varying(50),
-    cancelled_reason text,
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT payment_workflows_current_stage_id_fkey FOREIGN KEY (current_stage_id) REFERENCES None.None(None),
@@ -531,8 +519,6 @@ CREATE TABLE IF NOT EXISTS public.payments (
     payer_id integer(32) NOT NULL,
     comment text,
     created_by uuid NOT NULL,
-    approved_by uuid,
-    approved_at timestamp with time zone,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone DEFAULT now(),
     status character varying(50) NOT NULL DEFAULT 'pending'::character varying,
@@ -549,7 +535,7 @@ CREATE TABLE IF NOT EXISTS public.payments (
     CONSTRAINT payments_type_id_fkey FOREIGN KEY (type_id) REFERENCES None.None(None)
 );
 COMMENT ON TABLE public.payments IS 'Payment records - simplified without payment method tracking';
-COMMENT ON COLUMN public.payments.status IS 'Payment status (migrated from enum to VARCHAR)';
+COMMENT ON COLUMN public.payments.status IS 'Статус платежа (check constraint удален, разрешены любые значения из таблицы statuses)';
 COMMENT ON COLUMN public.payments.type_id IS 'Invoice type inherited from the associated invoice';
 COMMENT ON COLUMN public.payments.payment_type IS 'Тип платежа: ADV - аванс, RET - возврат удержаний, DEBT - погашение долга';
 COMMENT ON COLUMN public.payments.internal_number IS 'Внутренний номер платежа (автоматически генерируется). Формат: {номер счета}/PAY-NN-TYPE';
@@ -674,6 +660,34 @@ CREATE TABLE IF NOT EXISTS public.users (
 );
 COMMENT ON TABLE public.users IS 'Auth: Stores user login data within a secure schema.';
 
+-- Table: public.workflow_approval_progress
+-- Description: История всех действий по согласованию платежей
+CREATE TABLE IF NOT EXISTS public.workflow_approval_progress (
+    id integer(32) NOT NULL DEFAULT nextval('workflow_approval_progress_id_seq'::regclass),
+    workflow_id integer(32) NOT NULL,
+    stage_id integer(32),
+    stage_name character varying(255),
+    action character varying(50) NOT NULL,
+    user_id uuid,
+    user_name character varying(255),
+    comment text,
+    reason text,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT workflow_approval_progress_pkey PRIMARY KEY (id),
+    CONSTRAINT workflow_approval_progress_stage_id_fkey FOREIGN KEY (stage_id) REFERENCES None.None(None),
+    CONSTRAINT workflow_approval_progress_user_id_fkey FOREIGN KEY (user_id) REFERENCES None.None(None),
+    CONSTRAINT workflow_approval_progress_workflow_id_fkey FOREIGN KEY (workflow_id) REFERENCES None.None(None)
+);
+COMMENT ON TABLE public.workflow_approval_progress IS 'История всех действий по согласованию платежей';
+COMMENT ON COLUMN public.workflow_approval_progress.workflow_id IS 'ID процесса согласования';
+COMMENT ON COLUMN public.workflow_approval_progress.stage_id IS 'ID этапа согласования';
+COMMENT ON COLUMN public.workflow_approval_progress.stage_name IS 'Название этапа согласования';
+COMMENT ON COLUMN public.workflow_approval_progress.action IS 'Действие: approved, rejected, cancelled, started';
+COMMENT ON COLUMN public.workflow_approval_progress.user_id IS 'ID пользователя, выполнившего действие';
+COMMENT ON COLUMN public.workflow_approval_progress.user_name IS 'Имя пользователя на момент действия';
+COMMENT ON COLUMN public.workflow_approval_progress.comment IS 'Комментарий при одобрении';
+COMMENT ON COLUMN public.workflow_approval_progress.reason IS 'Причина при отклонении или отмене';
+
 -- Table: public.workflow_stages
 CREATE TABLE IF NOT EXISTS public.workflow_stages (
     id integer(32) NOT NULL DEFAULT nextval('workflow_stages_id_seq'::regclass),
@@ -682,40 +696,14 @@ CREATE TABLE IF NOT EXISTS public.workflow_stages (
     name character varying(255) NOT NULL,
     description text,
     stage_type character varying(50) NOT NULL DEFAULT 'approval'::character varying,
-    approval_type character varying(50) DEFAULT 'single'::character varying,
-    approval_quorum integer(32) DEFAULT 1,
-    approval_percentage integer(32),
-    auto_approve_timeout_hours integer(32),
-    rejection_stops_flow boolean DEFAULT true,
-    can_view boolean DEFAULT true,
-    can_comment boolean DEFAULT true,
-    can_edit_amount boolean DEFAULT false,
-    can_edit_description boolean DEFAULT false,
-    can_attach_files boolean DEFAULT true,
-    can_delegate boolean DEFAULT false,
-    skip_if_amount_less numeric(15,2),
-    skip_if_same_approver boolean DEFAULT false,
-    assignment_type character varying(50) DEFAULT 'users'::character varying,
-    assigned_users ARRAY DEFAULT '{}'::text[],
     assigned_roles ARRAY DEFAULT '{}'::text[],
-    assigned_departments ARRAY DEFAULT '{}'::text[],
-    use_hierarchy_level integer(32),
-    notify_on_receive boolean DEFAULT true,
-    notify_on_approve boolean DEFAULT true,
-    notify_on_reject boolean DEFAULT true,
-    reminder_hours integer(32),
-    escalation_hours integer(32),
-    escalation_user_id character varying(50),
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     timeout_days integer(32) DEFAULT 3,
-    permissions jsonb DEFAULT '{"can_edit": false, "can_view": true, "can_cancel": false, "can_reject": true, "can_approve": true}'::jsonb,
     CONSTRAINT workflow_stages_pkey PRIMARY KEY (id),
     CONSTRAINT workflow_stages_workflow_id_fkey FOREIGN KEY (workflow_id) REFERENCES None.None(None)
 );
 COMMENT ON COLUMN public.workflow_stages.description IS 'Описание этапа согласования';
-COMMENT ON COLUMN public.workflow_stages.approval_quorum IS 'Количество одобрений, необходимых для перехода на следующий этап';
-COMMENT ON COLUMN public.workflow_stages.assigned_users IS 'Массив ID пользователей, назначенных на этот этап';
 COMMENT ON COLUMN public.workflow_stages.assigned_roles IS 'Массив ID ролей, назначенных на этот этап';
 
 -- Table: public.workflows
@@ -724,23 +712,14 @@ CREATE TABLE IF NOT EXISTS public.workflows (
     id integer(32) NOT NULL DEFAULT nextval('workflows_id_seq'::regclass),
     name character varying(255) NOT NULL,
     description text,
-    project_required boolean DEFAULT false,
-    created_by character varying(50) NOT NULL DEFAULT '1'::character varying,
     is_active boolean DEFAULT true,
-    is_default boolean DEFAULT false,
-    priority integer(32) DEFAULT 0,
-    rules jsonb DEFAULT '{}'::jsonb,
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     invoice_type_ids ARRAY DEFAULT '{}'::integer[],
-    contractor_type_ids ARRAY DEFAULT '{}'::integer[],
-    project_ids ARRAY DEFAULT '{}'::integer[],
     CONSTRAINT workflows_pkey PRIMARY KEY (id)
 );
 COMMENT ON TABLE public.workflows IS 'Workflow configurations - simplified without company isolation';
 COMMENT ON COLUMN public.workflows.invoice_type_ids IS 'Массив ID типов заявок из таблицы invoice_types';
-COMMENT ON COLUMN public.workflows.contractor_type_ids IS 'Массив ID типов контрагентов из таблицы contractor_types';
-COMMENT ON COLUMN public.workflows.project_ids IS 'Массив ID проектов для ограничения применения workflow';
 
 -- Table: realtime.messages
 CREATE TABLE IF NOT EXISTS realtime.messages (
@@ -1224,19 +1203,19 @@ AS '$libdir/pgcrypto', $function$pg_random_uuid$function$
 
 
 -- Function: extensions.gen_salt
-CREATE OR REPLACE FUNCTION extensions.gen_salt(text, integer)
- RETURNS text
- LANGUAGE c
- PARALLEL SAFE STRICT
-AS '$libdir/pgcrypto', $function$pg_gen_salt_rounds$function$
-
-
--- Function: extensions.gen_salt
 CREATE OR REPLACE FUNCTION extensions.gen_salt(text)
  RETURNS text
  LANGUAGE c
  PARALLEL SAFE STRICT
 AS '$libdir/pgcrypto', $function$pg_gen_salt$function$
+
+
+-- Function: extensions.gen_salt
+CREATE OR REPLACE FUNCTION extensions.gen_salt(text, integer)
+ RETURNS text
+ LANGUAGE c
+ PARALLEL SAFE STRICT
+AS '$libdir/pgcrypto', $function$pg_gen_salt_rounds$function$
 
 
 -- Function: extensions.grant_pg_cron_access
@@ -1383,7 +1362,7 @@ $function$
 
 
 -- Function: extensions.hmac
-CREATE OR REPLACE FUNCTION extensions.hmac(text, text, text)
+CREATE OR REPLACE FUNCTION extensions.hmac(bytea, bytea, text)
  RETURNS bytea
  LANGUAGE c
  IMMUTABLE PARALLEL SAFE STRICT
@@ -1391,7 +1370,7 @@ AS '$libdir/pgcrypto', $function$pg_hmac$function$
 
 
 -- Function: extensions.hmac
-CREATE OR REPLACE FUNCTION extensions.hmac(bytea, bytea, text)
+CREATE OR REPLACE FUNCTION extensions.hmac(text, text, text)
  RETURNS bytea
  LANGUAGE c
  IMMUTABLE PARALLEL SAFE STRICT
@@ -1439,7 +1418,7 @@ AS '$libdir/pgcrypto', $function$pgp_key_id_w$function$
 
 
 -- Function: extensions.pgp_pub_decrypt
-CREATE OR REPLACE FUNCTION extensions.pgp_pub_decrypt(bytea, bytea, text, text)
+CREATE OR REPLACE FUNCTION extensions.pgp_pub_decrypt(bytea, bytea)
  RETURNS text
  LANGUAGE c
  IMMUTABLE PARALLEL SAFE STRICT
@@ -1447,7 +1426,7 @@ AS '$libdir/pgcrypto', $function$pgp_pub_decrypt_text$function$
 
 
 -- Function: extensions.pgp_pub_decrypt
-CREATE OR REPLACE FUNCTION extensions.pgp_pub_decrypt(bytea, bytea)
+CREATE OR REPLACE FUNCTION extensions.pgp_pub_decrypt(bytea, bytea, text, text)
  RETURNS text
  LANGUAGE c
  IMMUTABLE PARALLEL SAFE STRICT
@@ -1463,7 +1442,7 @@ AS '$libdir/pgcrypto', $function$pgp_pub_decrypt_text$function$
 
 
 -- Function: extensions.pgp_pub_decrypt_bytea
-CREATE OR REPLACE FUNCTION extensions.pgp_pub_decrypt_bytea(bytea, bytea, text, text)
+CREATE OR REPLACE FUNCTION extensions.pgp_pub_decrypt_bytea(bytea, bytea, text)
  RETURNS bytea
  LANGUAGE c
  IMMUTABLE PARALLEL SAFE STRICT
@@ -1471,7 +1450,7 @@ AS '$libdir/pgcrypto', $function$pgp_pub_decrypt_bytea$function$
 
 
 -- Function: extensions.pgp_pub_decrypt_bytea
-CREATE OR REPLACE FUNCTION extensions.pgp_pub_decrypt_bytea(bytea, bytea, text)
+CREATE OR REPLACE FUNCTION extensions.pgp_pub_decrypt_bytea(bytea, bytea, text, text)
  RETURNS bytea
  LANGUAGE c
  IMMUTABLE PARALLEL SAFE STRICT
@@ -2230,68 +2209,6 @@ END;
 $function$
 
 
--- Function: public.approve_payment_optimized
-CREATE OR REPLACE FUNCTION public.approve_payment_optimized(workflow_id bigint, payment_id bigint, update_data jsonb, is_final_approval boolean, approver_id uuid)
- RETURNS void
- LANGUAGE plpgsql
-AS $function$
-BEGIN
-  -- Update workflow
-  UPDATE payment_workflows 
-  SET 
-    approval_progress = (update_data->>'approval_progress')::jsonb,
-    stages_completed = (update_data->>'stages_completed')::int,
-    current_stage_id = COALESCE((update_data->>'current_stage_id')::bigint, current_stage_id),
-    current_stage_position = COALESCE((update_data->>'current_stage_position')::int, current_stage_position),
-    status = COALESCE(update_data->>'status', status),
-    completed_at = COALESCE((update_data->>'completed_at')::timestamp, completed_at),
-    completed_by = COALESCE((update_data->>'completed_by')::uuid, completed_by),
-    updated_at = (update_data->>'updated_at')::timestamp
-  WHERE id = workflow_id;
-  
-  -- Update payment if final approval
-  IF is_final_approval THEN
-    UPDATE payments 
-    SET 
-      status = 'completed',
-      approved_by = approver_id,
-      approved_at = NOW(),
-      updated_at = NOW()
-    WHERE id = payment_id;
-    
-    -- Update related invoice status
-    UPDATE invoices 
-    SET 
-      status = 'paid',
-      updated_at = NOW()
-    FROM payments p
-    WHERE p.invoice_id = invoices.id AND p.id = payment_id;
-  END IF;
-END;
-$function$
-
-
--- Function: public.calculate_avg_approval_time
-CREATE OR REPLACE FUNCTION public.calculate_avg_approval_time(approver_id uuid)
- RETURNS TABLE(avg_time numeric)
- LANGUAGE plpgsql
-AS $function$
-BEGIN
-  RETURN QUERY
-  SELECT AVG(
-    EXTRACT(EPOCH FROM 
-      (progress->>'approved_at')::timestamp - 
-      (SELECT started_at FROM payment_workflows WHERE id = pw.id)
-    ) / 3600
-  ) as avg_time
-  FROM payment_workflows pw,
-       jsonb_array_elements(approval_progress) as progress
-  WHERE progress->>'approved_by' = approver_id::text
-    AND progress->>'approved_at' IS NOT NULL;
-END;
-$function$
-
-
 -- Function: public.calculate_payment_vat
 CREATE OR REPLACE FUNCTION public.calculate_payment_vat()
  RETURNS trigger
@@ -2340,104 +2257,6 @@ BEGIN
     END IF;
 
     RETURN NEW;
-END;
-$function$
-
-
--- Function: public.can_access_storage
-CREATE OR REPLACE FUNCTION public.can_access_storage()
- RETURNS boolean
- LANGUAGE plpgsql
- SECURITY DEFINER
-AS $function$
-BEGIN
-    -- Проверяем, что пользователь аутентифицирован
-    IF auth.uid() IS NULL THEN
-        RETURN false;
-    END IF;
-    
-    -- Проверяем, что у пользователя есть активный профиль
-    RETURN EXISTS (
-        SELECT 1 FROM public.users 
-        WHERE id = auth.uid() 
-        AND is_active = true
-    );
-END;
-$function$
-
-
--- Function: public.create_workflow_with_stages
-CREATE OR REPLACE FUNCTION public.create_workflow_with_stages(p_workflow jsonb, p_stages jsonb)
- RETURNS jsonb
- LANGUAGE plpgsql
-AS $function$
-DECLARE
-    v_workflow_id INTEGER;
-    v_stage JSONB;
-    v_result JSONB;
-BEGIN
-    -- Создаем workflow
-    INSERT INTO workflows (
-        name, 
-        description, 
-        invoice_type_id, 
-        company_id, 
-        created_by, 
-        is_active, 
-        rules
-    )
-    VALUES (
-        p_workflow->>'name',
-        p_workflow->>'description',
-        (p_workflow->>'invoice_type_id')::INTEGER,
-        COALESCE(p_workflow->>'company_id', '1'),
-        COALESCE(p_workflow->>'created_by', '1'),
-        COALESCE((p_workflow->>'is_active')::BOOLEAN, true),
-        COALESCE(p_workflow->'rules', '{}')
-    )
-    RETURNING id INTO v_workflow_id;
-
-    -- Создаем этапы
-    IF p_stages IS NOT NULL AND jsonb_array_length(p_stages) > 0 THEN
-        FOR v_stage IN SELECT * FROM jsonb_array_elements(p_stages)
-        LOOP
-            INSERT INTO workflow_stages (
-                workflow_id,
-                position,
-                name,
-                description,
-                approval_quorum,
-                auto_assign_project_roles,
-                timeout_days,
-                permissions,
-                conditions,
-                assigned_roles,
-                assigned_users
-            )
-            VALUES (
-                v_workflow_id,
-                (v_stage->>'position')::INTEGER,
-                v_stage->>'name',
-                v_stage->>'description',
-                COALESCE((v_stage->>'approval_quorum')::INTEGER, 1),
-                COALESCE((v_stage->>'auto_assign_project_roles')::BOOLEAN, false),
-                (v_stage->>'timeout_days')::INTEGER,
-                COALESCE(v_stage->'permissions', '{"can_view": true, "can_edit": false, "can_approve": true, "can_reject": true, "can_cancel": false}'),
-                COALESCE(v_stage->'conditions', '{}'),
-                ARRAY(SELECT jsonb_array_elements_text(COALESCE(v_stage->'assigned_roles', '[]'::jsonb))),
-                ARRAY(SELECT jsonb_array_elements_text(COALESCE(v_stage->'assigned_users', '[]'::jsonb)))
-            );
-        END LOOP;
-    END IF;
-
-    -- Возвращаем созданный workflow с этапами
-    SELECT jsonb_build_object(
-        'workflow_id', v_workflow_id,
-        'success', true,
-        'message', 'Workflow created successfully'
-    ) INTO v_result;
-
-    RETURN v_result;
 END;
 $function$
 
@@ -2512,14 +2331,13 @@ $function$
 
 
 -- Function: public.fn_sync_invoice_payment
--- Description: Синхронизирует paid_amount и статус счета на основе платежей. Исключает платежи со статусами draft, cancelled, failed
+-- Description: Синхронизирует paid_amount счета на основе платежей. Учитывает только платежи со статусами paid, approved и scheduled. НЕ изменяет статус счета автоматически.
 CREATE OR REPLACE FUNCTION public.fn_sync_invoice_payment()
  RETURNS trigger
  LANGUAGE plpgsql
 AS $function$
 DECLARE
     total_paid numeric(15,2);
-    invoice_total numeric(15,2);
     target_invoice_id integer;
 BEGIN
     -- Determine which invoice to update
@@ -2529,39 +2347,18 @@ BEGIN
         target_invoice_id := NEW.invoice_id;
     END IF;
 
-    -- Calculate total paid amount for the invoice (using new column name)
-    -- Исключаем платежи со статусами: draft (черновик), cancelled (отменен), failed (ошибка)
+    -- Calculate total paid amount for the invoice
+    -- Учитываем только платежи со статусами: paid, approved, scheduled
     SELECT COALESCE(SUM(total_amount), 0)
     INTO total_paid
     FROM payments
     WHERE invoice_id = target_invoice_id
-    AND status NOT IN ('draft', 'cancelled', 'failed');
+    AND status IN ('paid', 'approved', 'scheduled');
 
-    -- Get invoice total amount
-    SELECT total_amount
-    INTO invoice_total
-    FROM invoices
-    WHERE id = target_invoice_id;
-
-    -- Update invoice paid_amount and status
+    -- Update only invoice paid_amount (NOT status)
     UPDATE invoices
     SET
         paid_amount = total_paid,
-        status = CASE
-            WHEN total_paid = 0 THEN
-                CASE
-                    WHEN status IN ('paid', 'partially_paid') THEN 'approved'
-                    ELSE status
-                END
-            WHEN total_paid >= invoice_total THEN 'paid'
-            WHEN total_paid > 0 THEN 'partially_paid'
-            ELSE status
-        END,
-        paid_at = CASE
-            WHEN total_paid >= invoice_total AND paid_at IS NULL THEN NOW()
-            WHEN total_paid < invoice_total THEN NULL
-            ELSE paid_at
-        END,
         updated_at = NOW()
     WHERE id = target_invoice_id;
 
@@ -2676,117 +2473,24 @@ end;
 $function$
 
 
--- Function: public.get_workflow_for_payment
-CREATE OR REPLACE FUNCTION public.get_workflow_for_payment(p_amount numeric, p_payment_type character varying, p_contractor_type character varying, p_project_id character varying, p_company_id character varying)
+-- Function: public.get_workflow_for_invoice
+CREATE OR REPLACE FUNCTION public.get_workflow_for_invoice(p_invoice_type_id integer)
  RETURNS integer
  LANGUAGE plpgsql
 AS $function$
 DECLARE
-    v_workflow_id INTEGER;
+    v_workflow_id integer;
 BEGIN
-    -- Ищем наиболее подходящий workflow
+    -- Получаем первый активный workflow для данного типа заявки
     SELECT id INTO v_workflow_id
-    FROM workflows
-    WHERE company_id = p_company_id
-        AND is_active = true
-        AND (payment_type IS NULL OR payment_type = p_payment_type)
-        AND (min_amount IS NULL OR min_amount <= p_amount)
-        AND (max_amount IS NULL OR max_amount >= p_amount)
-        AND (contractor_type IS NULL OR contractor_type = p_contractor_type)
-        AND (NOT project_required OR p_project_id IS NOT NULL)
-    ORDER BY 
-        priority DESC,
-        CASE 
-            WHEN payment_type = p_payment_type THEN 1 
-            ELSE 2 
-        END,
-        CASE 
-            WHEN min_amount IS NOT NULL AND max_amount IS NOT NULL THEN 1
-            WHEN min_amount IS NOT NULL OR max_amount IS NOT NULL THEN 2
-            ELSE 3
-        END
+    FROM public.workflows
+    WHERE is_active = true
+      AND (
+        invoice_type_ids IS NULL
+        OR p_invoice_type_id = ANY(invoice_type_ids)
+      )
+    ORDER BY id ASC
     LIMIT 1;
-    
-    -- Если не нашли специфичный, берем дефолтный
-    IF v_workflow_id IS NULL THEN
-        SELECT id INTO v_workflow_id
-        FROM workflows
-        WHERE company_id = p_company_id
-            AND is_active = true
-            AND is_default = true
-        LIMIT 1;
-    END IF;
-    
-    RETURN v_workflow_id;
-END;
-$function$
-
-
--- Function: public.get_workflow_for_payment
-CREATE OR REPLACE FUNCTION public.get_workflow_for_payment(p_payment_id integer, p_company_id character varying)
- RETURNS integer
- LANGUAGE plpgsql
-AS $function$
-DECLARE
-    v_workflow_id INTEGER;
-    v_invoice_type_id INTEGER;
-    v_contractor_type_id INTEGER;
-    v_project_id INTEGER;
-BEGIN
-    -- Получаем данные платежа
-    SELECT 
-        i.invoice_type_id,
-        c.contractor_type_id,
-        p.project_id
-    INTO 
-        v_invoice_type_id,
-        v_contractor_type_id,
-        v_project_id
-    FROM payments p
-    LEFT JOIN invoices i ON p.invoice_id = i.id
-    LEFT JOIN contractors c ON i.contractor_id = c.id
-    WHERE p.id = p_payment_id;
-
-    -- Ищем подходящий workflow
-    -- Приоритет: более специфичные условия имеют больший приоритет
-    SELECT id INTO v_workflow_id
-    FROM workflows w
-    WHERE w.company_id = p_company_id
-        AND w.is_active = true
-        AND (
-            -- Проверяем тип заявки
-            w.invoice_type_ids = '{}' 
-            OR v_invoice_type_id = ANY(w.invoice_type_ids)
-        )
-        AND (
-            -- Проверяем тип контрагента
-            w.contractor_type_ids = '{}' 
-            OR v_contractor_type_id = ANY(w.contractor_type_ids)
-        )
-        AND (
-            -- Проверяем проект
-            w.project_ids = '{}' 
-            OR v_project_id = ANY(w.project_ids)
-        )
-    ORDER BY 
-        -- Приоритет: чем больше условий задано, тем выше приоритет
-        CASE WHEN w.invoice_type_ids != '{}' THEN 1 ELSE 0 END +
-        CASE WHEN w.contractor_type_ids != '{}' THEN 1 ELSE 0 END +
-        CASE WHEN w.project_ids != '{}' THEN 1 ELSE 0 END DESC,
-        w.priority DESC,
-        w.id ASC
-    LIMIT 1;
-
-    -- Если не нашли специфичный, ищем дефолтный
-    IF v_workflow_id IS NULL THEN
-        SELECT id INTO v_workflow_id
-        FROM workflows w
-        WHERE w.company_id = p_company_id
-            AND w.is_active = true
-            AND w.is_default = true
-        ORDER BY w.priority DESC, w.id ASC
-        LIMIT 1;
-    END IF;
 
     RETURN v_workflow_id;
 END;
@@ -2970,134 +2674,6 @@ end;
 $function$
 
 
--- Function: public.log_slow_query
-CREATE OR REPLACE FUNCTION public.log_slow_query(query_text text, execution_time_ms numeric, called_from text DEFAULT NULL::text, parameters jsonb DEFAULT NULL::jsonb)
- RETURNS void
- LANGUAGE plpgsql
-AS $function$
-BEGIN
-  INSERT INTO slow_query_log (query_text, execution_time_ms, called_from, parameters)
-  VALUES (query_text, execution_time_ms, called_from, parameters);
-END;
-$function$
-
-
--- Function: public.perform_database_maintenance
-CREATE OR REPLACE FUNCTION public.perform_database_maintenance()
- RETURNS void
- LANGUAGE plpgsql
-AS $function$
-BEGIN
-  -- Update table statistics for better query planning
-  ANALYZE invoices;
-  ANALYZE payments;
-  ANALYZE contractors;
-  ANALYZE payment_workflows;
-  ANALYZE users;
-  ANALYZE projects;
-  
-  -- Refresh materialized views
-  PERFORM refresh_statistics_views();
-  
-  -- Clean up old logs (keep 30 days)
-  DELETE FROM slow_query_log WHERE created_at < NOW() - INTERVAL '30 days';
-  DELETE FROM system_logs WHERE created_at < NOW() - INTERVAL '30 days';
-  
-  -- Log maintenance completion
-  INSERT INTO system_logs (event_type, message, created_at) 
-  VALUES ('database_maintenance', 'Database maintenance completed', NOW());
-END;
-$function$
-
-
--- Function: public.recalculate_delivery_dates_for_unpaid
-CREATE OR REPLACE FUNCTION public.recalculate_delivery_dates_for_unpaid()
- RETURNS void
- LANGUAGE plpgsql
-AS $function$
-DECLARE
-    working_date date;
-    invoice_record RECORD;
-BEGIN
-    -- Loop through unpaid invoices with delivery_days set
-    FOR invoice_record IN 
-        SELECT id, delivery_days 
-        FROM public.invoices 
-        WHERE delivery_days IS NOT NULL 
-          AND paid_at IS NULL
-    LOOP
-        -- Start from tomorrow
-        working_date := CURRENT_DATE + INTERVAL '1 day';
-        
-        -- Find next business day
-        WHILE EXTRACT(DOW FROM working_date) IN (0, 6) LOOP
-            working_date := working_date + INTERVAL '1 day';
-        END LOOP;
-        
-        -- Add calendar days
-        working_date := working_date + (invoice_record.delivery_days || ' days')::INTERVAL;
-        
-        -- Update the invoice
-        UPDATE public.invoices 
-        SET estimated_delivery_date = working_date,
-            updated_at = now()
-        WHERE id = invoice_record.id;
-    END LOOP;
-END;
-$function$
-
-
--- Function: public.refresh_statistics_views
-CREATE OR REPLACE FUNCTION public.refresh_statistics_views()
- RETURNS void
- LANGUAGE plpgsql
-AS $function$
-BEGIN
-  REFRESH MATERIALIZED VIEW invoice_stats_mv;
-  REFRESH MATERIALIZED VIEW payment_stats_mv;
-  REFRESH MATERIALIZED VIEW contractor_stats_mv;
-  
-  -- Log the refresh
-  INSERT INTO system_logs (event_type, message, created_at) 
-  VALUES ('materialized_view_refresh', 'Statistics views refreshed', NOW());
-EXCEPTION
-  WHEN OTHERS THEN
-    -- Log error but don't fail
-    INSERT INTO system_logs (event_type, message, error_details, created_at) 
-    VALUES ('materialized_view_refresh_error', 'Error refreshing statistics', SQLERRM, NOW());
-END;
-$function$
-
-
--- Function: public.reject_payment_optimized
-CREATE OR REPLACE FUNCTION public.reject_payment_optimized(workflow_id bigint, payment_id bigint, approval_progress jsonb, rejector_id uuid, rejection_reason text)
- RETURNS void
- LANGUAGE plpgsql
-AS $function$
-BEGIN
-  -- Update workflow
-  UPDATE payment_workflows 
-  SET 
-    status = 'rejected',
-    approval_progress = approval_progress,
-    completed_at = NOW(),
-    completed_by = rejector_id,
-    updated_at = NOW()
-  WHERE id = workflow_id;
-  
-  -- Update payment
-  UPDATE payments 
-  SET 
-    status = 'failed',
-    approved_by = rejector_id,
-    approved_at = NOW(),
-    comment = rejection_reason,
-    updated_at = NOW()
-  WHERE id = payment_id;
-END;
-$function$
-
-
 -- Function: public.search_contractors
 CREATE OR REPLACE FUNCTION public.search_contractors(search_query text, result_limit integer DEFAULT 10)
  RETURNS TABLE(id uuid, name text, inn text, is_active boolean)
@@ -3226,84 +2802,55 @@ CREATE OR REPLACE FUNCTION public.similarity_op(text, text)
 AS '$libdir/pg_trgm', $function$similarity_op$function$
 
 
--- Function: public.start_payment_workflow
-CREATE OR REPLACE FUNCTION public.start_payment_workflow(p_payment_id character varying, p_invoice_id character varying, p_amount numeric, p_payment_type character varying, p_contractor_id character varying, p_contractor_type character varying, p_project_id character varying, p_description text, p_payment_date date, p_company_id character varying, p_user_id character varying)
- RETURNS jsonb
+-- Function: public.start_payment_workflow_simple
+CREATE OR REPLACE FUNCTION public.start_payment_workflow_simple(p_payment_id character varying, p_invoice_id character varying, p_workflow_id integer, p_user_id character varying)
+ RETURNS integer
  LANGUAGE plpgsql
 AS $function$
 DECLARE
-    v_workflow_id INTEGER;
-    v_payment_workflow_id INTEGER;
-    v_stages_count INTEGER;
-    v_first_stage_id INTEGER;
+    v_workflow_id integer;
+    v_first_stage_id integer;
+    v_stages_total integer;
 BEGIN
-    -- Проверяем, нет ли уже процесса для этого платежа
-    IF EXISTS (SELECT 1 FROM payment_workflows WHERE payment_id = p_payment_id) THEN
-        RETURN jsonb_build_object(
-            'success', false,
-            'error', 'Workflow already exists for this payment'
-        );
-    END IF;
-    
-    -- Выбираем подходящий workflow
-    v_workflow_id := get_workflow_for_payment(
-        p_amount,
-        p_payment_type,
-        p_contractor_type,
-        p_project_id,
-        p_company_id
-    );
-    
-    IF v_workflow_id IS NULL THEN
-        RETURN jsonb_build_object(
-            'success', false,
-            'error', 'No suitable workflow found'
-        );
-    END IF;
-    
-    -- Получаем количество этапов и первый этап
-    SELECT COUNT(*), MIN(id) 
-    INTO v_stages_count, v_first_stage_id
-    FROM workflow_stages
-    WHERE workflow_id = v_workflow_id;
-    
-    -- Создаем процесс согласования
-    INSERT INTO payment_workflows (
+    -- Получаем первый этап workflow
+    SELECT id INTO v_first_stage_id
+    FROM public.workflow_stages
+    WHERE workflow_id = p_workflow_id
+    ORDER BY position ASC
+    LIMIT 1;
+
+    -- Получаем общее количество этапов
+    SELECT COUNT(*) INTO v_stages_total
+    FROM public.workflow_stages
+    WHERE workflow_id = p_workflow_id;
+
+    -- Создаем запись payment_workflow
+    INSERT INTO public.payment_workflows (
         payment_id,
         invoice_id,
         workflow_id,
         current_stage_id,
         current_stage_position,
         status,
-        amount,
-        description,
-        contractor_id,
-        project_id,
-        payment_date,
         stages_total,
-        started_by
+        stages_completed,
+        started_by,
+        started_at
     ) VALUES (
         p_payment_id,
         p_invoice_id,
-        v_workflow_id,
+        p_workflow_id,
         v_first_stage_id,
         1,
-        'pending',
-        p_amount,
-        p_description,
-        p_contractor_id,
-        p_project_id,
-        p_payment_date,
-        v_stages_count,
-        p_user_id
-    ) RETURNING id INTO v_payment_workflow_id;
-    
-    RETURN jsonb_build_object(
-        'success', true,
-        'payment_workflow_id', v_payment_workflow_id,
-        'workflow_id', v_workflow_id,
-        'stages_count', v_stages_count
-    );
+        'in_progress',
+        v_stages_total,
+        0,
+        p_user_id,
+        NOW()
+    )
+    RETURNING id INTO v_workflow_id;
+
+    RETURN v_workflow_id;
 END;
 $function$
 
@@ -3346,82 +2893,6 @@ CREATE OR REPLACE FUNCTION public.strict_word_similarity_op(text, text)
  LANGUAGE c
  STABLE PARALLEL SAFE STRICT
 AS '$libdir/pg_trgm', $function$strict_word_similarity_op$function$
-
-
--- Function: public.test_storage_upload
-CREATE OR REPLACE FUNCTION public.test_storage_upload()
- RETURNS json
- LANGUAGE plpgsql
- SECURITY DEFINER
-AS $function$
-DECLARE
-    v_result json;
-    v_user_id uuid;
-    v_can_access boolean;
-BEGIN
-    -- Получаем текущего пользователя
-    v_user_id := auth.uid();
-    
-    -- Проверяем доступ к storage
-    v_can_access := public.can_access_storage();
-    
-    -- Формируем результат
-    v_result := json_build_object(
-        'user_id', v_user_id,
-        'is_authenticated', v_user_id IS NOT NULL,
-        'can_access_storage', v_can_access,
-        'bucket_exists', EXISTS(SELECT 1 FROM storage.buckets WHERE id = 'documents'),
-        'policies_count', (SELECT COUNT(*) FROM pg_policies WHERE schemaname = 'storage' AND tablename = 'objects')
-    );
-    
-    RETURN v_result;
-END;
-$function$
-
-
--- Function: public.update_payment_on_workflow_completion
-CREATE OR REPLACE FUNCTION public.update_payment_on_workflow_completion()
- RETURNS trigger
- LANGUAGE plpgsql
-AS $function$
-BEGIN
-    -- Когда workflow завершен со статусом 'approved', 
-    -- обновляем статус платежа на 'completed'
-    IF NEW.status = 'approved' AND OLD.status != 'approved' THEN
-        UPDATE payments 
-        SET status = 'completed',
-            approved_by = NEW.completed_by,
-            approved_at = NEW.completed_at,
-            updated_at = NOW()
-        WHERE id = NEW.payment_id;
-        
-        -- Логирование для отладки (опционально)
-        RAISE NOTICE 'Payment % status updated to completed after workflow approval', NEW.payment_id;
-    END IF;
-    
-    -- Когда workflow отклонен, обновляем статус платежа на 'failed'
-    IF NEW.status = 'rejected' AND OLD.status != 'rejected' THEN
-        UPDATE payments 
-        SET status = 'failed',
-            updated_at = NOW()
-        WHERE id = NEW.payment_id;
-        
-        RAISE NOTICE 'Payment % status updated to failed after workflow rejection', NEW.payment_id;
-    END IF;
-    
-    -- Когда workflow отменен, обновляем статус платежа на 'cancelled'
-    IF NEW.status = 'cancelled' AND OLD.status != 'cancelled' THEN
-        UPDATE payments 
-        SET status = 'cancelled',
-            updated_at = NOW()
-        WHERE id = NEW.payment_id;
-        
-        RAISE NOTICE 'Payment % status updated to cancelled after workflow cancellation', NEW.payment_id;
-    END IF;
-    
-    RETURN NEW;
-END;
-$function$
 
 
 -- Function: public.update_themes_updated_at
@@ -4969,9 +4440,6 @@ CREATE TRIGGER trigger_recalc_invoice_amounts BEFORE INSERT OR UPDATE ON public.
 -- Trigger: update_invoices_updated_at on public.invoices
 CREATE TRIGGER update_invoices_updated_at BEFORE UPDATE ON public.invoices FOR EACH ROW EXECUTE FUNCTION update_updated_at()
 
--- Trigger: trigger_update_payment_on_workflow_completion on public.payment_workflows
-CREATE TRIGGER trigger_update_payment_on_workflow_completion AFTER UPDATE ON public.payment_workflows FOR EACH ROW EXECUTE FUNCTION update_payment_on_workflow_completion()
-
 -- Trigger: update_payment_workflows_updated_at on public.payment_workflows
 CREATE TRIGGER update_payment_workflows_updated_at BEFORE UPDATE ON public.payment_workflows FOR EACH ROW EXECUTE FUNCTION update_updated_at_column()
 
@@ -4986,15 +4454,6 @@ CREATE TRIGGER tr_sync_invoice_payment_on_insert AFTER INSERT ON public.payments
 
 -- Trigger: tr_sync_invoice_payment_on_update on public.payments
 CREATE TRIGGER tr_sync_invoice_payment_on_update AFTER UPDATE ON public.payments FOR EACH ROW EXECUTE FUNCTION fn_sync_invoice_payment()
-
--- Trigger: trigger_sync_invoice_payment_delete on public.payments
-CREATE TRIGGER trigger_sync_invoice_payment_delete AFTER DELETE ON public.payments FOR EACH ROW EXECUTE FUNCTION fn_sync_invoice_payment()
-
--- Trigger: trigger_sync_invoice_payment_insert on public.payments
-CREATE TRIGGER trigger_sync_invoice_payment_insert AFTER INSERT ON public.payments FOR EACH ROW EXECUTE FUNCTION fn_sync_invoice_payment()
-
--- Trigger: trigger_sync_invoice_payment_update on public.payments
-CREATE TRIGGER trigger_sync_invoice_payment_update AFTER UPDATE ON public.payments FOR EACH ROW EXECUTE FUNCTION fn_sync_invoice_payment()
 
 -- Trigger: update_payments_updated_at on public.payments
 CREATE TRIGGER update_payments_updated_at BEFORE UPDATE ON public.payments FOR EACH ROW EXECUTE FUNCTION update_updated_at()
@@ -5317,9 +4776,6 @@ CREATE INDEX idx_mrp_is_active ON public.material_responsible_persons USING btre
 CREATE INDEX idx_payment_workflows_current_stage ON public.payment_workflows USING btree (current_stage_id);
 
 -- Index on public.payment_workflows
-CREATE INDEX idx_payment_workflows_dates ON public.payment_workflows USING btree (started_at, completed_at);
-
--- Index on public.payment_workflows
 CREATE INDEX idx_payment_workflows_invoice_id ON public.payment_workflows USING btree (invoice_id);
 
 -- Index on public.payment_workflows
@@ -5333,9 +4789,6 @@ CREATE INDEX idx_payment_workflows_workflow_id ON public.payment_workflows USING
 
 -- Index on public.payment_workflows
 CREATE UNIQUE INDEX payment_workflows_payment_id_key ON public.payment_workflows USING btree (payment_id);
-
--- Index on public.payments
-CREATE INDEX idx_payments_approved_by ON public.payments USING btree (approved_by);
 
 -- Index on public.payments
 CREATE INDEX idx_payments_created_at ON public.payments USING btree (created_at DESC);
@@ -5448,6 +4901,21 @@ CREATE INDEX idx_users_role_id ON public.users USING btree (role_id) WHERE (role
 -- Index on public.users
 CREATE UNIQUE INDEX users_email_key ON public.users USING btree (email);
 
+-- Index on public.workflow_approval_progress
+CREATE INDEX idx_workflow_approval_progress_created_at ON public.workflow_approval_progress USING btree (created_at);
+
+-- Index on public.workflow_approval_progress
+CREATE INDEX idx_workflow_approval_progress_user_created ON public.workflow_approval_progress USING btree (user_id, created_at DESC);
+
+-- Index on public.workflow_approval_progress
+CREATE INDEX idx_workflow_approval_progress_user_id ON public.workflow_approval_progress USING btree (user_id);
+
+-- Index on public.workflow_approval_progress
+CREATE INDEX idx_workflow_approval_progress_workflow_action ON public.workflow_approval_progress USING btree (workflow_id, action);
+
+-- Index on public.workflow_approval_progress
+CREATE INDEX idx_workflow_approval_progress_workflow_id ON public.workflow_approval_progress USING btree (workflow_id);
+
 -- Index on public.workflow_stages
 CREATE INDEX idx_workflow_stages_position ON public.workflow_stages USING btree (workflow_id, "position");
 
@@ -5458,19 +4926,10 @@ CREATE INDEX idx_workflow_stages_type ON public.workflow_stages USING btree (sta
 CREATE INDEX idx_workflow_stages_workflow_id ON public.workflow_stages USING btree (workflow_id);
 
 -- Index on public.workflows
-CREATE INDEX idx_workflows_contractor_types ON public.workflows USING gin (contractor_type_ids);
-
--- Index on public.workflows
 CREATE INDEX idx_workflows_invoice_types ON public.workflows USING gin (invoice_type_ids);
 
 -- Index on public.workflows
 CREATE INDEX idx_workflows_is_active ON public.workflows USING btree (is_active);
-
--- Index on public.workflows
-CREATE INDEX idx_workflows_priority ON public.workflows USING btree (priority DESC);
-
--- Index on public.workflows
-CREATE INDEX idx_workflows_project_ids ON public.workflows USING gin (project_ids);
 
 -- Index on realtime.subscription
 CREATE INDEX ix_realtime_subscription_entity ON realtime.subscription USING btree (entity);

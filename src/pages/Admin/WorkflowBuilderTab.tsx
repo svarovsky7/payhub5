@@ -1,6 +1,11 @@
 import React from 'react'
+import { App } from 'antd'
 import {WorkflowBuilder} from '@/components/WorkflowBuilder'
 
 export const WorkflowBuilderTab: React.FC = () => {
-    return <WorkflowBuilder/>
+    return (
+        <App>
+            <WorkflowBuilder/>
+        </App>
+    )
 }

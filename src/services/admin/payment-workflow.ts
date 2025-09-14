@@ -115,7 +115,7 @@ export class PaymentWorkflowService {
             // Получаем информацию о платеже
             const {data: payment, error: paymentFetchError} = await supabase
                 .from('payments')
-                .select('amount, invoice_id')
+                .select('total_amount, invoice_id')
                 .eq('id', paymentId)
                 .single()
 
@@ -159,7 +159,7 @@ export class PaymentWorkflowService {
                     stages_completed: 0,
                     started_at: new Date().toISOString(),
                     started_by: userId,
-                    amount: payment.amount || 0,
+                    amount: payment.total_amount || 0,
                     approval_progress: []
                 })
                 .select()
@@ -170,12 +170,11 @@ export class PaymentWorkflowService {
                 throw instanceError
             }
 
-            // Обновляем статус платежа
+            // Обновляем статус платежа на "pending" (На согласовании)
             const {error: paymentError} = await supabase
                 .from('payments')
                 .update({
-                    status: 'processing',
-                    workflow_status: 'in_approval'
+                    status: 'pending'
                 })
                 .eq('id', paymentId)
 
@@ -276,8 +275,7 @@ export class PaymentWorkflowService {
                 await supabase
                     .from('payments')
                     .update({
-                        status: 'failed',
-                        workflow_status: 'rejected'
+                        status: 'failed'
                     })
                     .eq('id', instance.payment_id)
 
@@ -332,7 +330,6 @@ export class PaymentWorkflowService {
                     .from('payments')
                     .update({
                         status: 'completed',
-                        workflow_status: 'approved',
                         approved_at: new Date().toISOString()
                     })
                     .eq('id', instance.payment_id)
@@ -390,8 +387,7 @@ export class PaymentWorkflowService {
             await supabase
                 .from('payments')
                 .update({
-                    status: 'cancelled',
-                    workflow_status: 'cancelled'
+                    status: 'cancelled'
                 })
                 .eq('id', instance.payment_id)
 

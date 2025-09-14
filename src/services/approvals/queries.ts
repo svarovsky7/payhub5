@@ -14,6 +14,7 @@ export interface ApprovalItem {
     id: number
     payment_workflow_id: number
     payment_id: number
+    payment_number?: string
     invoice_id?: number
     amount: number
     payment_date: string
@@ -47,6 +48,8 @@ export interface ApprovalItem {
     invoice?: {
         id: number
         invoice_number: string
+        internal_number?: string
+        invoice_date?: string
         description?: string
         supplier?: {
             id: number
@@ -76,13 +79,7 @@ export interface ApprovalItem {
         id: number
         name: string
         position: number
-        permissions?: {
-            can_edit?: boolean
-            can_view?: boolean
-            can_cancel?: boolean
-            can_reject?: boolean
-            can_approve?: boolean
-        }
+        // permissions field removed from database
     }
 }
 
@@ -177,7 +174,6 @@ export class ApprovalQueryService {
           amount,
           started_at,
           started_by,
-          approval_progress,
           created_at,
           workflow:workflows!workflow_id(
             id,
@@ -189,8 +185,7 @@ export class ApprovalQueryService {
             name,
             position,
             assigned_users,
-            assigned_roles,
-            permissions
+            assigned_roles
           )
         `, {count: 'exact'})
                 .eq('status', 'in_progress')
@@ -219,7 +214,7 @@ export class ApprovalQueryService {
             })
 
             // Фильтруем workflows, где текущий пользователь является approver
-            const filteredWorkflows = workflows?.filter((workflow, _index) => {
+            const filteredWorkflows = workflows?.filter((workflow, index) => {
                 console.log(`[ApprovalQueryService.getMyApprovals] Проверка workflow ${index + 1}:`, {
                     workflowId: workflow.id,
                     paymentId: workflow.payment_id,
@@ -285,7 +280,7 @@ export class ApprovalQueryService {
                         .from('payments')
                         .select(`
               *,
-              payer:contractorspayer_id(id, name, inn)
+              payer:contractors!payer_id(id, name, inn)
             `)
                         .in('id', paymentIds)
 
@@ -304,10 +299,10 @@ export class ApprovalQueryService {
                         .from('invoices')
                         .select(`
               *,
-              supplier:contractorssupplier_id(id, name, inn),
-              payer:contractorspayer_id(id, name, inn),
-              project:projectsproject_id(id, name),
-              invoice_type:invoice_typestype_id(id, name)
+              supplier:contractors!supplier_id(id, name, inn),
+              payer:contractors!payer_id(id, name, inn),
+              project:projects!project_id(id, name),
+              invoice_type:invoice_types!type_id(id, name)
             `)
                         .in('id', invoiceIds)
 
@@ -425,6 +420,7 @@ export class ApprovalQueryService {
                         id: workflow.id,
                         payment_workflow_id: workflow.id,
                         payment_id: workflow.payment_id,
+                        payment_number: payment?.payment_number,
                         invoice_id: workflow.invoice_id,
                         amount: (workflow.amount ?? payment?.amount) || 0,
                         payment_date: payment?.payment_date ?? new Date().toISOString(),
@@ -484,7 +480,15 @@ export class ApprovalQueryService {
         comment?: string
     ): Promise<{ success: boolean; error?: string }> {
         try {
-            console.log('[ApprovalQueryService.approvePayment] Одобрение платежа:', {workflowId, userId})
+            // Убедимся, что workflowId - это число
+            const numericWorkflowId = typeof workflowId === 'string' ? parseInt(workflowId, 10) : workflowId
+
+            console.log('[ApprovalQueryService.approvePayment] Одобрение платежа:', {
+                workflowId: numericWorkflowId,
+                originalWorkflowId: workflowId,
+                workflowIdType: typeof numericWorkflowId,
+                userId
+            })
 
             // Получаем текущий workflow instance
             const {data: workflow, error: fetchError} = await supabase
@@ -500,7 +504,7 @@ export class ApprovalQueryService {
             stages:workflow_stages(*)
           )
         `)
-                .eq('id', workflowId)
+                .eq('id', numericWorkflowId)
                 .single()
 
             if (fetchError ?? !workflow) {
@@ -517,20 +521,23 @@ export class ApprovalQueryService {
                 stages_total: workflow.stages_total
             })
 
-            // Обновляем прогресс согласования
-            const approvalProgress = workflow.approval_progress ?? []
-
-            // Безопасно получаем имя этапа
+            // Записываем прогресс в отдельную таблицу
             const stageName = workflow.current_stage?.name ?? `Stage ${workflow.current_stage_id}`
 
-            approvalProgress.push({
-                stage_id: workflow.current_stage_id,
-                stage_name: stageName,
-                approved_by: userId,
-                approved_at: new Date().toISOString(),
-                comment: comment ?? null,
-                action: 'approved'
-            })
+            const { error: progressError } = await supabase
+                .from('workflow_approval_progress')
+                .insert({
+                    workflow_id: numericWorkflowId,
+                    stage_id: workflow.current_stage_id,
+                    stage_name: stageName,
+                    action: 'approved',
+                    user_id: userId,
+                    comment: comment ?? null
+                })
+
+            if (progressError) {
+                console.error('[ApprovalQueryService.approvePayment] Ошибка записи прогресса:', progressError)
+            }
 
             // Определяем следующий этап
             const allStages = workflow.workflow?.stages ?? []
@@ -547,7 +554,6 @@ export class ApprovalQueryService {
 
             // Формируем данные для обновления
             const updateData: any = {
-                approval_progress: approvalProgress,
                 stages_completed: workflow.stages_completed + 1,
                 updated_at: new Date().toISOString()
             }
@@ -594,7 +600,7 @@ export class ApprovalQueryService {
 
             // Логируем данные для отладки
             console.log('[ApprovalQueryService.approvePayment] Обновляем workflow с данными:', {
-                workflowId,
+                workflowId: numericWorkflowId,
                 updateData,
                 hasNextStage: !!nextStage,
                 currentStageIndex,
@@ -605,7 +611,7 @@ export class ApprovalQueryService {
             const {data: updatedWorkflow, error: updateError} = await supabase
                 .from('payment_workflows')
                 .update(updateData)
-                .eq('id', workflowId)
+                .eq('id', numericWorkflowId)
                 .select()
                 .single()
 
@@ -613,7 +619,7 @@ export class ApprovalQueryService {
                 console.error('[ApprovalQueryService.approvePayment] Ошибка обновления workflow:', {
                     error: updateError,
                     updateData,
-                    workflowId,
+                    workflowId: numericWorkflowId,
                     errorMessage: updateError.message,
                     errorDetails: updateError.details,
                     errorHint: updateError.hint
@@ -641,7 +647,15 @@ export class ApprovalQueryService {
         reason: string
     ): Promise<{ success: boolean; error?: string }> {
         try {
-            console.log('[ApprovalQueryService.rejectPayment] Отклонение платежа:', {workflowId, userId})
+            // Убедимся, что workflowId - это число
+            const numericWorkflowId = typeof workflowId === 'string' ? parseInt(workflowId, 10) : workflowId
+
+            console.log('[ApprovalQueryService.rejectPayment] Отклонение платежа:', {
+                workflowId: numericWorkflowId,
+                originalWorkflowId: workflowId,
+                workflowIdType: typeof numericWorkflowId,
+                userId
+            })
 
             // Получаем текущий workflow instance
             const {data: workflow, error: fetchError} = await supabase
@@ -654,43 +668,112 @@ export class ApprovalQueryService {
             position
           )
         `)
-                .eq('id', workflowId)
+                .eq('id', numericWorkflowId)
                 .single()
 
-            if (fetchError ?? !workflow) {
+            if (fetchError || !workflow) {
+                console.error('[ApprovalQueryService.rejectPayment] Workflow не найден:', {
+                    workflowId: numericWorkflowId,
+                    error: fetchError,
+                    workflow
+                })
                 return {success: false, error: 'Процесс согласования не найден'}
             }
 
-            // Обновляем прогресс согласования
-            const approvalProgress = workflow.approval_progress ?? []
-            approvalProgress.push({
-                stage_id: workflow.current_stage_id,
-                stage_name: workflow.current_stage.name,
-                rejected_by: userId,
-                rejected_at: new Date().toISOString(),
-                reason: reason,
-                action: 'rejected'
-            })
+            // Записываем прогресс отклонения в отдельную таблицу
+            const { error: progressError } = await supabase
+                .from('workflow_approval_progress')
+                .insert({
+                    workflow_id: numericWorkflowId,
+                    stage_id: workflow.current_stage_id,
+                    stage_name: workflow.current_stage.name,
+                    action: 'rejected',
+                    user_id: userId,
+                    reason: reason
+                })
+
+            if (progressError) {
+                console.error('[ApprovalQueryService.rejectPayment] Ошибка записи прогресса:', progressError)
+            }
 
             // Отклоняем workflow
-            const {error: updateError} = await supabase
-                .from('payment_workflows')
-                .update({
-                    status: 'rejected',
-                    approval_progress: approvalProgress,
-                    completed_at: new Date().toISOString(),
-                    completed_by: userId,
-                    updated_at: new Date().toISOString()
-                })
-                .eq('id', workflowId)
+            console.log('[ApprovalQueryService.rejectPayment] Обновляем workflow:', {
+                workflowId: numericWorkflowId,
+                workflowIdType: typeof numericWorkflowId,
+                isNumber: Number.isInteger(numericWorkflowId),
+                status: 'rejected'
+            })
+
+            // Попробуем альтернативный способ через прямой API запрос
+            const updatePayload = {
+                status: 'rejected',
+                updated_at: new Date().toISOString()
+            }
+
+            // Используем прямой API запрос с правильным форматированием ID
+            const response = await fetch(
+                `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/payment_workflows?id=eq.${numericWorkflowId}`,
+                {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+                        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+                        'Prefer': 'return=representation'
+                    },
+                    body: JSON.stringify(updatePayload)
+                }
+            )
+
+            let updateData = null
+            let updateError = null
+
+            if (!response.ok) {
+                const errorText = await response.text()
+                try {
+                    updateError = JSON.parse(errorText)
+                } catch {
+                    updateError = { message: errorText, code: response.status.toString() }
+                }
+            } else {
+                const responseText = await response.text()
+                if (responseText) {
+                    try {
+                        updateData = JSON.parse(responseText)
+                    } catch {
+                        updateData = []
+                    }
+                }
+            }
 
             if (updateError) {
-                console.error('[ApprovalQueryService.rejectPayment] Ошибка обновления workflow:', updateError)
+                console.error('[ApprovalQueryService.rejectPayment] Ошибка обновления workflow через прямой API:', {
+                    error: updateError,
+                    errorMessage: updateError.message || updateError,
+                    errorCode: updateError.code,
+                    errorDetails: updateError.details,
+                    workflowId: numericWorkflowId,
+                    workflowIdType: typeof numericWorkflowId,
+                    url: `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/payment_workflows?id=eq.${numericWorkflowId}`,
+                    updateData
+                })
                 return {success: false, error: 'Ошибка обновления процесса согласования'}
             }
 
+            console.log('[ApprovalQueryService.rejectPayment] Workflow успешно обновлен:', {
+                workflowId: numericWorkflowId,
+                updateData
+            })
+
             // Обновляем статус платежа
-            await supabase
+            const paymentId = parseInt(workflow.payment_id)
+            console.log('[ApprovalQueryService.rejectPayment] Обновляем платеж:', {
+                paymentId,
+                originalPaymentId: workflow.payment_id,
+                status: 'failed'
+            })
+
+            const {error: paymentError} = await supabase
                 .from('payments')
                 .update({
                     status: 'failed',
@@ -698,7 +781,15 @@ export class ApprovalQueryService {
                     approved_at: new Date().toISOString(),
                     comment: reason
                 })
-                .eq('id', workflow.payment_id)
+                .eq('id', paymentId)
+
+            if (paymentError) {
+                console.error('[ApprovalQueryService.rejectPayment] Ошибка обновления платежа:', {
+                    error: paymentError,
+                    paymentId
+                })
+                return {success: false, error: 'Ошибка обновления статуса платежа'}
+            }
 
             console.log('[ApprovalQueryService.rejectPayment] Платеж отклонен успешно')
             return {success: true}

@@ -53,6 +53,29 @@ body {
   background: #555;
 }
 
+/* Подсветка выбранной строки в таблице */
+.highlighted-row {
+  background-color: #e6f7ff !important;
+  animation: highlight-fade 2s ease-in-out;
+}
+
+.highlighted-row td {
+  background-color: #e6f7ff !important;
+  border-color: #91d5ff !important;
+}
+
+@keyframes highlight-fade {
+  0% {
+    background-color: #bae7ff;
+  }
+  50% {
+    background-color: #e6f7ff;
+  }
+  100% {
+    background-color: #e6f7ff;
+  }
+}
+
 /* ProTable adjustments */
 .ant-pro-table {
   background: white;

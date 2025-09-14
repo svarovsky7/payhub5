@@ -8,24 +8,12 @@ export interface WorkflowDefinition {
   is_active: boolean
   // Условия для платежей
   invoice_type_ids?: number[] // ID типов заявок
-  contractor_type_ids?: number[] // ID типов контрагентов
-  project_ids?: number[]
   stages?: WorkflowStage[]
-  created_by?: string
   created_at: string
   updated_at: string
 }
 
-export interface WorkflowRules {
-  max_amount_no_approval?: number
-  requires_finance_approval?: boolean
-  requires_project_manager?: boolean
-  auto_approve_recurring?: boolean
-  auto_approve_under?: number
-  requires_receipt?: boolean
-  project_ids?: number[]
-  invoice_type_ids?: number[]
-}
+// WorkflowRules interface removed - rules field no longer exists in database
 
 export interface WorkflowStage {
   id: number
@@ -51,13 +39,7 @@ export interface StagePermissions {
   can_cancel: boolean
 }
 
-interface StageConditions {
-  invoice_type_ids?: number[]
-  project_ids?: number[]
-  min_amount?: number
-  max_amount?: number
-  contractor_ids?: number[]
-}
+// StageConditions interface removed - not used in current implementation
 
 export interface WorkflowRole {
   id: string
@@ -89,7 +71,6 @@ interface CreateWorkflowInput {
   name: string
   description?: string
   invoice_type_id?: number
-  rules: WorkflowRules
   stages: Omit<WorkflowStage, 'id' | 'workflow_id' | 'created_at' | 'updated_at'>[]
 }
 
@@ -97,7 +78,6 @@ interface UpdateWorkflowInput {
   name?: string
   description?: string
   is_active?: boolean
-  rules?: WorkflowRules
 }
 
 interface CreateStageInput {

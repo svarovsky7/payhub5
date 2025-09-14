@@ -46,8 +46,6 @@ export class OptimizedPaymentQueryService {
           created_at,
           updated_at,
           created_by,
-          approved_by,
-          approved_at,
           invoice_id,
           payer_id,
           invoice:invoices!invoice_id(
@@ -81,9 +79,7 @@ export class OptimizedPaymentQueryService {
         query = query.eq('created_by', filters.userId)
       }
 
-      if (filters.processedBy) {
-        query = query.eq('approved_by', filters.processedBy)
-      }
+      // processedBy filter removed since approved_by field no longer exists
 
       // Amount range filters
       if (filters.amountFrom && filters.amountTo) {
@@ -161,7 +157,6 @@ export class OptimizedPaymentQueryService {
       const userIds = new Set<string>()
       data?.forEach(payment => {
         if (payment.created_by) {userIds.add(payment.created_by)}
-        if (payment.approved_by) {userIds.add(payment.approved_by)}
       })
 
       // Batch load user data
@@ -184,7 +179,6 @@ export class OptimizedPaymentQueryService {
       const transformedData = (data || []).map(payment => ({
         ...payment,
         creator: payment.created_by ? usersMap[payment.created_by] : null,
-        approved_by_user: payment.approved_by ? usersMap[payment.approved_by] : null,
         workflow: workflowsMap[payment.id] || null,
         // Transform invoice data for compatibility
         invoice: payment.invoice ? {
@@ -286,8 +280,7 @@ export class OptimizedPaymentQueryService {
           total_amount,
           status,
           payment_method,
-          created_at,
-          approved_at
+          created_at
         `)
         .eq('company_id', companyId)
 
@@ -339,15 +332,7 @@ export class OptimizedPaymentQueryService {
           byMethodAmount[payment.payment_method] += payment.total_amount
         }
 
-        // Calculate processing time for completed payments
-        if (payment.approved_at && payment.status === 'completed') {
-          const createdAt = new Date(payment.created_at)
-          const approvedAt = new Date(payment.approved_at)
-          const processingTime = (approvedAt.getTime() - createdAt.getTime()) / (1000 * 60 * 60)
-          
-          totalProcessingTime += processingTime
-          processedCount++
-        }
+        // Processing time calculation removed since approved_at is no longer available
       })
 
       const avgProcessingTime = processedCount > 0 ? totalProcessingTime / processedCount : 0
@@ -529,8 +514,6 @@ export class OptimizedPaymentQueryService {
           comment,
           created_at,
           created_by,
-          approved_by,
-          approved_at
         `)
         .eq('invoice_id', invoiceId)
         .order('created_at', { ascending: false })
@@ -564,7 +547,6 @@ export class OptimizedPaymentQueryService {
           payment_date,
           comment,
           created_at,
-          approved_at,
           invoice:invoices!invoice_id(
             invoice_number,
             description,
@@ -598,8 +580,7 @@ export class OptimizedPaymentQueryService {
         'Дата платежа': payment.payment_date ? 
           new Date(payment.payment_date).toLocaleDateString('ru-RU') : '',
         'Дата создания': new Date(payment.created_at).toLocaleDateString('ru-RU'),
-        'Дата одобрения': payment.approved_at ? 
-          new Date(payment.approved_at).toLocaleDateString('ru-RU') : '',
+        'Дата одобрения': '',
         'Комментарий': payment.comment || '',
       }))
     } catch (error) {

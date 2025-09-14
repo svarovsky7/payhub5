@@ -75,8 +75,7 @@ export class OptimizedApprovalQueryService {
             name,
             position,
             assigned_users,
-            assigned_roles,
-            permissions
+            assigned_roles
           ),
           payment:paymentspayment_id(
             id,

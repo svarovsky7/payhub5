@@ -23,7 +23,7 @@ interface AuthActions {
     setLoading: (isLoading: boolean) => void
     setError: (error: string | null) => void
     setInitialized: (isInitialized: boolean) => void
-    setTestRole: (role: string) => Promise<void> // Установка тестовой роли
+    setTestRole: (role: string) => Promise<any> // Установка тестовой роли
     signIn: (email: string, password: string) => Promise<void>
     signUp: (data: { email: string; password: string; fullName: string; projectIds?: number[] }) => Promise<void>
     signOut: () => Promise<void>
@@ -31,6 +31,7 @@ interface AuthActions {
     updateProfile: (updates: Partial<UserProfile>) => Promise<void>
     loadUserProfile: (userId: string) => Promise<void>
     reset: () => void
+    getEffectiveRole: () => string // Получить эффективную роль (тестовую или реальную)
 }
 
 // Zustand store для авторизации
@@ -69,7 +70,7 @@ export const useAuthStore = create<AuthState & AuthActions>()(devtools(
                 }),
 
                 setTestRole: async (role) => {
-                    console.log('[Авторизация] Установка тестовой роли:', role)
+                    console.log('[Авторизация] Установка роли:', role)
 
                     const currentUser = get().user
                     const currentProfile = get().profile
@@ -80,7 +81,7 @@ export const useAuthStore = create<AuthState & AuthActions>()(devtools(
                     }
 
                     try {
-                        // Получаем ID роли по коду
+                        // Получаем информацию о роли по коду
                         const {data: roleData, error: roleError} = await supabase
                             .from('roles')
                             .select('*')
@@ -103,16 +104,16 @@ export const useAuthStore = create<AuthState & AuthActions>()(devtools(
                             })
                             .eq('id', currentUser.id)
                             .select(`
-                *,
-                rolesinner(
-                  id,
-                  code,
-                  name,
-                  description,
-                  is_active,
-                  view_own_project_only
-                )
-              `)
+                                *,
+                                roles!role_id(
+                                  id,
+                                  code,
+                                  name,
+                                  description,
+                                  is_active,
+                                  view_own_project_only
+                                )
+                            `)
                             .single()
 
                         if (updateError) {
@@ -134,11 +135,13 @@ export const useAuthStore = create<AuthState & AuthActions>()(devtools(
                             }
                         })
 
-                        // Обновляем полный профиль пользователя
-                        await get().loadUserProfile(currentUser.id)
+                        console.log('[Авторизация] Профиль обновлен в состоянии')
+
+                        // Возвращаем успешный результат
+                        return updatedUser
 
                     } catch (error) {
-                        console.error('[Авторизация] Ошибка установки тестовой роли:', error)
+                        console.error('[Авторизация] Ошибка установки роли:', error)
                     }
                 },
 
@@ -485,6 +488,12 @@ export const useAuthStore = create<AuthState & AuthActions>()(devtools(
                     state.isAuthenticated = false
                     state.error = null
                 }),
+
+                getEffectiveRole: () => {
+                    const state = get()
+                    // Теперь testRole всегда соответствует реальной роли в БД
+                    return state.testRole || state.profile?.roles?.code || 'user'
+                },
             })),
             {
                 name: 'payhub-auth',
@@ -501,6 +510,18 @@ export const useAuthStore = create<AuthState & AuthActions>()(devtools(
         }
     )
 )
+
+// Хук для получения эффективной роли (тестовой или реальной)
+export const useEffectiveRole = () => {
+    const getEffectiveRole = useAuthStore((state) => state.getEffectiveRole)
+    const testRole = useAuthStore((state) => state.testRole)
+    const profile = useAuthStore((state) => state.profile)
+
+    // Подписываемся на изменения testRole и profile
+    return React.useMemo(() => {
+        return getEffectiveRole()
+    }, [testRole, profile?.roles?.code])
+}
 
 // Provider компонент для авторизации
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({children}) => {

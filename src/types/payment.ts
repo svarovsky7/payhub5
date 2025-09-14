@@ -37,8 +37,6 @@ interface PaymentWithType {
   comment?: string
   status: string // Dynamic status from database
   created_by?: string
-  approved_by?: string
-  approved_at?: string
   created_at: string
   updated_at: string
   attachments?: string[]
@@ -70,7 +68,5 @@ interface PaymentUpdateWithType {
   reference?: string
   comment?: string
   status?: string // Dynamic status from database
-  approved_by?: string
-  approved_at?: string
   attachments?: string[]
 }

@@ -164,7 +164,7 @@ const MainLayout: React.FC = () => {
                           {user?.full_name || 'Пользователь'}
                         </div>
                         <div style={{ fontSize: '12px', color: '#666', marginTop: '4px' }}>
-                          {user?.role || testRole || 'user'}
+                          Роль: {testRole || user?.role || 'user'}
                         </div>
                         <div style={{ fontSize: '12px', color: '#666' }}>
                           {user?.email}
@@ -221,11 +221,23 @@ const MainLayout: React.FC = () => {
           <Select
             value={testRole || 'user'}
             onChange={async (value) => {
-              message.loading('Изменение роли...');
-              await setTestRole(value);
-              message.success(`Роль изменена на: ${value}`);
-              // Перезагружаем страницу для применения новой роли
-              window.location.reload();
+              const hide = message.loading('Изменение роли...', 0);
+              try {
+                const result = await setTestRole(value);
+                hide();
+                if (result) {
+                  message.success(`Роль изменена на: ${value}`);
+                  // Ожидаем немного и перезагружаем страницу для полного применения роли
+                  setTimeout(() => {
+                    window.location.reload();
+                  }, 500);
+                } else {
+                  message.error('Не удалось изменить роль');
+                }
+              } catch (error) {
+                hide();
+                message.error('Ошибка при изменении роли');
+              }
             }}
             style={{ width: 250 }}
             loading={rolesLoading}

@@ -3,12 +3,10 @@ import {
     Badge,
     Button,
     Card,
-    DatePicker,
     Descriptions,
     Drawer,
     Form,
     Input,
-    InputNumber,
     message,
     Modal,
     Progress,
@@ -22,7 +20,6 @@ import {
     CheckOutlined,
     ClockCircleOutlined,
     CloseOutlined,
-    EditOutlined,
     EyeOutlined,
     FileTextOutlined
 } from '@ant-design/icons'
@@ -44,12 +41,8 @@ export const ApprovalsPage: React.FC = () => {
     const [pageSize, setPageSize] = useState(20)
     const [selectedApproval, setSelectedApproval] = useState<ApprovalItem | null>(null)
     const [drawerVisible, setDrawerVisible] = useState(false)
-    const [approveModalVisible, setApproveModalVisible] = useState(false)
     const [rejectModalVisible, setRejectModalVisible] = useState(false)
-    const [editModalVisible, setEditModalVisible] = useState(false)
-    const [approveForm] = Form.useForm()
     const [rejectForm] = Form.useForm()
-    const [editForm] = Form.useForm()
     const [filters, setFilters] = useState<Record<string, any>>({})
 
     // Загрузка данных
@@ -63,15 +56,39 @@ export const ApprovalsPage: React.FC = () => {
     // Обработчики
     const handleViewDetails = (record: ApprovalItem) => {
         console.log('[ApprovalsPage] Просмотр деталей согласования:', record)
-        setSelectedApproval(record)
-        setDrawerVisible(true)
+
+        // Если есть invoice_id, переходим на страницу счета с выбранным платежом
+        if (record.invoice_id) {
+            // Сохраняем текущий URL для возврата
+            const returnUrl = window.location.pathname + window.location.search
+            // Переходим на страницу счета, передавая ID платежа для подсветки и URL для возврата
+            window.location.href = `/invoices/${record.invoice_id}?tab=payments&payment_id=${record.payment_id}&return_url=${encodeURIComponent(returnUrl)}`
+        } else {
+            // Если нет связанного счета, показываем детали в drawer
+            setSelectedApproval(record)
+            setDrawerVisible(true)
+        }
     }
 
-    const handleApprove = (record: ApprovalItem) => {
-        console.log('[ApprovalsPage] Начало одобрения платежа:', record)
-        setSelectedApproval(record)
-        setApproveModalVisible(true)
-        approveForm.resetFields()
+    const handleApprove = async (record: ApprovalItem) => {
+        console.log('[ApprovalsPage] Одобрение платежа:', record)
+
+        try {
+            await approvePaymentMutation.mutateAsync({
+                workflowId: record.payment_workflow_id,
+                comment: ''
+            })
+
+            message.success('Счет успешно Вами согласован')
+
+            // Закрываем drawer если он открыт
+            if (drawerVisible) {
+                setDrawerVisible(false)
+                setSelectedApproval(null)
+            }
+        } catch (error) {
+            console.error('[ApprovalsPage] Ошибка одобрения:', error)
+        }
     }
 
     const handleReject = (record: ApprovalItem) => {
@@ -79,97 +96,6 @@ export const ApprovalsPage: React.FC = () => {
         setSelectedApproval(record)
         setRejectModalVisible(true)
         rejectForm.resetFields()
-    }
-
-    const handleEdit = (record: ApprovalItem) => {
-        console.log('[ApprovalsPage] Начало редактирования платежа:', record)
-        setSelectedApproval(record)
-        setEditModalVisible(true)
-        // Заполняем форму текущими данными
-        editForm.setFieldsValue({
-            amount: record.amount,
-            description: record.invoice?.description || '',
-            payment_date: record.payment_date ? dayjs(record.payment_date) : null
-        })
-    }
-
-    const handleConfirmEdit = async () => {
-        try {
-            const values = await editForm.validateFields()
-            if (!selectedApproval) {
-                return
-            }
-
-            console.log('[ApprovalsPage] Сохранение изменений платежа:', {
-                paymentId: selectedApproval.payment_id,
-                values
-            })
-
-            // Обновляем данные платежа в базе
-            const {error} = await supabase
-                .from('payments')
-                .update({
-                    amount: values.amount,
-                    payment_date: values.payment_date ? values.payment_date.toISOString() : null,
-                    updated_at: new Date().toISOString()
-                })
-                .eq('id', selectedApproval.payment_id)
-
-            if (error) {
-                message.error('Ошибка сохранения изменений')
-                console.error('[ApprovalsPage] Ошибка обновления платежа:', error)
-                return
-            }
-
-            // Обновляем описание счета если оно изменилось
-            if (selectedApproval.invoice_id && values.description !== selectedApproval.invoice?.description) {
-                const {error: invoiceError} = await supabase
-                    .from('invoices')
-                    .update({
-                        description: values.description,
-                        updated_at: new Date().toISOString()
-                    })
-                    .eq('id', selectedApproval.invoice_id)
-
-                if (invoiceError) {
-                    console.error('[ApprovalsPage] Ошибка обновления счета:', invoiceError)
-                }
-            }
-
-            message.success('Изменения сохранены успешно')
-            setEditModalVisible(false)
-            setSelectedApproval(null)
-            editForm.resetFields()
-            void refetch()
-        } catch (error) {
-            console.error('[ApprovalsPage] Ошибка сохранения изменений:', error)
-        }
-    }
-
-    const handleConfirmApprove = async () => {
-        try {
-            const values = await approveForm.validateFields()
-            if (!selectedApproval) {
-                return
-            }
-
-            console.log('[ApprovalsPage] Одобрение платежа:', {
-                workflowId: selectedApproval.payment_workflow_id,
-                comment: values.comment
-            })
-
-            await approvePaymentMutation.mutateAsync({
-                workflowId: selectedApproval.payment_workflow_id,
-                comment: values.comment
-            })
-
-            message.success('Платеж успешно одобрен')
-            setApproveModalVisible(false)
-            setSelectedApproval(null)
-            approveForm.resetFields()
-        } catch (error) {
-            console.error('[ApprovalsPage] Ошибка одобрения:', error)
-        }
     }
 
     const handleConfirmReject = async () => {
@@ -205,20 +131,36 @@ export const ApprovalsPage: React.FC = () => {
     // Колонки таблицы
     const columns: DataTableColumn<ApprovalItem>[] = [
         {
-            title: '№ Платежа',
-            dataIndex: ['invoice', 'invoice_number'],
-            key: 'invoice_number',
+            title: 'Внутр. №',
+            dataIndex: ['invoice', 'internal_number'],
+            key: 'internal_number',
             priority: 1,
             exportable: true,
+            width: 100,
             sorter: (a: ApprovalItem, b: ApprovalItem) => {
-                const aNum = a.invoice?.invoice_number ?? `PAY-${a.payment_id}`
-                const bNum = b.invoice?.invoice_number ?? `PAY-${b.payment_id}`
+                const aNum = a.invoice?.internal_number || ''
+                const bNum = b.invoice?.internal_number || ''
                 return aNum.localeCompare(bNum)
             },
-            render: (text: string, record: ApprovalItem) => (
+            render: (_, record: ApprovalItem) => {
+                return record.invoice?.internal_number || '—'
+            },
+        },
+        {
+            title: '№ Платежа',
+            dataIndex: 'payment_id',
+            key: 'payment_number',
+            priority: 2,
+            exportable: true,
+            sorter: (a: ApprovalItem, b: ApprovalItem) => {
+                const aNum = a.payment_number || `PAY-${a.payment_id}`
+                const bNum = b.payment_number || `PAY-${b.payment_id}`
+                return aNum.localeCompare(bNum)
+            },
+            render: (_: any, record: ApprovalItem) => (
                 <TextCell
                     lines={[
-                        text ?? `PAY-${record.payment_id}`,
+                        record.payment_number || `PAY-${record.payment_id}`,
                         dayjs(record.started_at).format('DD.MM.YYYY')
                     ]}
                 />
@@ -228,7 +170,7 @@ export const ApprovalsPage: React.FC = () => {
             title: 'Счет',
             dataIndex: ['invoice', 'invoice_number'],
             key: 'invoice',
-            priority: 2,
+            priority: 3,
             exportable: true,
             render: (_, record) => {
                 if (!record.invoice) {
@@ -236,17 +178,33 @@ export const ApprovalsPage: React.FC = () => {
                 }
                 return (
                     <TextCell lines={[
-                        record.invoice.invoice_number,
-                        record.invoice.description || '—'
+                        record.invoice.invoice_number || '—',
+                        record.invoice.invoice_date ? dayjs(record.invoice.invoice_date).format('DD.MM.YYYY') : '—'
                     ]}/>
                 )
+            },
+        },
+        {
+            title: 'Проект',
+            dataIndex: ['invoice', 'project', 'name'],
+            key: 'project',
+            priority: 4,
+            exportable: true,
+            ellipsis: true,
+            sorter: (a: ApprovalItem, b: ApprovalItem) => {
+                const aName = a.invoice?.project?.name || ''
+                const bName = b.invoice?.project?.name || ''
+                return aName.localeCompare(bName)
+            },
+            render: (_, record) => {
+                return record.invoice?.project?.name || '—'
             },
         },
         {
             title: 'Контрагент',
             dataIndex: ['invoice', 'supplier', 'name'],
             key: 'supplier',
-            priority: 3,
+            priority: 5,
             exportable: true,
             ellipsis: true,
             sorter: (a: ApprovalItem, b: ApprovalItem) => {
@@ -259,12 +217,7 @@ export const ApprovalsPage: React.FC = () => {
                 if (!supplier) {
                     return '—'
                 }
-                return (
-                    <TextCell lines={[
-                        supplier.name,
-                        record.invoice?.project?.name || '—'
-                    ]}/>
-                )
+                return supplier.name
             },
         },
         {
@@ -272,7 +225,7 @@ export const ApprovalsPage: React.FC = () => {
             dataIndex: 'amount',
             key: 'amount',
             align: 'right',
-            priority: 4,
+            priority: 6,
             exportable: true,
             sorter: (a: ApprovalItem, b: ApprovalItem) => a.amount - b.amount,
             render: (amount: number) => (
@@ -282,7 +235,7 @@ export const ApprovalsPage: React.FC = () => {
         {
             title: 'Статус',
             key: 'stage',
-            priority: 5,
+            priority: 7,
             exportable: true,
             render: (record: ApprovalItem) => (
                 <Space direction="vertical" size={0}>
@@ -303,7 +256,7 @@ export const ApprovalsPage: React.FC = () => {
             title: 'Дата подачи',
             dataIndex: 'started_at',
             key: 'started_at',
-            priority: 6,
+            priority: 8,
             exportable: true,
             mobile: false,
             sorter: (a: ApprovalItem, b: ApprovalItem) =>
@@ -340,9 +293,6 @@ export const ApprovalsPage: React.FC = () => {
             width: 120,
             fixed: 'right',
             render: (record: ApprovalItem) => {
-                // Проверяем права на редактирование для текущего этапа
-                const canEdit = record.current_stage?.permissions?.can_edit === true
-
                 return (<Space size={4}>
                         <Tooltip title="Просмотр">
                             <Button
@@ -352,16 +302,6 @@ export const ApprovalsPage: React.FC = () => {
                                 onClick={() => void handleViewDetails(record)}
                             />
                         </Tooltip>
-                        {canEdit && (<Tooltip title="Редактировать">
-                                <Button
-                                    type="text"
-                                    size="small"
-                                    icon={<EditOutlined/>}
-                                    style={{color: '#1890ff'}}
-                                    onClick={() => void handleEdit(record)}
-                                />
-                            </Tooltip>
-                        )}
                         <Tooltip title="Одобрить">
                             <Button
                                 type="text"
@@ -510,23 +450,10 @@ export const ApprovalsPage: React.FC = () => {
                 }}
                 extra={
                     <Space>
-                        {selectedApproval?.current_stage?.permissions?.can_edit && (<Button
-                                icon={<EditOutlined/>}
-                                onClick={() => {
-                                    setDrawerVisible(false)
-                                    handleEdit(selectedApproval)
-                                }}
-                            >
-                                Редактировать
-                            </Button>
-                        )}
                         <Button
                             type="primary"
                             icon={<CheckOutlined/>}
-                            onClick={() => {
-                                setDrawerVisible(false)
-                                handleApprove(selectedApproval)
-                            }}
+                            onClick={() => handleApprove(selectedApproval)}
                         >
                             Одобрить
                         </Button>
@@ -716,96 +643,6 @@ export const ApprovalsPage: React.FC = () => {
                     </Space>
                 )}
             </Drawer>
-
-            {/* Модальное окно одобрения */}
-            <Modal
-                title="Одобрение платежа"
-                open={approveModalVisible}
-                onOk={handleConfirmApprove}
-                onCancel={() => {
-                    setApproveModalVisible(false)
-                    approveForm.resetFields()
-                }}
-                confirmLoading={approvePaymentMutation.isPending}
-                okText="Одобрить"
-                cancelText="Отмена"
-            >
-                <Form form={approveForm} layout="vertical">
-                    <Form.Item label="Счет">
-                        <Input value={selectedApproval?.invoice?.invoice_number || ''} disabled/>
-                    </Form.Item>
-                    <Form.Item label="Сумма">
-                        <Input
-                            value={new Intl.NumberFormat('ru-RU', {
-                                style: 'currency',
-                                currency: 'RUB'
-                            }).format(selectedApproval?.amount || 0)}
-                            disabled
-                        />
-                    </Form.Item>
-                    <Form.Item
-                        name="comment"
-                        label="Комментарий (необязательно)"
-                    >
-                        <TextArea
-                            rows={3}
-                            placeholder="Добавьте комментарий к одобрению..."
-                        />
-                    </Form.Item>
-                </Form>
-            </Modal>
-
-            {/* Модальное окно редактирования */}
-            <Modal
-                title="Редактирование платежа"
-                open={editModalVisible}
-                onOk={handleConfirmEdit}
-                onCancel={() => {
-                    setEditModalVisible(false)
-                    editForm.resetFields()
-                }}
-                okText="Сохранить"
-                cancelText="Отмена"
-            >
-                <Form form={editForm} layout="vertical">
-                    <Form.Item label="Счет">
-                        <Input value={selectedApproval?.invoice?.invoice_number || ''} disabled/>
-                    </Form.Item>
-                    <Form.Item
-                        name="amount"
-                        label="Сумма"
-                        rules={[
-                            {required: true, message: 'Укажите сумму'},
-                            {type: 'number', min: 0.01, message: 'Сумма должна быть больше 0'}
-                        ]}
-                    >
-                        <InputNumber
-                            style={{width: '100%'}}
-                            formatter={value => `\u20bd ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                            parser={value => value.replace(/\\u20bd\s?|(,*)/g, '')}
-                            precision={2}
-                        />
-                    </Form.Item>
-                    <Form.Item
-                        name="payment_date"
-                        label="Дата платежа"
-                    >
-                        <DatePicker
-                            style={{width: '100%'}}
-                            format="DD.MM.YYYY"
-                        />
-                    </Form.Item>
-                    <Form.Item
-                        name="description"
-                        label="Описание"
-                    >
-                        <TextArea
-                            rows={3}
-                            placeholder="Описание платежа..."
-                        />
-                    </Form.Item>
-                </Form>
-            </Modal>
 
             {/* Модальное окно отклонения */}
             <Modal

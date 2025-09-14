@@ -55,7 +55,18 @@ import {
   FileImageOutlined,
   FileTextOutlined,
   FileExcelOutlined,
-  FileWordOutlined
+  FileWordOutlined,
+  SendOutlined,
+  AuditOutlined,
+  RiseOutlined,
+  FallOutlined,
+  SwapOutlined,
+  BankOutlined,
+  RocketOutlined,
+  TeamOutlined,
+  SafetyCertificateOutlined,
+  ArrowLeftOutlined,
+  EditOutlined
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import 'dayjs/locale/ru'
@@ -68,6 +79,7 @@ import { useCurrencies, usePriorities } from '@/services/hooks/useEnums'
 import { usePaymentsList } from '@/services/hooks/usePayments'
 import { useAuthStore } from '@/models/auth'
 import { calculateDeliveryDate, calculateVATAmounts } from '../InvoiceCreate/utils/calculations'
+import { formatCurrency } from '@/utils/format'
 import { DEFAULT_CURRENCY, DEFAULT_VAT_RATE } from '../InvoiceCreate/constants'
 import { InvoiceFileStorage } from '@/services/invoices/file-storage'
 import type { InvoiceFormValues } from '../InvoiceCreate/types'
@@ -96,6 +108,11 @@ export const InvoiceViewNew: React.FC = () => {
   const [uploadingFile, setUploadingFile] = useState(false)
   const [paymentModalVisible, setPaymentModalVisible] = useState(false)
   const [paymentForm] = Form.useForm()
+  const [approvalModalVisible, setApprovalModalVisible] = useState(false)
+  const [selectedPaymentForApproval, setSelectedPaymentForApproval] = useState<any>(null)
+  const [workflows, setWorkflows] = useState<any[]>([])
+  const [loadingWorkflows, setLoadingWorkflows] = useState(false)
+  const [selectedWorkflow, setSelectedWorkflow] = useState<string | null>(null)
   const [currentPaymentAmount, setCurrentPaymentAmount] = useState(0)
   const [financialSummary, setFinancialSummary] = useState({
     amountNet: 0,
@@ -117,6 +134,11 @@ export const InvoiceViewNew: React.FC = () => {
   // Field changes history state
   const [fieldChangesHistory, setFieldChangesHistory] = useState<any[]>([])
   const [originalValues, setOriginalValues] = useState<any>(null)
+
+  // Payment edit modal state
+  const [editPaymentModalVisible, setEditPaymentModalVisible] = useState(false)
+  const [editingPayment, setEditingPayment] = useState<any>(null)
+  const [paymentEditForm] = Form.useForm()
 
   // console.log('[InvoiceViewNew] Инициализация компонента с ID:', id)
 
@@ -145,6 +167,11 @@ export const InvoiceViewNew: React.FC = () => {
   const payers = contractors.filter((c: any) => c.type_id === 2)
   const projects = projectsResponse ?? []
 
+  // Получаем ID платежа для подсветки из URL
+  const highlightPaymentId = searchParams.get('payment_id')
+  // Получаем URL для возврата
+  const returnUrl = searchParams.get('return_url')
+
   // Синхронизация вкладки с URL при изменении URL
   useEffect(() => {
     const tabFromUrl = searchParams.get('tab') || 'info'
@@ -152,6 +179,23 @@ export const InvoiceViewNew: React.FC = () => {
       setActiveTab(tabFromUrl)
     }
   }, [searchParams, activeTab])
+
+  // Прокрутка к выделенному платежу
+  useEffect(() => {
+    if (highlightPaymentId && activeTab === 'payments' && paymentsResponse?.data) {
+      // Небольшая задержка, чтобы таблица успела отрендериться
+      setTimeout(() => {
+        const highlightedRow = document.querySelector('.highlighted-row')
+        if (highlightedRow) {
+          highlightedRow.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center'
+          })
+          console.log('[InvoiceViewNew] Прокрутка к платежу:', highlightPaymentId)
+        }
+      }, 500)
+    }
+  }, [highlightPaymentId, activeTab, paymentsResponse])
 
   // Set form values when invoice loads
   useEffect(() => {
@@ -483,24 +527,31 @@ export const InvoiceViewNew: React.FC = () => {
 
   // Group payments by status
   const paymentsByStatus = React.useMemo(() => {
-    if (!invoice?.payments) return []
+    // Используем платежи из paymentsResponse вместо invoice.payments
+    if (!paymentsResponse?.data || paymentsResponse.data.length === 0) return []
 
     console.log('[InvoiceViewNew.paymentsByStatus] Группировка платежей:', {
-      paymentsCount: invoice.payments.length,
-      totalPayments: invoice.payments.reduce((sum: number, p: any) => sum + Number(p.amount_with_vat || 0), 0)
+      paymentsCount: paymentsResponse.data.length,
+      payments: paymentsResponse.data
     })
 
-    const grouped = invoice.payments.reduce((acc: any, payment: any) => {
-      const status = payment.status || 'pending'
+    const grouped = paymentsResponse.data.reduce((acc: any, payment: any) => {
+      const status = payment.status || 'draft'
       if (!acc[status]) {
-        acc[status] = { status, amount: 0, currency: payment.currency || invoice.currency || 'RUB' }
+        acc[status] = {
+          status,
+          amount: 0,
+          count: 0,
+          currency: payment.currency || invoice?.currency || 'RUB'
+        }
       }
-      acc[status].amount += Number(payment.amount_with_vat || 0)
+      acc[status].amount += Number(payment.total_amount || 0)
+      acc[status].count += 1
       return acc
     }, {})
 
     return Object.values(grouped)
-  }, [invoice])
+  }, [paymentsResponse, invoice])
 
   // Tab change handler
   const handleTabChange = (key: string) => {
@@ -965,8 +1016,8 @@ const handleAddPayment = () => {
     total_amount: remainingAmount > 0 ? remainingAmount : 0,
     vat_rate: vatRate,
     vat_amount: parseFloat(vatAmount.toFixed(2)),
-    amount_net: parseFloat(amountNet.toFixed(2)),
-    payment_type: 'DEBT'
+    amount_net: parseFloat(amountNet.toFixed(2))
+    // payment_type убрали - пользователь должен выбрать сам
   })
 
   setCurrentPaymentAmount(remainingAmount)
@@ -981,7 +1032,8 @@ const handleCreatePayment = async () => {
     console.log('[InvoiceViewNew.handleCreatePayment] Создание платежа:', {
       invoiceId: id,
       invoice: invoice,
-      values
+      values,
+      defaultStatus: 'draft'
     })
 
     const { PaymentCrudService } = await import('@/services/payments/crud')
@@ -991,7 +1043,7 @@ const handleCreatePayment = async () => {
       invoice_id: parseInt(id!),
       payment_date: values.payment_date.format('YYYY-MM-DD'),
       payer_id: invoice?.payer_id || 1,
-      payment_type: values.payment_type || 'DEBT',
+      payment_type: values.payment_type, // Обязательное поле, без значения по умолчанию
       total_amount: values.total_amount,
       comment: values.comment || '',
       status: 'draft', // Используем статус 'draft' (Черновик) по умолчанию
@@ -1014,7 +1066,7 @@ const handleCreatePayment = async () => {
     console.log('[InvoiceViewNew.handleCreatePayment] Платеж создан:', response.data)
 
     // Платежи создаются со статусом 'draft' (Черновик), поэтому не обновляем paid_amount
-    // paid_amount обновляется только когда платеж будет согласован и оплачен
+    // paid_amount обновляется только когда платеж будет одобрен и переведен в статус paid, approved или scheduled
 
     message.success('Платеж успешно создан')
     setPaymentModalVisible(false)
@@ -1027,6 +1079,189 @@ const handleCreatePayment = async () => {
   } catch (error) {
     console.error('[InvoiceViewNew.handleCreatePayment] Ошибка:', error)
     message.error('Ошибка при создании платежа')
+  }
+}
+
+// Обработчик редактирования платежа
+const handleEditPayment = (payment: any) => {
+  console.log('[InvoiceViewNew.handleEditPayment] Редактирование платежа:', payment)
+
+  setEditingPayment(payment)
+
+  // Вычисляем НДС
+  const vatRate = invoice?.vat_rate || 20
+  const vatAmount = payment.total_amount ? payment.total_amount * vatRate / (100 + vatRate) : 0
+  const amountNet = payment.total_amount ? payment.total_amount - vatAmount : 0
+
+  paymentEditForm.setFieldsValue({
+    payment_type: payment.payment_type || 'DEBT',
+    payment_date: payment.payment_date ? dayjs(payment.payment_date) : dayjs(),
+    total_amount: payment.total_amount || 0,
+    vat_rate: vatRate,
+    vat_amount: parseFloat(vatAmount.toFixed(2)),
+    amount_net: parseFloat(amountNet.toFixed(2)),
+    comment: payment.comment || ''
+  })
+  setEditPaymentModalVisible(true)
+}
+
+const handleSaveEditedPayment = async () => {
+  try {
+    const values = await paymentEditForm.validateFields()
+    console.log('[InvoiceViewNew.handleSaveEditedPayment] Сохранение изменений платежа:', {
+      paymentId: editingPayment.id,
+      values
+    })
+
+    const { PaymentCrudService } = await import('@/services/payments/crud')
+
+    // Подготавливаем данные для обновления
+    const updateData = {
+      ...values,
+      payment_date: values.payment_date ? values.payment_date.toISOString() : undefined,
+      updated_at: new Date().toISOString()
+    }
+
+    const result = await PaymentCrudService.update(editingPayment.id, updateData)
+
+    if (result.error) {
+      throw new Error(result.error)
+    }
+
+    message.success('Платеж успешно обновлен')
+    setEditPaymentModalVisible(false)
+    setEditingPayment(null)
+    paymentEditForm.resetFields()
+    refetchPayments()
+    refetchInvoice()
+  } catch (error: any) {
+    console.error('[InvoiceViewNew.handleSaveEditedPayment] Ошибка сохранения:', error)
+    message.error(error.message || 'Ошибка при сохранении платежа')
+  }
+}
+
+const handleDeletePayment = async (payment: any) => {
+  console.log('[InvoiceViewNew.handleDeletePayment] Удаление платежа:', payment)
+
+  Modal.confirm({
+    title: 'Удалить платеж?',
+    content: `Вы уверены, что хотите удалить платеж ${payment.internal_number || '#' + payment.id}?`,
+    okText: 'Удалить',
+    cancelText: 'Отмена',
+    okType: 'danger',
+    onOk: async () => {
+      try {
+        const { PaymentCrudService } = await import('@/services/payments/crud')
+        const result = await PaymentCrudService.delete(payment.id)
+
+        if (result.error) {
+          throw new Error(result.error)
+        }
+
+        message.success('Платеж успешно удален')
+        refetchPayments()
+        refetchInvoice()
+      } catch (error) {
+        console.error('[InvoiceViewNew.handleDeletePayment] Ошибка:', error)
+        message.error('Ошибка при удалении платежа')
+      }
+    }
+  })
+}
+
+// Обработчик отправки на согласование
+const handleSendToApproval = async (payment: any) => {
+  console.log('[InvoiceViewNew.handleSendToApproval] Отправка на согласование:', payment)
+
+  setSelectedPaymentForApproval(payment)
+  setApprovalModalVisible(true)
+
+  // Загружаем доступные процессы согласования
+  setLoadingWorkflows(true)
+  try {
+    const { supabase } = await import('@/services/supabase')
+    const { data, error } = await supabase
+      .from('workflows')
+      .select('*')
+      .eq('is_active', true)
+      .order('name')
+
+    if (error) {
+      console.error('[InvoiceViewNew.handleSendToApproval] Ошибка загрузки процессов:', error)
+      message.error('Ошибка загрузки процессов согласования')
+    } else {
+      console.log('[InvoiceViewNew.handleSendToApproval] Процессы загружены:', data)
+      setWorkflows(data || [])
+    }
+  } catch (error) {
+    console.error('[InvoiceViewNew.handleSendToApproval] Ошибка:', error)
+    message.error('Ошибка загрузки процессов согласования')
+  } finally {
+    setLoadingWorkflows(false)
+  }
+}
+
+// Обработчик запуска процесса согласования
+const handleStartApprovalWorkflow = async () => {
+  if (!selectedWorkflow) {
+    message.warning('Выберите процесс согласования')
+    return
+  }
+
+  if (!selectedPaymentForApproval) {
+    message.warning('Не выбран платеж для согласования')
+    return
+  }
+
+  console.log('[InvoiceViewNew.handleStartApprovalWorkflow] Запуск процесса:', {
+    payment: selectedPaymentForApproval,
+    paymentId: selectedPaymentForApproval.id,
+    workflowId: selectedWorkflow,
+    userId: user?.id
+  })
+
+  try {
+    // Импортируем сервис для работы с workflow платежей
+    const { PaymentWorkflowService } = await import('@/services/admin/payment-workflow')
+    const { PaymentCrudService } = await import('@/services/payments/crud')
+
+    // Проверяем user ID
+    if (!user?.id) {
+      throw new Error('Не удалось определить пользователя')
+    }
+
+    console.log('[InvoiceViewNew.handleStartApprovalWorkflow] Создание workflow instance...')
+
+    // Создаем экземпляр процесса согласования
+    const workflowInstance = await PaymentWorkflowService.startPaymentWorkflow(
+      selectedPaymentForApproval.id,
+      selectedWorkflow,
+      user.id
+    )
+
+    console.log('[InvoiceViewNew.handleStartApprovalWorkflow] Workflow instance создан:', workflowInstance)
+    // Статус платежа уже обновлен на "pending" в PaymentWorkflowService.startPaymentWorkflow
+
+    message.success('Платеж успешно отправлен на согласование')
+    setApprovalModalVisible(false)
+    setSelectedPaymentForApproval(null)
+    setSelectedWorkflow(null)
+
+    // Обновляем данные
+    refetchPayments()
+    refetchInvoice()
+  } catch (error: any) {
+    console.error('[InvoiceViewNew.handleStartApprovalWorkflow] Ошибка:', error)
+    console.error('[InvoiceViewNew.handleStartApprovalWorkflow] Детали ошибки:', {
+      message: error?.message,
+      code: error?.code,
+      details: error?.details,
+      stack: error?.stack
+    })
+
+    // Показываем более информативное сообщение об ошибке
+    const errorMessage = error?.message || 'Неизвестная ошибка'
+    message.error(`Ошибка при отправке на согласование: ${errorMessage}`)
   }
 }
 
@@ -1520,13 +1755,21 @@ const renderPayments = () => {
         <Table
           dataSource={paymentsResponse?.data || []}
           size="small"
-      pagination={{ pageSize: 10, size: 'small' }}
-      columns={[
+          rowKey="id"
+          rowClassName={(record: any) => {
+            // Подсвечиваем строку, если ID платежа совпадает с переданным в URL
+            return highlightPaymentId && record.id === Number(highlightPaymentId)
+              ? 'highlighted-row'
+              : ''
+          }}
+          pagination={{ pageSize: 10, size: 'small' }}
+          columns={[
         {
           title: 'Номер',
           dataIndex: 'internal_number',
           key: 'internal_number',
           width: 200,
+          sorter: (a: any, b: any) => (a.internal_number || '').localeCompare(b.internal_number || ''),
           render: (text: string) => text || '-'
         },
         {
@@ -1534,18 +1777,21 @@ const renderPayments = () => {
           dataIndex: 'payment_date',
           key: 'payment_date',
           width: 100,
+          sorter: (a: any, b: any) => dayjs(a.payment_date).unix() - dayjs(b.payment_date).unix(),
+          defaultSortOrder: 'descend',
           render: (date: string) => dayjs(date).format('DD.MM.YYYY')
         },
         {
-          title: 'Тип',
+          title: 'Тип платежа',
           dataIndex: 'payment_type',
           key: 'payment_type',
-          width: 100,
+          width: 120,
+          sorter: (a: any, b: any) => (a.payment_type || '').localeCompare(b.payment_type || ''),
           render: (type: string) => {
             const typeConfig: Record<string, { color: string, text: string }> = {
               'ADV': { color: 'blue', text: 'Аванс' },
-              'DEBT': { color: 'green', text: 'Оплата' },
-              'RET': { color: 'orange', text: 'Возврат' }
+              'DEBT': { color: 'green', text: 'Оплата долга' },
+              'RET': { color: 'orange', text: 'Возврат удержаний' }
             }
             const config = typeConfig[type] || { color: 'default', text: type }
             return <Tag color={config.color}>{config.text}</Tag>
@@ -1556,6 +1802,7 @@ const renderPayments = () => {
           dataIndex: 'total_amount',
           key: 'amount',
           align: 'right',
+          sorter: (a: any, b: any) => (a.total_amount || 0) - (b.total_amount || 0),
           render: (amount: number) => (
             <Text strong>
               {new Intl.NumberFormat('ru-RU', {
@@ -1569,6 +1816,7 @@ const renderPayments = () => {
           title: 'Статус',
           dataIndex: 'status',
           key: 'status',
+          sorter: (a: any, b: any) => (a.status || '').localeCompare(b.status || ''),
           render: (status: string) => {
             const statusConfig: Record<string, { color: string, icon: React.ReactNode, text: string }> = {
               draft: { color: 'default', icon: <FileTextOutlined />, text: 'Черновик' },
@@ -1593,7 +1841,42 @@ const renderPayments = () => {
           title: 'Примечания',
           dataIndex: 'comment',
           key: 'comment',
-          ellipsis: true
+          ellipsis: true,
+          sorter: (a: any, b: any) => (a.comment || '').localeCompare(b.comment || '')
+        },
+        {
+          title: 'Действия',
+          key: 'actions',
+          width: 120,
+          fixed: 'right',
+          render: (_: any, record: any) => (
+            <Space size="small">
+              <Button
+                type="link"
+                icon={<EditOutlined />}
+                size="small"
+                onClick={() => handleEditPayment(record)}
+                title="Редактировать"
+              />
+              <Button
+                type="link"
+                icon={<SendOutlined />}
+                size="small"
+                onClick={() => handleSendToApproval(record)}
+                disabled={record.status !== 'draft'}
+                title="Отправить на согласование"
+              />
+              <Button
+                type="link"
+                icon={<DeleteOutlined />}
+                size="small"
+                danger
+                onClick={() => handleDeletePayment(record)}
+                disabled={['paid', 'approved', 'scheduled'].includes(record.status)}
+                title="Удалить"
+              />
+            </Space>
+          )
         }
       ]}
         />
@@ -1898,6 +2181,132 @@ const renderHistory = () => {
     })
   })
 
+  // Добавляем события платежей
+  if (paymentsResponse?.data && paymentsResponse.data.length > 0) {
+    paymentsResponse.data.forEach((payment) => {
+      const statusConfig: Record<string, { color: string, text: string }> = {
+        draft: { color: 'default', text: 'Черновик' },
+        pending: { color: 'warning', text: 'На согласовании' },
+        approved: { color: 'volcano', text: 'Согласован' },
+        scheduled: { color: 'magenta', text: 'В графике' },
+        paid: { color: 'success', text: 'Оплачен' },
+        completed: { color: 'success', text: 'Завершен' },
+        processing: { color: 'processing', text: 'В обработке' },
+        failed: { color: 'error', text: 'Ошибка' },
+        cancelled: { color: 'error', text: 'Отменен' }
+      }
+
+      const status = payment.status || 'draft'
+      const statusConfigItem = statusConfig[status] || { color: 'default', text: status }
+
+      const paymentTypeText = payment.payment_type === 'ADV' ? 'Аванс' :
+                             payment.payment_type === 'RET' ? 'Возврат' :
+                             payment.payment_type === 'DEBT' ? 'Оплата долга' :
+                             payment.payment_type || 'Платеж'
+
+      // Добавляем событие создания платежа
+      historyItems.push({
+        date: payment.created_at,
+        color: 'purple',
+        children: (
+          <div>
+            <Text strong>Создан платеж: {payment.internal_number || `#${payment.id}`}</Text>
+            <br />
+            <Space size={4}>
+              <Tag color={statusConfigItem.color} style={{ fontSize: 10, margin: 0 }}>
+                {statusConfigItem.text}
+              </Tag>
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                {paymentTypeText}
+              </Text>
+            </Space>
+            <br />
+            <Text style={{ fontSize: 12, fontWeight: 500 }}>
+              Сумма: {formatCurrency(payment.total_amount || 0, payment.currency || invoice?.currency || 'RUB')}
+            </Text>
+            <br />
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              {dayjs(payment.created_at).format('DD.MM.YYYY HH:mm')}
+            </Text>
+            {payment.created_by_name && (
+              <>
+                <br />
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  Создал: {payment.created_by_name}
+                </Text>
+              </>
+            )}
+          </div>
+        )
+      })
+
+      // Если платеж был одобрен или оплачен, добавляем событие изменения статуса
+      if (payment.approved_at && (payment.status === 'completed' || payment.status === 'paid' || payment.status === 'approved')) {
+        historyItems.push({
+          date: payment.approved_at,
+          color: 'green',
+          children: (
+            <div>
+              <Text strong>Платеж {payment.internal_number || `#${payment.id}`} подтвержден</Text>
+              <br />
+              <Tag color="success" style={{ fontSize: 10, margin: 0 }}>
+                {statusConfigItem.text}
+              </Tag>
+              <br />
+              <Text style={{ fontSize: 12, fontWeight: 500 }}>
+                Сумма: {formatCurrency(payment.total_amount || 0, payment.currency || invoice?.currency || 'RUB')}
+              </Text>
+              <br />
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                {dayjs(payment.approved_at).format('DD.MM.YYYY HH:mm')}
+              </Text>
+              {payment.approved_by_name && (
+                <>
+                  <br />
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    Подтвердил: {payment.approved_by_name}
+                  </Text>
+                </>
+              )}
+            </div>
+          )
+        })
+      }
+
+      // Если платеж был отменен, добавляем событие отмены
+      if (payment.status === 'cancelled' || payment.status === 'failed') {
+        const cancelDate = payment.approved_at || payment.updated_at || payment.created_at
+        historyItems.push({
+          date: cancelDate,
+          color: 'red',
+          children: (
+            <div>
+              <Text strong>
+                Платеж {payment.internal_number || `#${payment.id}`} {payment.status === 'cancelled' ? 'отменен' : 'завершен с ошибкой'}
+              </Text>
+              <br />
+              <Tag color="error" style={{ fontSize: 10, margin: 0 }}>
+                {statusConfigItem.text}
+              </Tag>
+              <br />
+              {payment.comment && (
+                <>
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    Причина: {payment.comment}
+                  </Text>
+                  <br />
+                </>
+              )}
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                {dayjs(cancelDate).format('DD.MM.YYYY HH:mm')}
+              </Text>
+            </div>
+          )
+        })
+      }
+    })
+  }
+
   // Добавляем текущий статус
   if (invoice?.status) {
     historyItems.push({
@@ -1986,6 +2395,27 @@ const renderHistory = () => {
           }
         ]}
       />
+
+      {/* Кнопка возврата на страницу согласований, если пришли оттуда */}
+      {highlightPaymentId && (
+        <div style={{ marginBottom: 16 }}>
+          <Button
+            icon={<ArrowLeftOutlined />}
+            onClick={() => {
+              // Если есть сохраненный URL для возврата, используем его
+              if (returnUrl) {
+                window.location.href = decodeURIComponent(returnUrl)
+              } else {
+                // Иначе просто переходим на страницу согласований
+                navigate('/approvals')
+              }
+            }}
+            type="default"
+          >
+            Вернуться к согласованиям
+          </Button>
+        </div>
+      )}
 
       {/* Header */}
       <div style={{ marginBottom: 24 }}>
@@ -2087,8 +2517,7 @@ const renderHistory = () => {
                       <Statistic
                         title="Без НДС"
                         value={financialSummary.amountNet}
-                        precision={2}
-                        suffix={invoice.currency || 'RUB'}
+                        formatter={(value) => formatCurrency(Number(value), invoice.currency || 'RUB')}
                         valueStyle={{ fontSize: 14 }}
                       />
                     </Col>
@@ -2096,8 +2525,7 @@ const renderHistory = () => {
                       <Statistic
                         title={`НДС (${form.getFieldValue('vat_rate') || DEFAULT_VAT_RATE}%)`}
                         value={financialSummary.vatAmount}
-                        precision={2}
-                        suffix={invoice.currency || 'RUB'}
+                        formatter={(value) => formatCurrency(Number(value), invoice.currency || 'RUB')}
                         valueStyle={{ fontSize: 14 }}
                       />
                     </Col>
@@ -2106,8 +2534,7 @@ const renderHistory = () => {
                   <Statistic
                     title="Общая сумма счета"
                     value={financialSummary.totalAmount}
-                    precision={2}
-                    suffix={invoice.currency || 'RUB'}
+                    formatter={(value) => formatCurrency(Number(value), invoice.currency || 'RUB')}
                     valueStyle={{ color: '#1890ff', fontSize: '20px', fontWeight: 600 }}
                   />
                 </Space>
@@ -2118,56 +2545,142 @@ const renderHistory = () => {
                 size="small"
                 bodyStyle={{ padding: '8px 12px' }}
               >
-                {paymentsByStatus.length > 0 && (
+                {paymentsResponse?.data && paymentsResponse.data.length > 0 ? (
                   <>
-                    <Table
-                      dataSource={paymentsByStatus}
-                      columns={[
-                        {
-                          title: 'Статус',
-                          dataIndex: 'status',
-                          key: 'status',
-                          width: 80,
-                          render: (status: string) => {
-                            const statusConfig: Record<string, { color: string, text: string }> = {
-                              completed: { color: 'success', text: 'Оплачено' },
-                              pending: { color: 'warning', text: 'Ожидает' },
-                              processing: { color: 'processing', text: 'В обработке' },
-                              failed: { color: 'error', text: 'Ошибка' }
-                            }
-                            const config = statusConfig[status] || { color: 'default', text: status }
-                            return <Tag color={config.color} style={{ fontSize: 11 }}>{config.text}</Tag>
+                    {/* Детальный список платежей */}
+                    <div style={{ marginBottom: 12 }}>
+                      <Text strong style={{ fontSize: 12, marginBottom: 8, display: 'block' }}>
+                        Платежи ({paymentsResponse.data.length})
+                      </Text>
+                      <List
+                        size="small"
+                        dataSource={paymentsResponse.data}
+                        renderItem={(payment) => {
+                          const statusConfig: Record<string, { color: string, text: string }> = {
+                            draft: { color: 'default', text: 'Черновик' },
+                            pending: { color: 'warning', text: 'На согласовании' },
+                            approved: { color: 'volcano', text: 'Согласован' },
+                            scheduled: { color: 'magenta', text: 'В графике' },
+                            paid: { color: 'success', text: 'Оплачен' },
+                            completed: { color: 'success', text: 'Завершен' },
+                            processing: { color: 'processing', text: 'В обработке' },
+                            failed: { color: 'error', text: 'Ошибка' },
+                            cancelled: { color: 'error', text: 'Отменен' }
                           }
-                        },
-                        {
-                          title: 'Сумма',
-                          dataIndex: 'amount',
-                          key: 'amount',
-                          align: 'right',
-                          render: (amount: number, record: any) => (
-                            <Text style={{ fontSize: 12, fontWeight: 500 }}>
-                              {new Intl.NumberFormat('ru-RU', {
-                                style: 'currency',
-                                currency: record.currency || invoice?.currency || 'RUB'
-                              }).format(amount)}
-                            </Text>
+                          const status = payment.status || 'draft'
+                          const config = statusConfig[status] || { color: 'default', text: status }
+
+                          const paymentTypeText = payment.payment_type === 'ADV' ? 'Аванс' :
+                                                 payment.payment_type === 'RET' ? 'Возврат' :
+                                                 payment.payment_type === 'DEBT' ? 'Оплата долга' :
+                                                 payment.payment_type
+
+                          return (
+                            <List.Item style={{ padding: '6px 0', borderBottom: '1px solid #f0f0f0' }}>
+                              <div style={{ width: '100%' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                                  <Text style={{ fontSize: 11, fontWeight: 500 }}>
+                                    {payment.internal_number || `#${payment.id}`}
+                                  </Text>
+                                  <Text strong style={{ fontSize: 12 }}>
+                                    {formatCurrency(payment.total_amount || 0, payment.currency || invoice?.currency || 'RUB')}
+                                  </Text>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                  <Space size={4}>
+                                    <Tag color={config.color} style={{ fontSize: 10, margin: 0, padding: '0 4px' }}>
+                                      {config.text}
+                                    </Tag>
+                                    {paymentTypeText && (
+                                      <Text type="secondary" style={{ fontSize: 10 }}>
+                                        {paymentTypeText}
+                                      </Text>
+                                    )}
+                                  </Space>
+                                  <Text type="secondary" style={{ fontSize: 10 }}>
+                                    {dayjs(payment.payment_date || payment.created_at).format('DD.MM.YY')}
+                                  </Text>
+                                </div>
+                              </div>
+                            </List.Item>
                           )
-                        }
-                      ]}
-                      pagination={false}
-                      size="small"
-                      rowKey="status"
-                    />
+                        }}
+                      />
+                    </div>
+
                     <Divider style={{ margin: '8px 0' }} />
+
+                    {/* Сводка по статусам */}
+                    {paymentsByStatus.length > 0 && (
+                      <>
+                        <Text type="secondary" style={{ fontSize: 11, marginBottom: 6, display: 'block' }}>
+                          Сводка по статусам
+                        </Text>
+                        <Table
+                          dataSource={paymentsByStatus}
+                          columns={[
+                            {
+                              title: 'Статус',
+                              dataIndex: 'status',
+                              key: 'status',
+                              width: 140,
+                              render: (status: string, record) => {
+                                const statusConfig: Record<string, { color: string, text: string }> = {
+                                  draft: { color: 'default', text: 'Черновик' },
+                                  pending: { color: 'warning', text: 'На согласовании' },
+                                  approved: { color: 'volcano', text: 'Согласован' },
+                                  scheduled: { color: 'magenta', text: 'В графике' },
+                                  paid: { color: 'success', text: 'Оплачен' },
+                                  completed: { color: 'success', text: 'Завершен' },
+                                  processing: { color: 'processing', text: 'В обработке' },
+                                  failed: { color: 'error', text: 'Ошибка' },
+                                  cancelled: { color: 'error', text: 'Отменен' }
+                                }
+                                const config = statusConfig[status] || { color: 'default', text: status }
+                                return (
+                                  <div>
+                                    <Tag color={config.color} style={{ fontSize: 10, margin: 0 }}>
+                                      {config.text}
+                                    </Tag>
+                                    <Text type="secondary" style={{ fontSize: 10, marginLeft: 4 }}>
+                                      ({record.count})
+                                    </Text>
+                                  </div>
+                                )
+                              }
+                            },
+                            {
+                              title: 'Сумма',
+                              dataIndex: 'amount',
+                              key: 'amount',
+                              align: 'right',
+                              render: (amount: number, record) => (
+                                <Text style={{ fontSize: 12, fontWeight: 500 }}>
+                                  {formatCurrency(amount, record.currency || invoice?.currency || 'RUB')}
+                                </Text>
+                              )
+                            }
+                          ]}
+                          pagination={false}
+                          size="small"
+                          rowKey="status"
+                          showHeader={false}
+                        />
+                        <Divider style={{ margin: '8px 0' }} />
+                      </>
+                    )}
                   </>
+                ) : (
+                  <div style={{ padding: '8px 0' }}>
+                    <Text type="secondary" style={{ fontSize: 12 }}>Платежи отсутствуют</Text>
+                  </div>
                 )}
                 <Row gutter={[8, 8]}>
                   <Col span={12}>
                     <Statistic
                       title="Оплачено"
                       value={financialSummary.paidAmount}
-                      precision={2}
-                      suffix={invoice.currency || 'RUB'}
+                      formatter={(value) => formatCurrency(Number(value), invoice.currency || 'RUB')}
                       valueStyle={{ color: '#52c41a', fontSize: 13 }}
                     />
                   </Col>
@@ -2175,8 +2688,7 @@ const renderHistory = () => {
                     <Statistic
                       title="Ожидает"
                       value={financialSummary.pendingAmount}
-                      precision={2}
-                      suffix={invoice.currency || 'RUB'}
+                      formatter={(value) => formatCurrency(Number(value), invoice.currency || 'RUB')}
                       valueStyle={{ color: '#faad14', fontSize: 13 }}
                     />
                   </Col>
@@ -2185,8 +2697,7 @@ const renderHistory = () => {
                     <Statistic
                       title="Остаток к оплате"
                       value={financialSummary.balance}
-                      precision={2}
-                      suffix={invoice.currency || 'RUB'}
+                      formatter={(value) => formatCurrency(Number(value), invoice.currency || 'RUB')}
                       valueStyle={{
                         color: financialSummary.balance > 0 ? '#ff4d4f' : '#52c41a',
                         fontSize: '18px',
@@ -2281,9 +2792,8 @@ const renderHistory = () => {
                 name="payment_type"
                 label="Тип платежа"
                 rules={[{ required: true, message: 'Выберите тип платежа' }]}
-                initialValue="DEBT"
               >
-                <Select>
+                <Select placeholder="Выберите тип платежа">
                   <Select.Option value="DEBT">Погашение долга</Select.Option>
                   <Select.Option value="ADV">Аванс</Select.Option>
                   <Select.Option value="RET">Возврат удержаний</Select.Option>
@@ -2424,6 +2934,474 @@ const renderHistory = () => {
             </Row>
           </div>
         </Form>
+      </Modal>
+
+      {/* Modal для редактирования платежа */}
+      <Modal
+        title="Редактировать платеж"
+        open={editPaymentModalVisible}
+        onOk={() => void handleSaveEditedPayment()}
+        onCancel={() => {
+          setEditPaymentModalVisible(false)
+          setEditingPayment(null)
+          paymentEditForm.resetFields()
+        }}
+        okText="Сохранить"
+        cancelText="Отмена"
+        width={600}
+      >
+        <Form
+          form={paymentEditForm}
+          layout="vertical"
+        >
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                name="payment_date"
+                label="Дата платежа"
+                rules={[{ required: true, message: 'Выберите дату платежа' }]}
+              >
+                <DatePicker style={{ width: '100%' }} format="DD.MM.YYYY" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                name="payment_type"
+                label="Тип платежа"
+                rules={[{ required: true, message: 'Выберите тип платежа' }]}
+              >
+                <Select placeholder="Выберите тип платежа">
+                  <Select.Option value="DEBT">Погашение долга</Select.Option>
+                  <Select.Option value="ADV">Аванс</Select.Option>
+                  <Select.Option value="RET">Возврат удержаний</Select.Option>
+                </Select>
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Row gutter={16}>
+            <Col span={8}>
+              <Form.Item
+                name="total_amount"
+                label="Сумма с НДС"
+                rules={[
+                  { required: true, message: 'Введите сумму' },
+                  { type: 'number', min: 0.01, message: 'Сумма должна быть больше 0' }
+                ]}
+              >
+                <InputNumber
+                  style={{ width: '100%' }}
+                  min={0.01}
+                  precision={2}
+                  formatter={value => {
+                    if (!value) { return '' }
+                    const parts = value.toString().split('.')
+                    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
+                    return parts.join(',')
+                  }}
+                  parser={value => {
+                    if (!value) { return '' }
+                    return value.replace(/\s/g, '').replace(',', '.')
+                  }}
+                  onChange={(value) => {
+                    // Пересчитываем сумму НДС
+                    const vatRate = invoice?.vat_rate || 20
+                    const vatAmount = (value || 0) * vatRate / (100 + vatRate)
+                    const amountNet = (value || 0) - vatAmount
+                    paymentEditForm.setFieldsValue({
+                      vat_amount: parseFloat(vatAmount.toFixed(2)),
+                      amount_net: parseFloat(amountNet.toFixed(2))
+                    })
+                  }}
+                />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item
+                name="vat_rate"
+                label="НДС %"
+              >
+                <InputNumber
+                  style={{ width: '100%' }}
+                  disabled
+                  formatter={value => `${value}%`}
+                  parser={value => value?.replace('%', '')}
+                />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item
+                name="vat_amount"
+                label="Сумма НДС"
+              >
+                <InputNumber
+                  style={{ width: '100%' }}
+                  disabled
+                  precision={2}
+                  formatter={value => {
+                    if (!value) { return '' }
+                    const parts = value.toString().split('.')
+                    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
+                    return parts.join(',')
+                  }}
+                />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                name="amount_net"
+                label="Сумма без НДС"
+              >
+                <InputNumber
+                  style={{ width: '100%' }}
+                  disabled
+                  precision={2}
+                  formatter={value => {
+                    if (!value) { return '' }
+                    const parts = value.toString().split('.')
+                    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
+                    return parts.join(',')
+                  }}
+                />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                name="comment"
+                label="Комментарий"
+              >
+                <Input.TextArea rows={2} placeholder="Дополнительная информация" />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <div style={{ marginTop: 16, padding: 12, background: '#f0f2f5', borderRadius: 4 }}>
+            <Row>
+              <Col span={12}>
+                <Text>Сумма счета:</Text>
+                <div>
+                  <Text strong style={{ fontSize: 16 }}>
+                    {new Intl.NumberFormat('ru-RU').format(invoice?.total_amount || 0)} {invoice?.currency || 'RUB'}
+                  </Text>
+                </div>
+              </Col>
+              <Col span={12}>
+                <Text>Остаток к оплате:</Text>
+                <div>
+                  <Text strong style={{ fontSize: 16 }}>
+                    {new Intl.NumberFormat('ru-RU').format(
+                      Math.max(0, (invoice?.total_amount || 0) - (invoice?.paid_amount || 0))
+                    )} {invoice?.currency || 'RUB'}
+                  </Text>
+                </div>
+              </Col>
+            </Row>
+          </div>
+        </Form>
+      </Modal>
+
+      {/* Modal для выбора процесса согласования */}
+      <Modal
+        title={
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{
+              width: 32,
+              height: 32,
+              borderRadius: 6,
+              backgroundColor: '#f0f9ff',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              <RocketOutlined style={{ fontSize: 16, color: '#0ea5e9' }} />
+            </div>
+            <div>
+              <Title level={5} style={{ margin: 0, color: '#1f2937', fontSize: 16 }}>
+                Отправка платежа на согласование
+              </Title>
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                Выберите процесс согласования для обработки платежа
+              </Text>
+            </div>
+          </div>
+        }
+        open={approvalModalVisible}
+        onOk={handleStartApprovalWorkflow}
+        onCancel={() => {
+          setApprovalModalVisible(false)
+          setSelectedPaymentForApproval(null)
+          setSelectedWorkflow(null)
+        }}
+        okText={
+          <Space>
+            <SendOutlined />
+            Отправить на согласование
+          </Space>
+        }
+        cancelText="Отмена"
+        confirmLoading={loadingWorkflows}
+        width={700}
+        okButtonProps={{
+          disabled: !selectedWorkflow,
+          style: { height: 36, borderRadius: 6, fontWeight: 500, fontSize: 13 }
+        }}
+        cancelButtonProps={{
+          style: { height: 36, borderRadius: 6, fontSize: 13 }
+        }}
+        styles={{
+          header: { paddingBottom: 16, borderBottom: '1px solid #f0f0f0' },
+          body: { paddingTop: 16, paddingBottom: 8 },
+          footer: { paddingTop: 16, borderTop: '1px solid #f0f0f0' }
+        }}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {/* Информация о платеже */}
+          {selectedPaymentForApproval && (
+            <Card
+              size="small"
+              style={{
+                border: '1px solid #e5e7eb',
+                borderRadius: 12,
+                backgroundColor: '#fafafa'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+                <div style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 8,
+                  backgroundColor: '#fff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  border: '2px solid #e5e7eb'
+                }}>
+                  <CreditCardOutlined style={{ fontSize: 16, color: '#6b7280' }} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <Title level={5} style={{ margin: 0, color: '#374151', fontSize: 14 }}>
+                    Платеж {selectedPaymentForApproval.internal_number || `#${selectedPaymentForApproval.id}`}
+                  </Title>
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    {dayjs(selectedPaymentForApproval.payment_date).format('DD.MM.YYYY')}
+                  </Text>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{
+                    fontSize: 18,
+                    fontWeight: 700,
+                    color: '#059669',
+                    lineHeight: 1
+                  }}>
+                    {formatCurrency(
+                      selectedPaymentForApproval.total_amount || 0,
+                      selectedPaymentForApproval.currency || invoice?.currency || 'RUB'
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Тип платежа с иконкой */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                {selectedPaymentForApproval.payment_type === 'ADV' && (
+                  <Tag
+                    icon={<RiseOutlined />}
+                    color="blue"
+                    style={{
+                      borderRadius: 6,
+                      padding: '2px 8px',
+                      fontSize: 12,
+                      fontWeight: 500
+                    }}
+                  >
+                    Авансовый платеж
+                  </Tag>
+                )}
+                {selectedPaymentForApproval.payment_type === 'RET' && (
+                  <Tag
+                    icon={<FallOutlined />}
+                    color="orange"
+                    style={{
+                      borderRadius: 6,
+                      padding: '2px 8px',
+                      fontSize: 12,
+                      fontWeight: 500
+                    }}
+                  >
+                    Возврат средств
+                  </Tag>
+                )}
+                {selectedPaymentForApproval.payment_type === 'DEBT' && (
+                  <Tag
+                    icon={<BankOutlined />}
+                    color="green"
+                    style={{
+                      borderRadius: 6,
+                      padding: '2px 8px',
+                      fontSize: 12,
+                      fontWeight: 500
+                    }}
+                  >
+                    Оплата долга
+                  </Tag>
+                )}
+                {!['ADV', 'RET', 'DEBT'].includes(selectedPaymentForApproval.payment_type) && (
+                  <Tag
+                    icon={<SwapOutlined />}
+                    color="default"
+                    style={{
+                      borderRadius: 6,
+                      padding: '2px 8px',
+                      fontSize: 12,
+                      fontWeight: 500
+                    }}
+                  >
+                    {selectedPaymentForApproval.payment_type}
+                  </Tag>
+                )}
+              </div>
+            </Card>
+          )}
+
+          {/* Выбор процесса согласования */}
+          <Card
+            title={
+              <Space size={12}>
+                <div style={{
+                  width: 28,
+                  height: 28,
+                  borderRadius: 6,
+                  backgroundColor: '#f3f4f6',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <TeamOutlined style={{ fontSize: 14, color: '#6b7280' }} />
+                </div>
+                <span style={{ fontSize: 14, fontWeight: 600, color: '#374151' }}>
+                  Процесс согласования
+                </span>
+              </Space>
+            }
+            style={{
+              border: '1px solid #e5e7eb',
+              borderRadius: 12
+            }}
+          >
+            {loadingWorkflows ? (
+              <div style={{
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                padding: '24px 0'
+              }}>
+                <Spin size="large" />
+                <span style={{ marginLeft: 12, color: '#6b7280' }}>
+                  Загрузка процессов согласования...
+                </span>
+              </div>
+            ) : workflows.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '24px 16px' }}>
+                <div style={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: 8,
+                  backgroundColor: '#fef3cd',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  margin: '0 auto 12px'
+                }}>
+                  <ExclamationCircleOutlined style={{ fontSize: 20, color: '#f59e0b' }} />
+                </div>
+                <Title level={5} style={{ color: '#374151', margin: '0 0 8px', fontSize: 14 }}>
+                  Нет доступных процессов
+                </Title>
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  Не найдено активных процессов согласования для платежей.<br />
+                  Обратитесь к администратору системы.
+                </Text>
+              </div>
+            ) : (
+              <div style={{ marginTop: 12 }}>
+                <Select
+                  placeholder="Выберите процесс согласования"
+                  value={selectedWorkflow}
+                  onChange={setSelectedWorkflow}
+                  size="middle"
+                  style={{ width: '100%' }}
+                  suffixIcon={<SafetyCertificateOutlined style={{ color: '#6b7280' }} />}
+                  dropdownStyle={{ borderRadius: 8 }}
+                >
+                  {workflows.map(workflow => (
+                    <Select.Option key={workflow.id} value={workflow.id}>
+                      <div style={{ padding: '8px 0' }}>
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 12,
+                          marginBottom: workflow.description ? 4 : 0
+                        }}>
+                          <div style={{
+                            width: 24,
+                            height: 24,
+                            borderRadius: 4,
+                            backgroundColor: '#dbeafe',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}>
+                            <AuditOutlined style={{ fontSize: 12, color: '#3b82f6' }} />
+                          </div>
+                          <Text strong style={{ fontSize: 13, color: '#1f2937' }}>
+                            {workflow.name}
+                          </Text>
+                        </div>
+                        {workflow.description && (
+                          <Text
+                            type="secondary"
+                            style={{
+                              fontSize: 11,
+                              marginLeft: 44,
+                              display: 'block',
+                              lineHeight: 1.4
+                            }}
+                          >
+                            {workflow.description}
+                          </Text>
+                        )}
+                      </div>
+                    </Select.Option>
+                  ))}
+                </Select>
+
+                {selectedWorkflow && (
+                  <div style={{
+                    marginTop: 12,
+                    padding: 12,
+                    backgroundColor: '#f0f9ff',
+                    borderRadius: 8,
+                    border: '1px solid #bfdbfe'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <InfoCircleOutlined style={{ color: '#0ea5e9', fontSize: 14 }} />
+                      <Text strong style={{ color: '#0c4a6e', fontSize: 12 }}>
+                        Информация о процессе
+                      </Text>
+                    </div>
+                    <Text style={{ color: '#0c4a6e', fontSize: 11, marginTop: 4, display: 'block' }}>
+                      После отправки платеж будет направлен на согласование выбранным участникам процесса.
+                      Вы получите уведомление о результатах согласования.
+                    </Text>
+                  </div>
+                )}
+              </div>
+            )}
+          </Card>
+        </div>
       </Modal>
 
       {/* File Preview Modal */}

@@ -2,7 +2,7 @@
  * Invoices page with ProTable and filters
  */
 
-import React, {useMemo, useState} from 'react'
+import React, {useMemo, useState, useEffect} from 'react'
 import {
     Button,
     message,
@@ -26,6 +26,7 @@ import {
     useInvoiceExport,
     useInvoicesList
 } from '../../services/hooks/useInvoices'
+import { usePaymentsList } from '../../services/hooks/usePayments'
 import {useAuthStore} from '../../models/auth'
 import {type InvoiceWithRelations} from '../../services/invoices/crud'
 import {type InvoiceFilters} from '../../services/invoices/queries'
@@ -49,6 +50,7 @@ export const InvoicesPage: React.FC<InvoicesPageProps> = ({companyId = '1'}) => 
         sortBy: 'created_at',
         sortOrder: 'desc' as 'asc' | 'desc'
     })
+    const [invoicePayments, setInvoicePayments] = useState<Record<string, boolean>>({}) // Хранит информацию о наличии платежей для каждого счета
 
     // Подготавливаем фильтры с учетом прав пользователя
     const enhancedFilters = useMemo(() => {
@@ -88,6 +90,40 @@ export const InvoicesPage: React.FC<InvoicesPageProps> = ({companyId = '1'}) => 
     console.log('[InvoicesPage] dataSource:', invoicesData?.data)
     console.log('[InvoicesPage] total:', invoicesData?.total)
 
+    // Загружаем информацию о платежах для всех счетов
+    useEffect(() => {
+        const checkPaymentsForInvoices = async () => {
+            if (!invoicesData?.data || invoicesData.data.length === 0) return
+
+            console.log('[InvoicesPage] Проверка наличия платежей для счетов')
+
+            const { supabase } = await import('../../services/supabase')
+            const paymentsMap: Record<string, boolean> = {}
+
+            // Получаем все invoice_id которые имеют платежи
+            const invoiceIds = invoicesData.data.map(inv => inv.id)
+            const { data: payments, error } = await supabase
+                .from('payments')
+                .select('invoice_id')
+                .in('invoice_id', invoiceIds)
+
+            if (!error && payments) {
+                // Создаем Set для быстрой проверки
+                const invoicesWithPayments = new Set(payments.map(p => p.invoice_id))
+
+                // Заполняем карту для каждого счета
+                invoiceIds.forEach(id => {
+                    paymentsMap[id] = invoicesWithPayments.has(id)
+                })
+
+                console.log('[InvoicesPage] Счета с платежами:', paymentsMap)
+                setInvoicePayments(paymentsMap)
+            }
+        }
+
+        checkPaymentsForInvoices()
+    }, [invoicesData?.data])
+
     // Mutations
     const deleteInvoiceMutation = useDeleteInvoice()
     const exportMutation = useInvoiceExport()
@@ -101,24 +137,61 @@ export const InvoicesPage: React.FC<InvoicesPageProps> = ({companyId = '1'}) => 
     }
 
     const handleDelete = async (record: InvoiceWithRelations) => {
-        Modal.confirm({
-            title: 'Удалить счет?',
-            content: `Вы уверены, что хотите удалить счет ${record.invoice_number}?`,
-            okText: 'Да, удалить',
-            cancelText: 'Отмена',
-            okButtonProps: {danger: true},
-            onOk: async () => {
-                try {
-                    await deleteInvoiceMutation.mutateAsync({
-                        id: record.id,
-                        companyId
-                    })
-                    void refetch()
-                } catch (error) {
-                    console.error('Delete error:', error)
-                }
+        console.log('[InvoicesPage.handleDelete] Проверка возможности удаления счета:', record.id)
+
+        // Сначала проверяем наличие платежей
+        try {
+            // Загружаем платежи для этого счета
+            const { supabase } = await import('../../services/supabase')
+            const { data: payments, error } = await supabase
+                .from('payments')
+                .select('id')
+                .eq('invoice_id', record.id)
+                .limit(1)
+
+            if (error) {
+                console.error('[InvoicesPage.handleDelete] Ошибка проверки платежей:', error)
+                message.error('Ошибка при проверке платежей')
+                return
             }
-        })
+
+            // Если есть платежи, не разрешаем удалить
+            if (payments && payments.length > 0) {
+                console.log('[InvoicesPage.handleDelete] Счет имеет платежи, удаление запрещено')
+                Modal.warning({
+                    title: 'Невозможно удалить счет',
+                    content: 'Счет нельзя удалить, так как к нему привязаны платежи. Сначала удалите все платежи.',
+                    okText: 'Понятно'
+                })
+                return
+            }
+
+            // Если платежей нет, спрашиваем подтверждение
+            Modal.confirm({
+                title: 'Удалить счет?',
+                content: `Вы уверены, что хотите удалить счет ${record.invoice_number}?`,
+                okText: 'Да, удалить',
+                cancelText: 'Отмена',
+                okButtonProps: {danger: true},
+                onOk: async () => {
+                    try {
+                        console.log('[InvoicesPage.handleDelete] Удаление счета:', record.id)
+                        await deleteInvoiceMutation.mutateAsync({
+                            id: record.id,
+                            companyId
+                        })
+                        message.success('Счет успешно удален')
+                        void refetch()
+                    } catch (error) {
+                        console.error('[InvoicesPage.handleDelete] Ошибка удаления:', error)
+                        message.error('Ошибка при удалении счета')
+                    }
+                }
+            })
+        } catch (error) {
+            console.error('[InvoicesPage.handleDelete] Ошибка:', error)
+            message.error('Произошла ошибка при проверке возможности удаления')
+        }
     }
 
     const handleCancel = async (record: InvoiceWithRelations) => {
@@ -393,16 +466,22 @@ export const InvoicesPage: React.FC<InvoicesPageProps> = ({companyId = '1'}) => 
                         disabled={!['draft', 'pending', 'approved'].includes(record.status)}
                         style={{opacity: !['draft', 'pending', 'approved'].includes(record.status) ? 0.3 : 1}}
                     />
-                    {/* Удалить - только для draft и cancelled */}
+                    {/* Удалить - только для draft и cancelled и если нет платежей */}
                     <Button
                         type="text"
                         size="small"
                         icon={<DeleteOutlined/>}
                         onClick={() => void handleDelete(record)}
-                        title="Удалить"
+                        title={
+                            invoicePayments[record.id]
+                                ? "Нельзя удалить - есть платежи"
+                                : !['draft', 'cancelled'].includes(record.status)
+                                    ? "Можно удалить только черновики и отмененные счета"
+                                    : "Удалить"
+                        }
                         danger
-                        disabled={!['draft', 'cancelled'].includes(record.status)}
-                        style={{opacity: !['draft', 'cancelled'].includes(record.status) ? 0.3 : 1}}
+                        disabled={!['draft', 'cancelled'].includes(record.status) || invoicePayments[record.id]}
+                        style={{opacity: (!['draft', 'cancelled'].includes(record.status) || invoicePayments[record.id]) ? 0.3 : 1}}
                     />
                 </Space>
             ),
@@ -475,10 +554,12 @@ export const InvoicesPage: React.FC<InvoicesPageProps> = ({companyId = '1'}) => 
             label: 'Удалить черновики',
             icon: <DeleteOutlined/>,
             danger: true,
-            disabled: (selectedRows) => !selectedRows.every(row => row.status === 'draft'),
+            disabled: (selectedRows) => !selectedRows.every(row =>
+                (row.status === 'draft' || row.status === 'cancelled') && !invoicePayments[row.id]
+            ),
             onClick: async (selectedRows) => {
                 for (const row of selectedRows) {
-                    if (row.status === 'draft') {
+                    if ((row.status === 'draft' || row.status === 'cancelled') && !invoicePayments[row.id]) {
                         await handleDelete(row)
                     }
                 }
