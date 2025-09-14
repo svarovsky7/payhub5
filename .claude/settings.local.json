@@ -54,7 +54,9 @@
       "Bash(git init:*)",
       "Bash(npm uninstall:*)",
       "Bash(npx knip:*)",
-      "Bash(del:*)"
+      "Bash(del:*)",
+      "Bash(git merge:*)",
+      "Bash(git commit:*)"
     ]
   },
   "enableAllProjectMcpServers": true,
