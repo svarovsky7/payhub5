@@ -113,13 +113,6 @@ export const SYSTEM_ROLES = {
   DIRECTOR: { id: 'director', name: 'Директор', code: 'DIRECTOR' },
 } as const
 
-// Типы счетов
-export const INVOICE_TYPES = {
-  GOODS: { id: 1, name: 'Товары', code: 'goods' },
-  WORKS: { id: 2, name: 'Работы', code: 'works' },
-  RENT: { id: 3, name: 'Аренда', code: 'rent' },
-  UTILITIES: { id: 4, name: 'Коммунальные услуги', code: 'utilities' },
-} as const
 
 // Типы платежей
 const PAYMENT_TYPES = {
@@ -135,19 +128,3 @@ const CONTRACTOR_TYPES = {
   OTHER: { id: 'other', name: 'Прочее' },
 } as const
 
-// Действия в процессе
-export const WORKFLOW_ACTIONS = {
-  VIEW: 'view',
-  EDIT: 'edit',
-  APPROVE: 'approve',
-  REJECT: 'reject',
-  CANCEL: 'cancel',
-} as const
-
-// Статусы процесса
-export const WORKFLOW_STATUS = {
-  DRAFT: 'draft',
-  ACTIVE: 'active',
-  INACTIVE: 'inactive',
-  ARCHIVED: 'archived',
-} as const
