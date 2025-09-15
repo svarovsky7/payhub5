@@ -8,7 +8,6 @@ import { PageContainer } from '@ant-design/pro-components'
 import { Space, Tabs } from 'antd'
 import {
   ApartmentOutlined,
-  BgColorsOutlined,
   FileTextOutlined,
   ProjectOutlined,
   SafetyOutlined,
@@ -27,7 +26,6 @@ import { StatusesTab } from './components/StatusesTab'
 import { RolesTab } from './RolesTab'
 import { MaterialResponsiblePersonsPage } from './MaterialResponsiblePersons'
 import { WorkflowBuilderTab } from './WorkflowBuilderTab'
-import { ThemeSettings } from './ThemeSettings'
 
 const AdminPage: React.FC = () => {
   const navigate = useNavigate()
@@ -146,16 +144,6 @@ const AdminPage: React.FC = () => {
         </Space>
       ),
       children: <StatusesTab />,
-    },
-    {
-      key: 'theme',
-      label: (
-        <Space>
-          <BgColorsOutlined />
-          Настройки темы
-        </Space>
-      ),
-      children: <ThemeSettings />,
     },
   ]
 

@@ -1,5 +1,5 @@
 -- Database Schema SQL Export
--- Generated: 2025-09-14T23:45:41.814035
+-- Generated: 2025-09-15T22:54:19.387759
 -- Database: postgres
 -- Host: 31.128.51.210
 
@@ -322,28 +322,6 @@ CREATE TABLE IF NOT EXISTS auth.users (
 COMMENT ON TABLE auth.users IS 'Auth: Stores user login data within a secure schema.';
 COMMENT ON COLUMN auth.users.is_sso_user IS 'Auth: Set this column to true when the account comes from SSO. These accounts can have duplicate emails.';
 
--- Table: net._http_response
-CREATE TABLE IF NOT EXISTS net._http_response (
-    id bigint(64),
-    status_code integer(32),
-    content_type text,
-    headers jsonb,
-    content text,
-    timed_out boolean,
-    error_msg text,
-    created timestamp with time zone NOT NULL DEFAULT now()
-);
-
--- Table: net.http_request_queue
-CREATE TABLE IF NOT EXISTS net.http_request_queue (
-    id bigint(64) NOT NULL DEFAULT nextval('net.http_request_queue_id_seq'::regclass),
-    method text NOT NULL,
-    url text NOT NULL,
-    headers jsonb NOT NULL,
-    body bytea,
-    timeout_milliseconds integer(32) NOT NULL
-);
-
 -- Table: public.attachments
 -- Description: File attachments storage metadata
 CREATE TABLE IF NOT EXISTS public.attachments (
@@ -404,6 +382,45 @@ CREATE TABLE IF NOT EXISTS public.invoice_documents (
     CONSTRAINT invoice_documents_pkey PRIMARY KEY (id)
 );
 COMMENT ON TABLE public.invoice_documents IS 'Junction table linking invoices to attached documents';
+
+-- Table: public.invoice_history
+-- Description: История всех изменений счетов, платежей и связанных документов
+CREATE TABLE IF NOT EXISTS public.invoice_history (
+    id bigint(64) NOT NULL DEFAULT nextval('invoice_history_id_seq'::regclass),
+    invoice_id integer(32),
+    event_type character varying(50) NOT NULL,
+    event_date timestamp with time zone NOT NULL DEFAULT now(),
+    action character varying(100) NOT NULL,
+    description text,
+    payment_id integer(32),
+    document_id integer(32),
+    attachment_id integer(32),
+    status_from character varying(50),
+    status_to character varying(50),
+    amount_from numeric(15,2),
+    amount_to numeric(15,2),
+    currency character varying(3),
+    changed_fields jsonb,
+    old_values jsonb,
+    new_values jsonb,
+    user_id uuid,
+    user_name character varying(255),
+    user_role character varying(100),
+    metadata jsonb,
+    created_at timestamp with time zone DEFAULT now(),
+    CONSTRAINT invoice_history_attachment_id_fkey FOREIGN KEY (attachment_id) REFERENCES None.None(None),
+    CONSTRAINT invoice_history_document_id_fkey FOREIGN KEY (document_id) REFERENCES None.None(None),
+    CONSTRAINT invoice_history_payment_id_fkey FOREIGN KEY (payment_id) REFERENCES None.None(None),
+    CONSTRAINT invoice_history_pkey PRIMARY KEY (id),
+    CONSTRAINT invoice_history_user_id_fkey FOREIGN KEY (user_id) REFERENCES None.None(None)
+);
+COMMENT ON TABLE public.invoice_history IS 'История всех изменений счетов, платежей и связанных документов';
+COMMENT ON COLUMN public.invoice_history.event_type IS 'Тип события: INVOICE_CREATED, INVOICE_UPDATED, STATUS_CHANGED, PAYMENT_CREATED, etc.';
+COMMENT ON COLUMN public.invoice_history.action IS 'Человекочитаемое описание действия';
+COMMENT ON COLUMN public.invoice_history.changed_fields IS 'JSON объект с полями, которые были изменены';
+COMMENT ON COLUMN public.invoice_history.old_values IS 'Старые значения измененных полей';
+COMMENT ON COLUMN public.invoice_history.new_values IS 'Новые значения измененных полей';
+COMMENT ON COLUMN public.invoice_history.metadata IS 'Дополнительные данные события в формате JSON';
 
 -- Table: public.invoice_types
 -- Description: Types of invoices (goods, works, rent, utilities)
@@ -936,8 +953,6 @@ CREATE TYPE auth.factor_type AS ENUM ('totp', 'webauthn', 'phone');
 
 CREATE TYPE auth.one_time_token_type AS ENUM ('confirmation_token', 'reauthentication_token', 'recovery_token', 'email_change_token_new', 'email_change_token_current', 'phone_change_token');
 
-CREATE TYPE net.request_status AS ENUM ('PENDING', 'SUCCESS', 'ERROR');
-
 CREATE TYPE public.currency_code AS ENUM ('RUB', 'USD', 'EUR', 'CNY');
 COMMENT ON TYPE public.currency_code IS 'Currency codes enum for financial operations';
 
@@ -958,58 +973,45 @@ CREATE TYPE storage.buckettype AS ENUM ('STANDARD', 'ANALYTICS');
 -- VIEWS
 -- ============================================
 
--- View: extensions.pg_stat_statements
-CREATE OR REPLACE VIEW extensions.pg_stat_statements AS
- SELECT pg_stat_statements.userid,
-    pg_stat_statements.dbid,
-    pg_stat_statements.toplevel,
-    pg_stat_statements.queryid,
-    pg_stat_statements.query,
-    pg_stat_statements.plans,
-    pg_stat_statements.total_plan_time,
-    pg_stat_statements.min_plan_time,
-    pg_stat_statements.max_plan_time,
-    pg_stat_statements.mean_plan_time,
-    pg_stat_statements.stddev_plan_time,
-    pg_stat_statements.calls,
-    pg_stat_statements.total_exec_time,
-    pg_stat_statements.min_exec_time,
-    pg_stat_statements.max_exec_time,
-    pg_stat_statements.mean_exec_time,
-    pg_stat_statements.stddev_exec_time,
-    pg_stat_statements.rows,
-    pg_stat_statements.shared_blks_hit,
-    pg_stat_statements.shared_blks_read,
-    pg_stat_statements.shared_blks_dirtied,
-    pg_stat_statements.shared_blks_written,
-    pg_stat_statements.local_blks_hit,
-    pg_stat_statements.local_blks_read,
-    pg_stat_statements.local_blks_dirtied,
-    pg_stat_statements.local_blks_written,
-    pg_stat_statements.temp_blks_read,
-    pg_stat_statements.temp_blks_written,
-    pg_stat_statements.blk_read_time,
-    pg_stat_statements.blk_write_time,
-    pg_stat_statements.temp_blk_read_time,
-    pg_stat_statements.temp_blk_write_time,
-    pg_stat_statements.wal_records,
-    pg_stat_statements.wal_fpi,
-    pg_stat_statements.wal_bytes,
-    pg_stat_statements.jit_functions,
-    pg_stat_statements.jit_generation_time,
-    pg_stat_statements.jit_inlining_count,
-    pg_stat_statements.jit_inlining_time,
-    pg_stat_statements.jit_optimization_count,
-    pg_stat_statements.jit_optimization_time,
-    pg_stat_statements.jit_emission_count,
-    pg_stat_statements.jit_emission_time
-   FROM pg_stat_statements(true) pg_stat_statements(userid, dbid, toplevel, queryid, query, plans, total_plan_time, min_plan_time, max_plan_time, mean_plan_time, stddev_plan_time, calls, total_exec_time, min_exec_time, max_exec_time, mean_exec_time, stddev_exec_time, rows, shared_blks_hit, shared_blks_read, shared_blks_dirtied, shared_blks_written, local_blks_hit, local_blks_read, local_blks_dirtied, local_blks_written, temp_blks_read, temp_blks_written, blk_read_time, blk_write_time, temp_blk_read_time, temp_blk_write_time, wal_records, wal_fpi, wal_bytes, jit_functions, jit_generation_time, jit_inlining_count, jit_inlining_time, jit_optimization_count, jit_optimization_time, jit_emission_count, jit_emission_time);
-
--- View: extensions.pg_stat_statements_info
-CREATE OR REPLACE VIEW extensions.pg_stat_statements_info AS
- SELECT pg_stat_statements_info.dealloc,
-    pg_stat_statements_info.stats_reset
-   FROM pg_stat_statements_info() pg_stat_statements_info(dealloc, stats_reset);
+-- View: public.invoice_history_view
+CREATE OR REPLACE VIEW public.invoice_history_view AS
+ SELECT ih.id,
+    ih.invoice_id,
+    ih.event_type,
+    ih.event_date,
+    ih.action,
+    ih.description,
+    i.invoice_number,
+    i.internal_number AS invoice_internal_number,
+    ih.payment_id,
+    p.internal_number AS payment_internal_number,
+    p.payment_type,
+    ih.document_id,
+    ih.attachment_id,
+    a.original_name AS document_name,
+    ih.status_from,
+    ih.status_to,
+    ih.amount_from,
+    ih.amount_to,
+    ih.currency,
+    ih.changed_fields,
+    ih.old_values,
+    ih.new_values,
+    ih.user_id,
+    ih.user_name,
+    ih.user_role,
+    u.email AS user_email,
+    u.full_name AS user_full_name,
+    r.name AS role_name,
+    ih.metadata,
+    ih.created_at
+   FROM (((((invoice_history ih
+     LEFT JOIN invoices i ON ((ih.invoice_id = i.id)))
+     LEFT JOIN payments p ON ((ih.payment_id = p.id)))
+     LEFT JOIN attachments a ON ((ih.attachment_id = a.id)))
+     LEFT JOIN users u ON ((ih.user_id = u.id)))
+     LEFT JOIN roles r ON ((u.role_id = r.id)))
+  ORDER BY ih.event_date DESC, ih.id DESC;
 
 -- View: vault.decrypted_secrets
 CREATE OR REPLACE VIEW vault.decrypted_secrets AS
@@ -1155,7 +1157,7 @@ AS '$libdir/pgcrypto', $function$pg_decrypt_iv$function$
 
 
 -- Function: extensions.digest
-CREATE OR REPLACE FUNCTION extensions.digest(text, text)
+CREATE OR REPLACE FUNCTION extensions.digest(bytea, text)
  RETURNS bytea
  LANGUAGE c
  IMMUTABLE PARALLEL SAFE STRICT
@@ -1163,7 +1165,7 @@ AS '$libdir/pgcrypto', $function$pg_digest$function$
 
 
 -- Function: extensions.digest
-CREATE OR REPLACE FUNCTION extensions.digest(bytea, text)
+CREATE OR REPLACE FUNCTION extensions.digest(text, text)
  RETURNS bytea
  LANGUAGE c
  IMMUTABLE PARALLEL SAFE STRICT
@@ -1203,19 +1205,19 @@ AS '$libdir/pgcrypto', $function$pg_random_uuid$function$
 
 
 -- Function: extensions.gen_salt
-CREATE OR REPLACE FUNCTION extensions.gen_salt(text)
- RETURNS text
- LANGUAGE c
- PARALLEL SAFE STRICT
-AS '$libdir/pgcrypto', $function$pg_gen_salt$function$
-
-
--- Function: extensions.gen_salt
 CREATE OR REPLACE FUNCTION extensions.gen_salt(text, integer)
  RETURNS text
  LANGUAGE c
  PARALLEL SAFE STRICT
 AS '$libdir/pgcrypto', $function$pg_gen_salt_rounds$function$
+
+
+-- Function: extensions.gen_salt
+CREATE OR REPLACE FUNCTION extensions.gen_salt(text)
+ RETURNS text
+ LANGUAGE c
+ PARALLEL SAFE STRICT
+AS '$libdir/pgcrypto', $function$pg_gen_salt$function$
 
 
 -- Function: extensions.grant_pg_cron_access
@@ -1362,14 +1364,6 @@ $function$
 
 
 -- Function: extensions.hmac
-CREATE OR REPLACE FUNCTION extensions.hmac(bytea, bytea, text)
- RETURNS bytea
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/pgcrypto', $function$pg_hmac$function$
-
-
--- Function: extensions.hmac
 CREATE OR REPLACE FUNCTION extensions.hmac(text, text, text)
  RETURNS bytea
  LANGUAGE c
@@ -1377,28 +1371,12 @@ CREATE OR REPLACE FUNCTION extensions.hmac(text, text, text)
 AS '$libdir/pgcrypto', $function$pg_hmac$function$
 
 
--- Function: extensions.pg_stat_statements
-CREATE OR REPLACE FUNCTION extensions.pg_stat_statements(showtext boolean, OUT userid oid, OUT dbid oid, OUT toplevel boolean, OUT queryid bigint, OUT query text, OUT plans bigint, OUT total_plan_time double precision, OUT min_plan_time double precision, OUT max_plan_time double precision, OUT mean_plan_time double precision, OUT stddev_plan_time double precision, OUT calls bigint, OUT total_exec_time double precision, OUT min_exec_time double precision, OUT max_exec_time double precision, OUT mean_exec_time double precision, OUT stddev_exec_time double precision, OUT rows bigint, OUT shared_blks_hit bigint, OUT shared_blks_read bigint, OUT shared_blks_dirtied bigint, OUT shared_blks_written bigint, OUT local_blks_hit bigint, OUT local_blks_read bigint, OUT local_blks_dirtied bigint, OUT local_blks_written bigint, OUT temp_blks_read bigint, OUT temp_blks_written bigint, OUT blk_read_time double precision, OUT blk_write_time double precision, OUT temp_blk_read_time double precision, OUT temp_blk_write_time double precision, OUT wal_records bigint, OUT wal_fpi bigint, OUT wal_bytes numeric, OUT jit_functions bigint, OUT jit_generation_time double precision, OUT jit_inlining_count bigint, OUT jit_inlining_time double precision, OUT jit_optimization_count bigint, OUT jit_optimization_time double precision, OUT jit_emission_count bigint, OUT jit_emission_time double precision)
- RETURNS SETOF record
+-- Function: extensions.hmac
+CREATE OR REPLACE FUNCTION extensions.hmac(bytea, bytea, text)
+ RETURNS bytea
  LANGUAGE c
- PARALLEL SAFE STRICT
-AS '$libdir/pg_stat_statements', $function$pg_stat_statements_1_10$function$
-
-
--- Function: extensions.pg_stat_statements_info
-CREATE OR REPLACE FUNCTION extensions.pg_stat_statements_info(OUT dealloc bigint, OUT stats_reset timestamp with time zone)
- RETURNS record
- LANGUAGE c
- PARALLEL SAFE STRICT
-AS '$libdir/pg_stat_statements', $function$pg_stat_statements_info$function$
-
-
--- Function: extensions.pg_stat_statements_reset
-CREATE OR REPLACE FUNCTION extensions.pg_stat_statements_reset(userid oid DEFAULT 0, dbid oid DEFAULT 0, queryid bigint DEFAULT 0)
- RETURNS void
- LANGUAGE c
- PARALLEL SAFE STRICT
-AS '$libdir/pg_stat_statements', $function$pg_stat_statements_reset_1_7$function$
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/pgcrypto', $function$pg_hmac$function$
 
 
 -- Function: extensions.pgp_armor_headers
@@ -1442,14 +1420,6 @@ AS '$libdir/pgcrypto', $function$pgp_pub_decrypt_text$function$
 
 
 -- Function: extensions.pgp_pub_decrypt_bytea
-CREATE OR REPLACE FUNCTION extensions.pgp_pub_decrypt_bytea(bytea, bytea, text)
- RETURNS bytea
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/pgcrypto', $function$pgp_pub_decrypt_bytea$function$
-
-
--- Function: extensions.pgp_pub_decrypt_bytea
 CREATE OR REPLACE FUNCTION extensions.pgp_pub_decrypt_bytea(bytea, bytea, text, text)
  RETURNS bytea
  LANGUAGE c
@@ -1459,6 +1429,14 @@ AS '$libdir/pgcrypto', $function$pgp_pub_decrypt_bytea$function$
 
 -- Function: extensions.pgp_pub_decrypt_bytea
 CREATE OR REPLACE FUNCTION extensions.pgp_pub_decrypt_bytea(bytea, bytea)
+ RETURNS bytea
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/pgcrypto', $function$pgp_pub_decrypt_bytea$function$
+
+
+-- Function: extensions.pgp_pub_decrypt_bytea
+CREATE OR REPLACE FUNCTION extensions.pgp_pub_decrypt_bytea(bytea, bytea, text)
  RETURNS bytea
  LANGUAGE c
  IMMUTABLE PARALLEL SAFE STRICT
@@ -1498,14 +1476,6 @@ AS '$libdir/pgcrypto', $function$pgp_pub_encrypt_bytea$function$
 
 
 -- Function: extensions.pgp_sym_decrypt
-CREATE OR REPLACE FUNCTION extensions.pgp_sym_decrypt(bytea, text)
- RETURNS text
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/pgcrypto', $function$pgp_sym_decrypt_text$function$
-
-
--- Function: extensions.pgp_sym_decrypt
 CREATE OR REPLACE FUNCTION extensions.pgp_sym_decrypt(bytea, text, text)
  RETURNS text
  LANGUAGE c
@@ -1513,8 +1483,16 @@ CREATE OR REPLACE FUNCTION extensions.pgp_sym_decrypt(bytea, text, text)
 AS '$libdir/pgcrypto', $function$pgp_sym_decrypt_text$function$
 
 
+-- Function: extensions.pgp_sym_decrypt
+CREATE OR REPLACE FUNCTION extensions.pgp_sym_decrypt(bytea, text)
+ RETURNS text
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/pgcrypto', $function$pgp_sym_decrypt_text$function$
+
+
 -- Function: extensions.pgp_sym_decrypt_bytea
-CREATE OR REPLACE FUNCTION extensions.pgp_sym_decrypt_bytea(bytea, text)
+CREATE OR REPLACE FUNCTION extensions.pgp_sym_decrypt_bytea(bytea, text, text)
  RETURNS bytea
  LANGUAGE c
  IMMUTABLE PARALLEL SAFE STRICT
@@ -1522,7 +1500,7 @@ AS '$libdir/pgcrypto', $function$pgp_sym_decrypt_bytea$function$
 
 
 -- Function: extensions.pgp_sym_decrypt_bytea
-CREATE OR REPLACE FUNCTION extensions.pgp_sym_decrypt_bytea(bytea, text, text)
+CREATE OR REPLACE FUNCTION extensions.pgp_sym_decrypt_bytea(bytea, text)
  RETURNS bytea
  LANGUAGE c
  IMMUTABLE PARALLEL SAFE STRICT
@@ -1546,7 +1524,7 @@ AS '$libdir/pgcrypto', $function$pgp_sym_encrypt_text$function$
 
 
 -- Function: extensions.pgp_sym_encrypt_bytea
-CREATE OR REPLACE FUNCTION extensions.pgp_sym_encrypt_bytea(bytea, text)
+CREATE OR REPLACE FUNCTION extensions.pgp_sym_encrypt_bytea(bytea, text, text)
  RETURNS bytea
  LANGUAGE c
  PARALLEL SAFE STRICT
@@ -1554,7 +1532,7 @@ AS '$libdir/pgcrypto', $function$pgp_sym_encrypt_bytea$function$
 
 
 -- Function: extensions.pgp_sym_encrypt_bytea
-CREATE OR REPLACE FUNCTION extensions.pgp_sym_encrypt_bytea(bytea, text, text)
+CREATE OR REPLACE FUNCTION extensions.pgp_sym_encrypt_bytea(bytea, text)
  RETURNS bytea
  LANGUAGE c
  PARALLEL SAFE STRICT
@@ -1845,352 +1823,35 @@ AS $function$
 $function$
 
 
--- Function: graphql._internal_resolve
-CREATE OR REPLACE FUNCTION graphql._internal_resolve(query text, variables jsonb DEFAULT '{}'::jsonb, "operationName" text DEFAULT NULL::text, extensions jsonb DEFAULT NULL::jsonb)
- RETURNS jsonb
- LANGUAGE c
-AS '$libdir/pg_graphql', $function$resolve_wrapper$function$
-
-
--- Function: graphql.comment_directive
-CREATE OR REPLACE FUNCTION graphql.comment_directive(comment_ text)
- RETURNS jsonb
- LANGUAGE sql
- IMMUTABLE
-AS $function$
-    /*
-    comment on column public.account.name is '@graphql.name: myField'
-    */
-    select
-        coalesce(
-            (
-                regexp_match(
-                    comment_,
-                    '@graphql\((.+)\)'
-                )
-            )[1]::jsonb,
-            jsonb_build_object()
-        )
-$function$
-
-
--- Function: graphql.exception
-CREATE OR REPLACE FUNCTION graphql.exception(message text)
- RETURNS text
- LANGUAGE plpgsql
-AS $function$
-begin
-    raise exception using errcode='22000', message=message;
-end;
-$function$
-
-
--- Function: graphql.get_schema_version
-CREATE OR REPLACE FUNCTION graphql.get_schema_version()
- RETURNS integer
- LANGUAGE sql
- SECURITY DEFINER
-AS $function$
-    select last_value from graphql.seq_schema_version;
-$function$
-
-
--- Function: graphql.increment_schema_version
-CREATE OR REPLACE FUNCTION graphql.increment_schema_version()
- RETURNS event_trigger
- LANGUAGE plpgsql
- SECURITY DEFINER
-AS $function$
-begin
-    perform pg_catalog.nextval('graphql.seq_schema_version');
-end;
-$function$
-
-
--- Function: graphql.resolve
-CREATE OR REPLACE FUNCTION graphql.resolve(query text, variables jsonb DEFAULT '{}'::jsonb, "operationName" text DEFAULT NULL::text, extensions jsonb DEFAULT NULL::jsonb)
- RETURNS jsonb
- LANGUAGE plpgsql
-AS $function$
-declare
-    res jsonb;
-    message_text text;
-begin
-  begin
-    select graphql._internal_resolve("query" := "query",
-                                     "variables" := "variables",
-                                     "operationName" := "operationName",
-                                     "extensions" := "extensions") into res;
-    return res;
-  exception
-    when others then
-    get stacked diagnostics message_text = message_text;
-    return
-    jsonb_build_object('data', null,
-                       'errors', jsonb_build_array(jsonb_build_object('message', message_text)));
-  end;
-end;
-$function$
-
-
 -- Function: graphql_public.graphql
 CREATE OR REPLACE FUNCTION graphql_public.graphql("operationName" text DEFAULT NULL::text, query text DEFAULT NULL::text, variables jsonb DEFAULT NULL::jsonb, extensions jsonb DEFAULT NULL::jsonb)
  RETURNS jsonb
- LANGUAGE sql
+ LANGUAGE plpgsql
 AS $function$
-            select graphql.resolve(
-                query := query,
-                variables := coalesce(variables, '{}'),
-                "operationName" := "operationName",
-                extensions := extensions
-            );
+            DECLARE
+                server_version float;
+            BEGIN
+                server_version = (SELECT (SPLIT_PART((select version()), ' ', 2))::float);
+
+                IF server_version >= 14 THEN
+                    RETURN jsonb_build_object(
+                        'errors', jsonb_build_array(
+                            jsonb_build_object(
+                                'message', 'pg_graphql extension is not enabled.'
+                            )
+                        )
+                    );
+                ELSE
+                    RETURN jsonb_build_object(
+                        'errors', jsonb_build_array(
+                            jsonb_build_object(
+                                'message', 'pg_graphql is only available on projects running Postgres 14 onwards.'
+                            )
+                        )
+                    );
+                END IF;
+            END;
         $function$
-
-
--- Function: net._await_response
-CREATE OR REPLACE FUNCTION net._await_response(request_id bigint)
- RETURNS boolean
- LANGUAGE plpgsql
- PARALLEL SAFE STRICT
-AS $function$
-declare
-    rec net._http_response;
-begin
-    while rec is null loop
-        select *
-        into rec
-        from net._http_response
-        where id = request_id;
-
-        if rec is null then
-            -- Wait 50 ms before checking again
-            perform pg_sleep(0.05);
-        end if;
-    end loop;
-
-    return true;
-end;
-$function$
-
-
--- Function: net._encode_url_with_params_array
-CREATE OR REPLACE FUNCTION net._encode_url_with_params_array(url text, params_array text[])
- RETURNS text
- LANGUAGE c
- IMMUTABLE STRICT
-AS 'pg_net', $function$_encode_url_with_params_array$function$
-
-
--- Function: net._http_collect_response
-CREATE OR REPLACE FUNCTION net._http_collect_response(request_id bigint, async boolean DEFAULT true)
- RETURNS net.http_response_result
- LANGUAGE plpgsql
- PARALLEL SAFE STRICT
-AS $function$
-declare
-    rec net._http_response;
-    req_exists boolean;
-begin
-
-    if not async then
-        perform net._await_response(request_id);
-    end if;
-
-    select *
-    into rec
-    from net._http_response
-    where id = request_id;
-
-    if rec is null or rec.error_msg is not null then
-        -- The request is either still processing or the request_id provided does not exist
-
-        -- TODO: request in progress is indistinguishable from request that doesn't exist
-
-        -- No request matching request_id found
-        return (
-            'ERROR',
-            coalesce(rec.error_msg, 'request matching request_id not found'),
-            null
-        )::net.http_response_result;
-
-    end if;
-
-    -- Return a valid, populated http_response_result
-    return (
-        'SUCCESS',
-        'ok',
-        (
-            rec.status_code,
-            rec.headers,
-            rec.content
-        )::net.http_response
-    )::net.http_response_result;
-end;
-$function$
-
-
--- Function: net._urlencode_string
-CREATE OR REPLACE FUNCTION net._urlencode_string(string character varying)
- RETURNS text
- LANGUAGE c
- IMMUTABLE STRICT
-AS 'pg_net', $function$_urlencode_string$function$
-
-
--- Function: net.check_worker_is_up
--- Description: raises an exception if the pg_net background worker is not up, otherwise it doesn't return anything
-CREATE OR REPLACE FUNCTION net.check_worker_is_up()
- RETURNS void
- LANGUAGE plpgsql
-AS $function$
-begin
-  if not exists (select pid from pg_stat_activity where backend_type ilike '%pg_net%') then
-    raise exception using
-      message = 'the pg_net background worker is not up'
-    , detail  = 'the pg_net background worker is down due to an internal error and cannot process requests'
-    , hint    = 'make sure that you didn''t modify any of pg_net internal tables';
-  end if;
-end
-$function$
-
-
--- Function: net.http_collect_response
-CREATE OR REPLACE FUNCTION net.http_collect_response(request_id bigint, async boolean DEFAULT true)
- RETURNS net.http_response_result
- LANGUAGE plpgsql
- PARALLEL SAFE STRICT
-AS $function$
-begin
-  raise notice 'The net.http_collect_response function is deprecated.';
-  select net._http_collect_response(request_id, async);
-end;
-$function$
-
-
--- Function: net.http_delete
-CREATE OR REPLACE FUNCTION net.http_delete(url text, params jsonb DEFAULT '{}'::jsonb, headers jsonb DEFAULT '{}'::jsonb, timeout_milliseconds integer DEFAULT 5000)
- RETURNS bigint
- LANGUAGE plpgsql
- PARALLEL SAFE STRICT
-AS $function$
-declare
-    request_id bigint;
-    params_array text[];
-begin
-    select coalesce(array_agg(net._urlencode_string(key) || '=' || net._urlencode_string(value)), '{}')
-    into params_array
-    from jsonb_each_text(params);
-
-    -- Add to the request queue
-    insert into net.http_request_queue(method, url, headers, timeout_milliseconds)
-    values (
-        'DELETE',
-        net._encode_url_with_params_array(url, params_array),
-        headers,
-        timeout_milliseconds
-    )
-    returning id
-    into request_id;
-
-    return request_id;
-end
-$function$
-
-
--- Function: net.http_get
-CREATE OR REPLACE FUNCTION net.http_get(url text, params jsonb DEFAULT '{}'::jsonb, headers jsonb DEFAULT '{}'::jsonb, timeout_milliseconds integer DEFAULT 5000)
- RETURNS bigint
- LANGUAGE plpgsql
- PARALLEL SAFE STRICT
- SET search_path TO 'net'
-AS $function$
-declare
-    request_id bigint;
-    params_array text[];
-begin
-    select coalesce(array_agg(net._urlencode_string(key) || '=' || net._urlencode_string(value)), '{}')
-    into params_array
-    from jsonb_each_text(params);
-
-    -- Add to the request queue
-    insert into net.http_request_queue(method, url, headers, timeout_milliseconds)
-    values (
-        'GET',
-        net._encode_url_with_params_array(url, params_array),
-        headers,
-        timeout_milliseconds
-    )
-    returning id
-    into request_id;
-
-    return request_id;
-end
-$function$
-
-
--- Function: net.http_post
-CREATE OR REPLACE FUNCTION net.http_post(url text, body jsonb DEFAULT '{}'::jsonb, params jsonb DEFAULT '{}'::jsonb, headers jsonb DEFAULT '{"Content-Type": "application/json"}'::jsonb, timeout_milliseconds integer DEFAULT 5000)
- RETURNS bigint
- LANGUAGE plpgsql
- PARALLEL SAFE
- SET search_path TO 'net'
-AS $function$
-declare
-    request_id bigint;
-    params_array text[];
-    content_type text;
-begin
-
-    -- Exctract the content_type from headers
-    select
-        header_value into content_type
-    from
-        jsonb_each_text(coalesce(headers, '{}'::jsonb)) r(header_name, header_value)
-    where
-        lower(header_name) = 'content-type'
-    limit
-        1;
-
-    -- If the user provided new headers and omitted the content type
-    -- add it back in automatically
-    if content_type is null then
-        select headers || '{"Content-Type": "application/json"}'::jsonb into headers;
-    end if;
-
-    -- Confirm that the content-type is set as "application/json"
-    if content_type <> 'application/json' then
-        raise exception 'Content-Type header must be "application/json"';
-    end if;
-
-    select
-        coalesce(array_agg(net._urlencode_string(key) || '=' || net._urlencode_string(value)), '{}')
-    into
-        params_array
-    from
-        jsonb_each_text(params);
-
-    -- Add to the request queue
-    insert into net.http_request_queue(method, url, headers, body, timeout_milliseconds)
-    values (
-        'POST',
-        net._encode_url_with_params_array(url, params_array),
-        headers,
-        convert_to(body::text, 'UTF8'),
-        timeout_milliseconds
-    )
-    returning id
-    into request_id;
-
-    return request_id;
-end
-$function$
-
-
--- Function: net.worker_restart
-CREATE OR REPLACE FUNCTION net.worker_restart()
- RETURNS boolean
- LANGUAGE c
-AS 'pg_net', $function$worker_restart$function$
 
 
 -- Function: pgbouncer.get_auth
@@ -2205,6 +1866,48 @@ BEGIN
     RETURN QUERY
     SELECT usename::TEXT, passwd::TEXT FROM pg_catalog.pg_shadow
     WHERE usename = p_usename;
+END;
+$function$
+
+
+-- Function: public.add_invoice_history_entry
+-- Description: Функция для ручного добавления записей в историю счетов
+CREATE OR REPLACE FUNCTION public.add_invoice_history_entry(p_invoice_id integer, p_event_type character varying, p_action character varying, p_description text DEFAULT NULL::text, p_metadata jsonb DEFAULT NULL::jsonb)
+ RETURNS void
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+AS $function$
+DECLARE
+    v_user_id UUID;
+    v_user_name VARCHAR(255);
+    v_user_role VARCHAR(100);
+BEGIN
+    -- Получаем информацию о пользователе
+    v_user_id := auth.uid();
+
+    IF v_user_id IS NOT NULL THEN
+        SELECT u.full_name, r.name
+        INTO v_user_name, v_user_role
+        FROM public.users u
+        LEFT JOIN public.roles r ON u.role_id = r.id
+        WHERE u.id = v_user_id;
+    END IF;
+
+    -- Добавляем запись в историю
+    INSERT INTO public.invoice_history (
+        invoice_id, event_type, action,
+        user_id, user_name, user_role,
+        description, metadata
+    ) VALUES (
+        p_invoice_id,
+        p_event_type,
+        p_action,
+        v_user_id,
+        COALESCE(v_user_name, 'Система'),
+        v_user_role,
+        p_description,
+        p_metadata
+    );
 END;
 $function$
 
@@ -2256,39 +1959,6 @@ BEGIN
         END IF;
     END IF;
 
-    RETURN NEW;
-END;
-$function$
-
-
--- Function: public.ensure_single_default_theme
-CREATE OR REPLACE FUNCTION public.ensure_single_default_theme()
- RETURNS trigger
- LANGUAGE plpgsql
-AS $function$
-BEGIN
-    -- If setting a theme as default, unset other defaults
-    IF NEW.is_default = TRUE AND NEW.is_active = TRUE THEN
-        IF NEW.is_global = TRUE THEN
-            -- Unset other global defaults
-            UPDATE themes 
-            SET is_default = FALSE, updated_at = NOW()
-            WHERE id != NEW.id 
-            AND is_global = TRUE
-            AND is_default = TRUE 
-            AND is_active = TRUE;
-        ELSIF NEW.user_id IS NOT NULL THEN
-            -- Unset other user defaults
-            UPDATE themes 
-            SET is_default = FALSE, updated_at = NOW()
-            WHERE id != NEW.id 
-            AND user_id = NEW.user_id
-            AND is_default = TRUE 
-            AND is_active = TRUE
-            AND is_global = FALSE;
-        END IF;
-    END IF;
-    
     RETURN NEW;
 END;
 $function$
@@ -2377,6 +2047,44 @@ AS $function$
 $function$
 
 
+-- Function: public.get_invoice_history
+CREATE OR REPLACE FUNCTION public.get_invoice_history(p_invoice_id integer)
+ RETURNS TABLE(id bigint, action character varying, action_description text, user_name character varying, user_role character varying, changed_fields text[], comment text, created_at timestamp with time zone, status_from character varying, status_to character varying, workflow_stage_from character varying, workflow_stage_to character varying, invoice_id integer)
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+AS $function$
+BEGIN
+    RETURN QUERY
+    SELECT
+        ial.id,
+        ial.action,
+        CASE
+            WHEN ial.action = 'CREATE' THEN 'Создан счет'
+            WHEN ial.action = 'STATUS_CHANGE' THEN 'Изменен статус: ' || COALESCE(ial.status_from, 'нет') || ' → ' || COALESCE(ial.status_to, 'нет')
+            WHEN ial.action = 'UPDATE' THEN 'Изменены поля: ' || COALESCE(array_to_string(ial.changed_fields, ', '), '')
+            WHEN ial.action = 'DELETE' THEN 'Удален счет'
+            WHEN ial.action = 'COMMENT' THEN 'Добавлен комментарий'
+            ELSE ial.action
+        END::TEXT as action_description,
+        ial.user_name,
+        COALESCE(r.name, 'Неизвестная роль')::VARCHAR(255) as user_role,
+        ial.changed_fields,
+        ial.comment,
+        ial.created_at,
+        ial.status_from,
+        ial.status_to,
+        ial.workflow_stage_from,
+        ial.workflow_stage_to,
+        ial.invoice_id
+    FROM invoice_audit_log ial
+    LEFT JOIN users u ON ial.user_id = u.id
+    LEFT JOIN roles r ON u.role_id = r.id
+    WHERE ial.invoice_id = p_invoice_id
+    ORDER BY ial.created_at DESC;
+END;
+$function$
+
+
 -- Function: public.get_next_invoice_sequence
 CREATE OR REPLACE FUNCTION public.get_next_invoice_sequence(p_org_code character varying, p_proj_code character varying, p_year_month character varying)
  RETURNS integer
@@ -2448,6 +2156,86 @@ END;
 $function$
 
 
+-- Function: public.get_payment_history
+CREATE OR REPLACE FUNCTION public.get_payment_history(p_payment_id integer)
+ RETURNS TABLE(id bigint, action character varying, action_description text, user_name character varying, user_role character varying, changed_fields text[], comment text, created_at timestamp with time zone, status_from character varying, status_to character varying, amount_from numeric, amount_to numeric, payment_id integer, invoice_id integer)
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+AS $function$
+BEGIN
+    RETURN QUERY
+    SELECT
+        pal.id,
+        pal.action,
+        CASE
+            WHEN pal.action = 'CREATE' THEN 'Создан платеж на сумму ' || COALESCE(pal.amount_to::TEXT, '0')
+            WHEN pal.action = 'STATUS_CHANGE' THEN 'Изменен статус: ' || COALESCE(pal.status_from, 'нет') || ' → ' || COALESCE(pal.status_to, 'нет')
+            WHEN pal.action = 'AMOUNT_CHANGE' THEN 'Изменена сумма: ' || COALESCE(pal.amount_from::TEXT, '0') || ' → ' || COALESCE(pal.amount_to::TEXT, '0')
+            WHEN pal.action = 'UPDATE' THEN 'Изменены поля: ' || COALESCE(array_to_string(pal.changed_fields, ', '), '')
+            WHEN pal.action = 'DELETE' THEN 'Удален платеж'
+            WHEN pal.action = 'COMMENT' THEN 'Добавлен комментарий'
+            ELSE pal.action
+        END::TEXT as action_description,
+        pal.user_name,
+        COALESCE(r.name, 'Неизвестная роль')::VARCHAR(255) as user_role,
+        pal.changed_fields,
+        pal.comment,
+        pal.created_at,
+        pal.status_from,
+        pal.status_to,
+        pal.amount_from,
+        pal.amount_to,
+        pal.payment_id,
+        pal.invoice_id
+    FROM payment_audit_log pal
+    LEFT JOIN users u ON pal.user_id = u.id
+    LEFT JOIN roles r ON u.role_id = r.id
+    WHERE pal.payment_id = p_payment_id
+    ORDER BY pal.created_at DESC;
+END;
+$function$
+
+
+-- Function: public.get_payment_history_by_invoice
+CREATE OR REPLACE FUNCTION public.get_payment_history_by_invoice(p_invoice_id integer)
+ RETURNS TABLE(id bigint, action character varying, action_description text, user_name character varying, user_role character varying, changed_fields text[], comment text, created_at timestamp with time zone, status_from character varying, status_to character varying, amount_from numeric, amount_to numeric, payment_id integer, invoice_id integer)
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+AS $function$
+BEGIN
+    RETURN QUERY
+    SELECT
+        pal.id,
+        pal.action,
+        CASE
+            WHEN pal.action = 'CREATE' THEN 'Создан платеж на сумму ' || COALESCE(pal.amount_to::TEXT, '0')
+            WHEN pal.action = 'STATUS_CHANGE' THEN 'Изменен статус: ' || COALESCE(pal.status_from, 'нет') || ' → ' || COALESCE(pal.status_to, 'нет')
+            WHEN pal.action = 'AMOUNT_CHANGE' THEN 'Изменена сумма: ' || COALESCE(pal.amount_from::TEXT, '0') || ' → ' || COALESCE(pal.amount_to::TEXT, '0')
+            WHEN pal.action = 'UPDATE' THEN 'Изменены поля: ' || COALESCE(array_to_string(pal.changed_fields, ', '), '')
+            WHEN pal.action = 'DELETE' THEN 'Удален платеж'
+            WHEN pal.action = 'COMMENT' THEN 'Добавлен комментарий'
+            ELSE pal.action
+        END::TEXT as action_description,
+        pal.user_name,
+        COALESCE(r.name, 'Неизвестная роль')::VARCHAR(255) as user_role,
+        pal.changed_fields,
+        pal.comment,
+        pal.created_at,
+        pal.status_from,
+        pal.status_to,
+        pal.amount_from,
+        pal.amount_to,
+        pal.payment_id,
+        pal.invoice_id
+    FROM payment_audit_log pal
+    LEFT JOIN users u ON pal.user_id = u.id
+    LEFT JOIN roles r ON u.role_id = r.id
+    WHERE pal.invoice_id = p_invoice_id
+    ORDER BY pal.created_at DESC;
+END;
+$function$
+
+
 -- Function: public.get_statuses_by_entity_type
 CREATE OR REPLACE FUNCTION public.get_statuses_by_entity_type(p_entity_type text)
  RETURNS TABLE(id bigint, code text, name text, color text, is_final boolean, is_active boolean, order_index integer, description text)
@@ -2495,126 +2283,6 @@ BEGIN
     RETURN v_workflow_id;
 END;
 $function$
-
-
--- Function: public.gin_extract_query_trgm
-CREATE OR REPLACE FUNCTION public.gin_extract_query_trgm(text, internal, smallint, internal, internal, internal, internal)
- RETURNS internal
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$gin_extract_query_trgm$function$
-
-
--- Function: public.gin_extract_value_trgm
-CREATE OR REPLACE FUNCTION public.gin_extract_value_trgm(text, internal)
- RETURNS internal
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$gin_extract_value_trgm$function$
-
-
--- Function: public.gin_trgm_consistent
-CREATE OR REPLACE FUNCTION public.gin_trgm_consistent(internal, smallint, text, integer, internal, internal, internal, internal)
- RETURNS boolean
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$gin_trgm_consistent$function$
-
-
--- Function: public.gin_trgm_triconsistent
-CREATE OR REPLACE FUNCTION public.gin_trgm_triconsistent(internal, smallint, text, integer, internal, internal, internal)
- RETURNS "char"
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$gin_trgm_triconsistent$function$
-
-
--- Function: public.gtrgm_compress
-CREATE OR REPLACE FUNCTION public.gtrgm_compress(internal)
- RETURNS internal
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$gtrgm_compress$function$
-
-
--- Function: public.gtrgm_consistent
-CREATE OR REPLACE FUNCTION public.gtrgm_consistent(internal, text, smallint, oid, internal)
- RETURNS boolean
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$gtrgm_consistent$function$
-
-
--- Function: public.gtrgm_decompress
-CREATE OR REPLACE FUNCTION public.gtrgm_decompress(internal)
- RETURNS internal
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$gtrgm_decompress$function$
-
-
--- Function: public.gtrgm_distance
-CREATE OR REPLACE FUNCTION public.gtrgm_distance(internal, text, smallint, oid, internal)
- RETURNS double precision
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$gtrgm_distance$function$
-
-
--- Function: public.gtrgm_in
-CREATE OR REPLACE FUNCTION public.gtrgm_in(cstring)
- RETURNS gtrgm
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$gtrgm_in$function$
-
-
--- Function: public.gtrgm_options
-CREATE OR REPLACE FUNCTION public.gtrgm_options(internal)
- RETURNS void
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE
-AS '$libdir/pg_trgm', $function$gtrgm_options$function$
-
-
--- Function: public.gtrgm_out
-CREATE OR REPLACE FUNCTION public.gtrgm_out(gtrgm)
- RETURNS cstring
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$gtrgm_out$function$
-
-
--- Function: public.gtrgm_penalty
-CREATE OR REPLACE FUNCTION public.gtrgm_penalty(internal, internal, internal)
- RETURNS internal
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$gtrgm_penalty$function$
-
-
--- Function: public.gtrgm_picksplit
-CREATE OR REPLACE FUNCTION public.gtrgm_picksplit(internal, internal)
- RETURNS internal
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$gtrgm_picksplit$function$
-
-
--- Function: public.gtrgm_same
-CREATE OR REPLACE FUNCTION public.gtrgm_same(gtrgm, gtrgm, internal)
- RETURNS internal
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$gtrgm_same$function$
-
-
--- Function: public.gtrgm_union
-CREATE OR REPLACE FUNCTION public.gtrgm_union(internal, internal)
- RETURNS gtrgm
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$gtrgm_union$function$
 
 
 -- Function: public.handle_new_user
@@ -2674,40 +2342,6 @@ end;
 $function$
 
 
--- Function: public.search_contractors
-CREATE OR REPLACE FUNCTION public.search_contractors(search_query text, result_limit integer DEFAULT 10)
- RETURNS TABLE(id uuid, name text, inn text, is_active boolean)
- LANGUAGE plpgsql
-AS $function$
-BEGIN
-  RETURN QUERY
-  SELECT 
-    c.id,
-    c.name,
-    c.inn,
-    c.is_active
-  FROM contractors c
-  WHERE 
-    c.is_active = true
-    AND (
-      c.contractor_search @@ plainto_tsquery('russian', search_query)
-      OR c.name ILIKE '%' || search_query || '%'
-      OR c.inn ILIKE '%' || search_query || '%'
-    )
-  ORDER BY 
-    -- Prioritize exact matches
-    CASE 
-      WHEN c.name ILIKE search_query THEN 1
-      WHEN c.inn = search_query THEN 1
-      WHEN c.name ILIKE search_query || '%' THEN 2
-      ELSE 3
-    END,
-    c.name
-  LIMIT result_limit;
-END;
-$function$
-
-
 -- Function: public.set_default_user_role
 CREATE OR REPLACE FUNCTION public.set_default_user_role()
  RETURNS trigger
@@ -2740,66 +2374,6 @@ BEGIN
   RETURN NEW;
 END;
 $function$
-
-
--- Function: public.set_limit
-CREATE OR REPLACE FUNCTION public.set_limit(real)
- RETURNS real
- LANGUAGE c
- STRICT
-AS '$libdir/pg_trgm', $function$set_limit$function$
-
-
--- Function: public.set_updated_at
-CREATE OR REPLACE FUNCTION public.set_updated_at()
- RETURNS trigger
- LANGUAGE plpgsql
-AS $function$
-begin
-  new.updated_at = now();
-  return new;
-end;
-$function$
-
-
--- Function: public.show_limit
-CREATE OR REPLACE FUNCTION public.show_limit()
- RETURNS real
- LANGUAGE c
- STABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$show_limit$function$
-
-
--- Function: public.show_trgm
-CREATE OR REPLACE FUNCTION public.show_trgm(text)
- RETURNS text[]
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$show_trgm$function$
-
-
--- Function: public.similarity
-CREATE OR REPLACE FUNCTION public.similarity(text, text)
- RETURNS real
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$similarity$function$
-
-
--- Function: public.similarity_dist
-CREATE OR REPLACE FUNCTION public.similarity_dist(text, text)
- RETURNS real
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$similarity_dist$function$
-
-
--- Function: public.similarity_op
-CREATE OR REPLACE FUNCTION public.similarity_op(text, text)
- RETURNS boolean
- LANGUAGE c
- STABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$similarity_op$function$
 
 
 -- Function: public.start_payment_workflow_simple
@@ -2855,61 +2429,521 @@ END;
 $function$
 
 
--- Function: public.strict_word_similarity
-CREATE OR REPLACE FUNCTION public.strict_word_similarity(text, text)
- RETURNS real
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$strict_word_similarity$function$
-
-
--- Function: public.strict_word_similarity_commutator_op
-CREATE OR REPLACE FUNCTION public.strict_word_similarity_commutator_op(text, text)
- RETURNS boolean
- LANGUAGE c
- STABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$strict_word_similarity_commutator_op$function$
-
-
--- Function: public.strict_word_similarity_dist_commutator_op
-CREATE OR REPLACE FUNCTION public.strict_word_similarity_dist_commutator_op(text, text)
- RETURNS real
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$strict_word_similarity_dist_commutator_op$function$
-
-
--- Function: public.strict_word_similarity_dist_op
-CREATE OR REPLACE FUNCTION public.strict_word_similarity_dist_op(text, text)
- RETURNS real
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$strict_word_similarity_dist_op$function$
-
-
--- Function: public.strict_word_similarity_op
-CREATE OR REPLACE FUNCTION public.strict_word_similarity_op(text, text)
- RETURNS boolean
- LANGUAGE c
- STABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$strict_word_similarity_op$function$
-
-
--- Function: public.update_themes_updated_at
-CREATE OR REPLACE FUNCTION public.update_themes_updated_at()
+-- Function: public.track_document_changes
+CREATE OR REPLACE FUNCTION public.track_document_changes()
  RETURNS trigger
  LANGUAGE plpgsql
+ SECURITY DEFINER
 AS $function$
+DECLARE
+    v_user_id UUID;
+    v_user_name VARCHAR(255);
+    v_user_role VARCHAR(100);
+    v_invoice_id INTEGER;
+    v_attachment_info RECORD;
 BEGIN
-    NEW.updated_at = NOW();
-    -- Try to set updated_by if auth.uid() works
-    BEGIN
-        NEW.updated_by = auth.uid();
-    EXCEPTION WHEN OTHERS THEN
-        -- Ignore if auth.uid() fails
-        NULL;
-    END;
-    RETURN NEW;
+    -- Получаем информацию о текущем пользователе
+    v_user_id := auth.uid();
+
+    IF v_user_id IS NOT NULL THEN
+        SELECT u.full_name, r.name
+        INTO v_user_name, v_user_role
+        FROM public.users u
+        LEFT JOIN public.roles r ON u.role_id = r.id
+        WHERE u.id = v_user_id;
+    END IF;
+
+    IF TG_OP = 'DELETE' THEN
+        v_invoice_id := OLD.invoice_id;
+
+        -- Получаем информацию о файле из таблицы attachments
+        SELECT original_name, size_bytes, mime_type
+        INTO v_attachment_info
+        FROM public.attachments
+        WHERE id = OLD.attachment_id;
+
+        INSERT INTO public.invoice_history (
+            invoice_id,
+            document_id,
+            attachment_id,
+            event_type,
+            action,
+            user_id,
+            user_name,
+            user_role,
+            old_values,
+            description,
+            metadata
+        ) VALUES (
+            v_invoice_id,
+            OLD.id,
+            OLD.attachment_id,
+            'DOCUMENT_REMOVED',
+            'Документ удален',
+            v_user_id,
+            COALESCE(v_user_name, 'Система'),
+            v_user_role,
+            to_jsonb(OLD),
+            'Удален документ: ' || COALESCE(v_attachment_info.original_name, 'без имени'),
+            jsonb_build_object(
+                'file_name', v_attachment_info.original_name,
+                'file_size', v_attachment_info.size_bytes,
+                'mime_type', v_attachment_info.mime_type,
+                'attachment_id', OLD.attachment_id,
+                'deleted_at', NOW()
+            )
+        );
+        RETURN OLD;
+
+    ELSIF TG_OP = 'INSERT' THEN
+        -- Получаем информацию о файле из таблицы attachments
+        SELECT original_name, size_bytes, mime_type
+        INTO v_attachment_info
+        FROM public.attachments
+        WHERE id = NEW.attachment_id;
+
+        INSERT INTO public.invoice_history (
+            invoice_id,
+            document_id,
+            attachment_id,
+            event_type,
+            action,
+            user_id,
+            user_name,
+            user_role,
+            new_values,
+            description,
+            metadata
+        ) VALUES (
+            NEW.invoice_id,
+            NEW.id,
+            NEW.attachment_id,
+            'DOCUMENT_ADDED',
+            'Документ добавлен',
+            v_user_id,
+            COALESCE(v_user_name, 'Система'),
+            v_user_role,
+            to_jsonb(NEW),
+            'Добавлен документ: ' || COALESCE(v_attachment_info.original_name, 'без имени'),
+            jsonb_build_object(
+                'file_name', v_attachment_info.original_name,
+                'file_size', v_attachment_info.size_bytes,
+                'mime_type', v_attachment_info.mime_type,
+                'attachment_id', NEW.attachment_id
+            )
+        );
+        RETURN NEW;
+    END IF;
+
+    RETURN NULL;
+END;
+$function$
+
+
+-- Function: public.track_invoice_changes
+CREATE OR REPLACE FUNCTION public.track_invoice_changes()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+AS $function$
+DECLARE
+    v_user_id UUID;
+    v_user_name VARCHAR(255);
+    v_user_role VARCHAR(100);
+    v_changed_fields JSONB;
+    v_old_values JSONB;
+    v_new_values JSONB;
+    v_invoice_id INTEGER;
+    v_field_names TEXT;
+BEGIN
+    -- Получаем информацию о текущем пользователе
+    v_user_id := auth.uid();
+
+    IF v_user_id IS NOT NULL THEN
+        SELECT u.full_name, r.name
+        INTO v_user_name, v_user_role
+        FROM public.users u
+        LEFT JOIN public.roles r ON u.role_id = r.id
+        WHERE u.id = v_user_id;
+    END IF;
+
+    IF TG_OP = 'DELETE' THEN
+        -- При удалении записываем ID счета
+        v_invoice_id := OLD.id;
+
+        -- Записываем в историю перед удалением
+        INSERT INTO public.invoice_history (
+            invoice_id,
+            event_type,
+            action,
+            user_id,
+            user_name,
+            user_role,
+            status_from,
+            amount_from,
+            old_values,
+            description,
+            metadata,
+            created_at
+        ) VALUES (
+            v_invoice_id,
+            'INVOICE_DELETED',
+            'Счет удален',
+            v_user_id,
+            COALESCE(v_user_name, 'Система'),
+            v_user_role,
+            OLD.status,
+            OLD.total_amount,
+            to_jsonb(OLD),
+            'Удален счет №' || OLD.invoice_number,
+            jsonb_build_object(
+                'invoice_number', OLD.invoice_number,
+                'internal_number', OLD.internal_number,
+                'supplier_id', OLD.supplier_id,
+                'payer_id', OLD.payer_id,
+                'project_id', OLD.project_id,
+                'deleted_at', NOW()
+            ),
+            NOW()
+        );
+
+        -- Возвращаем OLD для продолжения удаления
+        RETURN OLD;
+
+    ELSIF TG_OP = 'INSERT' THEN
+        -- Запись о создании счета
+        INSERT INTO public.invoice_history (
+            invoice_id,
+            event_type,
+            action,
+            user_id,
+            user_name,
+            user_role,
+            status_to,
+            amount_to,
+            currency,
+            new_values,
+            description
+        ) VALUES (
+            NEW.id,
+            'INVOICE_CREATED',
+            'Счет создан',
+            v_user_id,
+            COALESCE(v_user_name, 'Система'),
+            v_user_role,
+            NEW.status,
+            NEW.total_amount,
+            NEW.currency,
+            to_jsonb(NEW),
+            'Создан новый счет №' || NEW.invoice_number
+        );
+
+    ELSIF TG_OP = 'UPDATE' THEN
+        -- Проверяем изменение статуса
+        IF OLD.status IS DISTINCT FROM NEW.status THEN
+            INSERT INTO public.invoice_history (
+                invoice_id,
+                event_type,
+                action,
+                user_id,
+                user_name,
+                user_role,
+                status_from,
+                status_to,
+                description
+            ) VALUES (
+                NEW.id,
+                'STATUS_CHANGED',
+                'Изменен статус счета',
+                v_user_id,
+                COALESCE(v_user_name, 'Система'),
+                v_user_role,
+                OLD.status,
+                NEW.status,
+                'Статус изменен с "' || COALESCE(OLD.status, 'нет') || '" на "' || NEW.status || '"'
+            );
+        END IF;
+
+        -- Собираем информацию об измененных полях
+        v_changed_fields := '{}';
+        v_old_values := '{}';
+        v_new_values := '{}';
+
+        -- Проверяем важные поля
+        IF OLD.total_amount IS DISTINCT FROM NEW.total_amount THEN
+            v_changed_fields := v_changed_fields || jsonb_build_object('total_amount', true);
+            v_old_values := v_old_values || jsonb_build_object('total_amount', OLD.total_amount);
+            v_new_values := v_new_values || jsonb_build_object('total_amount', NEW.total_amount);
+        END IF;
+
+        IF OLD.supplier_id IS DISTINCT FROM NEW.supplier_id THEN
+            v_changed_fields := v_changed_fields || jsonb_build_object('supplier_id', true);
+            v_old_values := v_old_values || jsonb_build_object('supplier_id', OLD.supplier_id);
+            v_new_values := v_new_values || jsonb_build_object('supplier_id', NEW.supplier_id);
+        END IF;
+
+        IF OLD.payer_id IS DISTINCT FROM NEW.payer_id THEN
+            v_changed_fields := v_changed_fields || jsonb_build_object('payer_id', true);
+            v_old_values := v_old_values || jsonb_build_object('payer_id', OLD.payer_id);
+            v_new_values := v_new_values || jsonb_build_object('payer_id', NEW.payer_id);
+        END IF;
+
+        IF OLD.project_id IS DISTINCT FROM NEW.project_id THEN
+            v_changed_fields := v_changed_fields || jsonb_build_object('project_id', true);
+            v_old_values := v_old_values || jsonb_build_object('project_id', OLD.project_id);
+            v_new_values := v_new_values || jsonb_build_object('project_id', NEW.project_id);
+        END IF;
+
+        IF OLD.description IS DISTINCT FROM NEW.description THEN
+            v_changed_fields := v_changed_fields || jsonb_build_object('description', true);
+            v_old_values := v_old_values || jsonb_build_object('description', OLD.description);
+            v_new_values := v_new_values || jsonb_build_object('description', NEW.description);
+        END IF;
+
+        -- Проверяем дополнительные поля
+        IF OLD.invoice_number IS DISTINCT FROM NEW.invoice_number THEN
+            v_changed_fields := v_changed_fields || jsonb_build_object('invoice_number', true);
+            v_old_values := v_old_values || jsonb_build_object('invoice_number', OLD.invoice_number);
+            v_new_values := v_new_values || jsonb_build_object('invoice_number', NEW.invoice_number);
+        END IF;
+
+        IF OLD.invoice_date IS DISTINCT FROM NEW.invoice_date THEN
+            v_changed_fields := v_changed_fields || jsonb_build_object('invoice_date', true);
+            v_old_values := v_old_values || jsonb_build_object('invoice_date', OLD.invoice_date);
+            v_new_values := v_new_values || jsonb_build_object('invoice_date', NEW.invoice_date);
+        END IF;
+
+        IF OLD.currency IS DISTINCT FROM NEW.currency THEN
+            v_changed_fields := v_changed_fields || jsonb_build_object('currency', true);
+            v_old_values := v_old_values || jsonb_build_object('currency', OLD.currency);
+            v_new_values := v_new_values || jsonb_build_object('currency', NEW.currency);
+        END IF;
+
+        IF OLD.vat_rate IS DISTINCT FROM NEW.vat_rate THEN
+            v_changed_fields := v_changed_fields || jsonb_build_object('vat_rate', true);
+            v_old_values := v_old_values || jsonb_build_object('vat_rate', OLD.vat_rate);
+            v_new_values := v_new_values || jsonb_build_object('vat_rate', NEW.vat_rate);
+        END IF;
+
+        IF OLD.priority IS DISTINCT FROM NEW.priority THEN
+            v_changed_fields := v_changed_fields || jsonb_build_object('priority', true);
+            v_old_values := v_old_values || jsonb_build_object('priority', OLD.priority);
+            v_new_values := v_new_values || jsonb_build_object('priority', NEW.priority);
+        END IF;
+
+        -- Если были изменения полей (кроме статуса)
+        IF v_changed_fields != '{}' THEN
+            -- Формируем список измененных полей более безопасным способом
+            SELECT string_agg(field_name, ', ')
+            INTO v_field_names
+            FROM jsonb_object_keys(v_changed_fields) AS field_name;
+
+            INSERT INTO public.invoice_history (
+                invoice_id,
+                event_type,
+                action,
+                user_id,
+                user_name,
+                user_role,
+                changed_fields,
+                old_values,
+                new_values,
+                amount_from,
+                amount_to,
+                description
+            ) VALUES (
+                NEW.id,
+                'INVOICE_UPDATED',
+                'Счет изменен',
+                v_user_id,
+                COALESCE(v_user_name, 'Система'),
+                v_user_role,
+                v_changed_fields,
+                v_old_values,
+                v_new_values,
+                OLD.total_amount,
+                NEW.total_amount,
+                'Изменены поля: ' || COALESCE(v_field_names, 'нет')
+            );
+        END IF;
+    END IF;
+
+    -- Для INSERT и UPDATE возвращаем NEW
+    IF TG_OP != 'DELETE' THEN
+        RETURN NEW;
+    END IF;
+
+    -- Этот код не должен выполняться, но на всякий случай
+    RETURN NULL;
+END;
+$function$
+
+
+-- Function: public.track_payment_changes
+CREATE OR REPLACE FUNCTION public.track_payment_changes()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+AS $function$
+DECLARE
+    v_user_id UUID;
+    v_user_name VARCHAR(255);
+    v_user_role VARCHAR(100);
+    v_invoice_id INTEGER;
+    v_currency VARCHAR(10);
+BEGIN
+    -- Получаем информацию о текущем пользователе
+    v_user_id := auth.uid();
+
+    IF v_user_id IS NOT NULL THEN
+        SELECT u.full_name, r.name
+        INTO v_user_name, v_user_role
+        FROM public.users u
+        LEFT JOIN public.roles r ON u.role_id = r.id
+        WHERE u.id = v_user_id;
+    END IF;
+
+    IF TG_OP = 'DELETE' THEN
+        v_invoice_id := OLD.invoice_id;
+
+        -- Получаем валюту из связанного счета
+        SELECT currency INTO v_currency FROM public.invoices WHERE id = v_invoice_id;
+
+        INSERT INTO public.invoice_history (
+            invoice_id,
+            payment_id,
+            event_type,
+            action,
+            user_id,
+            user_name,
+            user_role,
+            status_from,
+            amount_from,
+            currency,
+            old_values,
+            description,
+            metadata
+        ) VALUES (
+            v_invoice_id,
+            OLD.id,
+            'PAYMENT_DELETED',
+            'Платеж удален',
+            v_user_id,
+            COALESCE(v_user_name, 'Система'),
+            v_user_role,
+            OLD.status,
+            OLD.total_amount,  -- Используем total_amount вместо amount
+            v_currency,
+            to_jsonb(OLD),
+            'Удален платеж №' || COALESCE(OLD.internal_number, OLD.id::text),
+            jsonb_build_object(
+                'payment_id', OLD.id,
+                'payment_type', OLD.payment_type,
+                'deleted_at', NOW()
+            )
+        );
+        RETURN OLD;
+
+    ELSIF TG_OP = 'INSERT' THEN
+        -- Получаем валюту из связанного счета
+        SELECT currency INTO v_currency FROM public.invoices WHERE id = NEW.invoice_id;
+
+        INSERT INTO public.invoice_history (
+            invoice_id,
+            payment_id,
+            event_type,
+            action,
+            user_id,
+            user_name,
+            user_role,
+            status_to,
+            amount_to,
+            currency,
+            new_values,
+            description,
+            metadata
+        ) VALUES (
+            NEW.invoice_id,
+            NEW.id,
+            'PAYMENT_CREATED',
+            'Платеж создан',
+            v_user_id,
+            COALESCE(v_user_name, 'Система'),
+            v_user_role,
+            NEW.status,
+            NEW.total_amount,  -- Используем total_amount вместо amount
+            v_currency,
+            to_jsonb(NEW),
+            'Создан платеж №' || COALESCE(NEW.internal_number, NEW.id::text),
+            jsonb_build_object(
+                'payment_type', NEW.payment_type,
+                'payer_id', NEW.payer_id,
+                'created_at', NOW()
+            )
+        );
+        RETURN NEW;
+
+    ELSIF TG_OP = 'UPDATE' THEN
+        -- Получаем валюту из связанного счета
+        SELECT currency INTO v_currency FROM public.invoices WHERE id = NEW.invoice_id;
+
+        IF OLD.status IS DISTINCT FROM NEW.status THEN
+            INSERT INTO public.invoice_history (
+                invoice_id,
+                payment_id,
+                event_type,
+                action,
+                user_id,
+                user_name,
+                user_role,
+                status_from,
+                status_to,
+                description
+            ) VALUES (
+                NEW.invoice_id,
+                NEW.id,
+                'PAYMENT_STATUS_CHANGED',
+                'Изменен статус платежа',
+                v_user_id,
+                COALESCE(v_user_name, 'Система'),
+                v_user_role,
+                OLD.status,
+                NEW.status,
+                'Статус платежа изменен с "' || COALESCE(OLD.status, 'нет') || '" на "' || NEW.status || '"'
+            );
+        END IF;
+
+        IF OLD.total_amount IS DISTINCT FROM NEW.total_amount THEN
+            INSERT INTO public.invoice_history (
+                invoice_id,
+                payment_id,
+                event_type,
+                action,
+                user_id,
+                user_name,
+                user_role,
+                amount_from,
+                amount_to,
+                currency,
+                description
+            ) VALUES (
+                NEW.invoice_id,
+                NEW.id,
+                'PAYMENT_AMOUNT_CHANGED',
+                'Изменена сумма платежа',
+                v_user_id,
+                COALESCE(v_user_name, 'Система'),
+                v_user_role,
+                OLD.total_amount,  -- Используем total_amount вместо amount
+                NEW.total_amount,  -- Используем total_amount вместо amount
+                v_currency,
+                'Сумма платежа изменена с ' || OLD.total_amount || ' на ' || NEW.total_amount
+            );
+        END IF;
+        RETURN NEW;
+    END IF;
+
+    RETURN NULL;
 END;
 $function$
 
@@ -2927,18 +2961,6 @@ END;
 $function$
 
 
--- Function: public.update_updated_at_column
-CREATE OR REPLACE FUNCTION public.update_updated_at_column()
- RETURNS trigger
- LANGUAGE plpgsql
-AS $function$
-BEGIN
-  NEW.updated_at = NOW();
-  RETURN NEW;
-END;
-$function$
-
-
 -- Function: public.user_has_role
 CREATE OR REPLACE FUNCTION public.user_has_role(check_role text)
  RETURNS boolean
@@ -2952,46 +2974,6 @@ AS $function$
         AND is_active = true
     );
 $function$
-
-
--- Function: public.word_similarity
-CREATE OR REPLACE FUNCTION public.word_similarity(text, text)
- RETURNS real
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$word_similarity$function$
-
-
--- Function: public.word_similarity_commutator_op
-CREATE OR REPLACE FUNCTION public.word_similarity_commutator_op(text, text)
- RETURNS boolean
- LANGUAGE c
- STABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$word_similarity_commutator_op$function$
-
-
--- Function: public.word_similarity_dist_commutator_op
-CREATE OR REPLACE FUNCTION public.word_similarity_dist_commutator_op(text, text)
- RETURNS real
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$word_similarity_dist_commutator_op$function$
-
-
--- Function: public.word_similarity_dist_op
-CREATE OR REPLACE FUNCTION public.word_similarity_dist_op(text, text)
- RETURNS real
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$word_similarity_dist_op$function$
-
-
--- Function: public.word_similarity_op
-CREATE OR REPLACE FUNCTION public.word_similarity_op(text, text)
- RETURNS boolean
- LANGUAGE c
- STABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$word_similarity_op$function$
 
 
 -- Function: realtime.apply_rls
@@ -4434,6 +4416,21 @@ CREATE TRIGGER on_auth_user_created AFTER INSERT ON auth.users FOR EACH ROW EXEC
 -- Trigger: update_contractors_updated_at on public.contractors
 CREATE TRIGGER update_contractors_updated_at BEFORE UPDATE ON public.contractors FOR EACH ROW EXECUTE FUNCTION update_updated_at()
 
+-- Trigger: document_history_trigger_after_insert on public.invoice_documents
+CREATE TRIGGER document_history_trigger_after_insert AFTER INSERT ON public.invoice_documents FOR EACH ROW EXECUTE FUNCTION track_document_changes()
+
+-- Trigger: document_history_trigger_before_delete on public.invoice_documents
+CREATE TRIGGER document_history_trigger_before_delete BEFORE DELETE ON public.invoice_documents FOR EACH ROW EXECUTE FUNCTION track_document_changes()
+
+-- Trigger: invoice_history_trigger_after_insert on public.invoices
+CREATE TRIGGER invoice_history_trigger_after_insert AFTER INSERT ON public.invoices FOR EACH ROW EXECUTE FUNCTION track_invoice_changes()
+
+-- Trigger: invoice_history_trigger_after_update on public.invoices
+CREATE TRIGGER invoice_history_trigger_after_update AFTER UPDATE ON public.invoices FOR EACH ROW EXECUTE FUNCTION track_invoice_changes()
+
+-- Trigger: invoice_history_trigger_before_delete on public.invoices
+CREATE TRIGGER invoice_history_trigger_before_delete BEFORE DELETE ON public.invoices FOR EACH ROW EXECUTE FUNCTION track_invoice_changes()
+
 -- Trigger: trigger_recalc_invoice_amounts on public.invoices
 CREATE TRIGGER trigger_recalc_invoice_amounts BEFORE INSERT OR UPDATE ON public.invoices FOR EACH ROW EXECUTE FUNCTION fn_recalc_invoice_amounts()
 
@@ -4441,10 +4438,19 @@ CREATE TRIGGER trigger_recalc_invoice_amounts BEFORE INSERT OR UPDATE ON public.
 CREATE TRIGGER update_invoices_updated_at BEFORE UPDATE ON public.invoices FOR EACH ROW EXECUTE FUNCTION update_updated_at()
 
 -- Trigger: update_payment_workflows_updated_at on public.payment_workflows
-CREATE TRIGGER update_payment_workflows_updated_at BEFORE UPDATE ON public.payment_workflows FOR EACH ROW EXECUTE FUNCTION update_updated_at_column()
+CREATE TRIGGER update_payment_workflows_updated_at BEFORE UPDATE ON public.payment_workflows FOR EACH ROW EXECUTE FUNCTION update_updated_at()
 
 -- Trigger: calculate_payment_vat_trigger on public.payments
 CREATE TRIGGER calculate_payment_vat_trigger BEFORE INSERT OR UPDATE ON public.payments FOR EACH ROW EXECUTE FUNCTION calculate_payment_vat()
+
+-- Trigger: payment_history_trigger_after_insert on public.payments
+CREATE TRIGGER payment_history_trigger_after_insert AFTER INSERT ON public.payments FOR EACH ROW EXECUTE FUNCTION track_payment_changes()
+
+-- Trigger: payment_history_trigger_after_update on public.payments
+CREATE TRIGGER payment_history_trigger_after_update AFTER UPDATE ON public.payments FOR EACH ROW EXECUTE FUNCTION track_payment_changes()
+
+-- Trigger: payment_history_trigger_before_delete on public.payments
+CREATE TRIGGER payment_history_trigger_before_delete BEFORE DELETE ON public.payments FOR EACH ROW EXECUTE FUNCTION track_payment_changes()
 
 -- Trigger: tr_sync_invoice_payment_on_delete on public.payments
 CREATE TRIGGER tr_sync_invoice_payment_on_delete AFTER DELETE ON public.payments FOR EACH ROW EXECUTE FUNCTION fn_sync_invoice_payment()
@@ -4462,16 +4468,13 @@ CREATE TRIGGER update_payments_updated_at BEFORE UPDATE ON public.payments FOR E
 CREATE TRIGGER update_projects_updated_at BEFORE UPDATE ON public.projects FOR EACH ROW EXECUTE FUNCTION update_updated_at()
 
 -- Trigger: update_roles_updated_at on public.roles
-CREATE TRIGGER update_roles_updated_at BEFORE UPDATE ON public.roles FOR EACH ROW EXECUTE FUNCTION update_updated_at_column()
+CREATE TRIGGER update_roles_updated_at BEFORE UPDATE ON public.roles FOR EACH ROW EXECUTE FUNCTION update_updated_at()
 
--- Trigger: set_statuses_updated_at on public.statuses
-CREATE TRIGGER set_statuses_updated_at BEFORE UPDATE ON public.statuses FOR EACH ROW EXECUTE FUNCTION set_updated_at()
+-- Trigger: update_statuses_updated_at on public.statuses
+CREATE TRIGGER update_statuses_updated_at BEFORE UPDATE ON public.statuses FOR EACH ROW EXECUTE FUNCTION update_updated_at()
 
--- Trigger: trigger_ensure_single_default_theme on public.themes
-CREATE TRIGGER trigger_ensure_single_default_theme BEFORE INSERT OR UPDATE ON public.themes FOR EACH ROW EXECUTE FUNCTION ensure_single_default_theme()
-
--- Trigger: trigger_update_themes_updated_at on public.themes
-CREATE TRIGGER trigger_update_themes_updated_at BEFORE UPDATE ON public.themes FOR EACH ROW EXECUTE FUNCTION update_themes_updated_at()
+-- Trigger: update_themes_updated_at on public.themes
+CREATE TRIGGER update_themes_updated_at BEFORE UPDATE ON public.themes FOR EACH ROW EXECUTE FUNCTION update_updated_at()
 
 -- Trigger: set_user_defaults_trigger on public.users
 CREATE TRIGGER set_user_defaults_trigger BEFORE INSERT ON public.users FOR EACH ROW EXECUTE FUNCTION set_default_user_role()
@@ -4480,34 +4483,16 @@ CREATE TRIGGER set_user_defaults_trigger BEFORE INSERT ON public.users FOR EACH 
 CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON public.users FOR EACH ROW EXECUTE FUNCTION update_updated_at()
 
 -- Trigger: update_workflow_stages_updated_at on public.workflow_stages
-CREATE TRIGGER update_workflow_stages_updated_at BEFORE UPDATE ON public.workflow_stages FOR EACH ROW EXECUTE FUNCTION update_updated_at_column()
+CREATE TRIGGER update_workflow_stages_updated_at BEFORE UPDATE ON public.workflow_stages FOR EACH ROW EXECUTE FUNCTION update_updated_at()
 
 -- Trigger: update_workflows_updated_at on public.workflows
-CREATE TRIGGER update_workflows_updated_at BEFORE UPDATE ON public.workflows FOR EACH ROW EXECUTE FUNCTION update_updated_at_column()
+CREATE TRIGGER update_workflows_updated_at BEFORE UPDATE ON public.workflows FOR EACH ROW EXECUTE FUNCTION update_updated_at()
 
 -- Trigger: tr_check_filters on realtime.subscription
 CREATE TRIGGER tr_check_filters BEFORE INSERT OR UPDATE ON realtime.subscription FOR EACH ROW EXECUTE FUNCTION realtime.subscription_check_filters()
 
--- Trigger: enforce_bucket_name_length_trigger on storage.buckets
-CREATE TRIGGER enforce_bucket_name_length_trigger BEFORE INSERT OR UPDATE OF name ON storage.buckets FOR EACH ROW EXECUTE FUNCTION storage.enforce_bucket_name_length()
-
--- Trigger: objects_delete_delete_prefix on storage.objects
-CREATE TRIGGER objects_delete_delete_prefix AFTER DELETE ON storage.objects FOR EACH ROW EXECUTE FUNCTION storage.delete_prefix_hierarchy_trigger()
-
--- Trigger: objects_insert_create_prefix on storage.objects
-CREATE TRIGGER objects_insert_create_prefix BEFORE INSERT ON storage.objects FOR EACH ROW EXECUTE FUNCTION storage.objects_insert_prefix_trigger()
-
--- Trigger: objects_update_create_prefix on storage.objects
-CREATE TRIGGER objects_update_create_prefix BEFORE UPDATE ON storage.objects FOR EACH ROW WHEN (((new.name <> old.name) OR (new.bucket_id <> old.bucket_id))) EXECUTE FUNCTION storage.objects_update_prefix_trigger()
-
 -- Trigger: update_objects_updated_at on storage.objects
 CREATE TRIGGER update_objects_updated_at BEFORE UPDATE ON storage.objects FOR EACH ROW EXECUTE FUNCTION storage.update_updated_at_column()
-
--- Trigger: prefixes_create_hierarchy on storage.prefixes
-CREATE TRIGGER prefixes_create_hierarchy BEFORE INSERT ON storage.prefixes FOR EACH ROW WHEN ((pg_trigger_depth() < 1)) EXECUTE FUNCTION storage.prefixes_insert_trigger()
-
--- Trigger: prefixes_delete_hierarchy on storage.prefixes
-CREATE TRIGGER prefixes_delete_hierarchy AFTER DELETE ON storage.prefixes FOR EACH ROW EXECUTE FUNCTION storage.delete_prefix_hierarchy_trigger()
 
 
 -- ============================================
@@ -4655,9 +4640,6 @@ CREATE INDEX users_is_anonymous_idx ON auth.users USING btree (is_anonymous);
 -- Index on auth.users
 CREATE UNIQUE INDEX users_phone_key ON auth.users USING btree (phone);
 
--- Index on net._http_response
-CREATE INDEX _http_response_created_idx ON net._http_response USING btree (created);
-
 -- Index on public.attachments
 CREATE INDEX idx_attachments_created_by ON public.attachments USING btree (created_by);
 
@@ -4686,9 +4668,6 @@ CREATE INDEX idx_contractors_is_active ON public.contractors USING btree (is_act
 CREATE INDEX idx_contractors_name_active ON public.contractors USING btree (name, is_active) WHERE (is_active = true);
 
 -- Index on public.contractors
-CREATE INDEX idx_contractors_name_trgm ON public.contractors USING gin (name gin_trgm_ops);
-
--- Index on public.contractors
 CREATE INDEX idx_contractors_search_vector ON public.contractors USING gin (contractor_search);
 
 -- Index on public.contractors
@@ -4706,6 +4685,24 @@ CREATE INDEX idx_invoice_documents_invoice_id ON public.invoice_documents USING 
 -- Index on public.invoice_documents
 CREATE UNIQUE INDEX invoice_documents_invoice_id_attachment_id_key ON public.invoice_documents USING btree (invoice_id, attachment_id);
 
+-- Index on public.invoice_history
+CREATE INDEX idx_invoice_history_created_at ON public.invoice_history USING btree (created_at DESC);
+
+-- Index on public.invoice_history
+CREATE INDEX idx_invoice_history_event_date ON public.invoice_history USING btree (event_date DESC);
+
+-- Index on public.invoice_history
+CREATE INDEX idx_invoice_history_event_type ON public.invoice_history USING btree (event_type);
+
+-- Index on public.invoice_history
+CREATE INDEX idx_invoice_history_invoice_id ON public.invoice_history USING btree (invoice_id);
+
+-- Index on public.invoice_history
+CREATE INDEX idx_invoice_history_payment_id ON public.invoice_history USING btree (payment_id) WHERE (payment_id IS NOT NULL);
+
+-- Index on public.invoice_history
+CREATE INDEX idx_invoice_history_user_id ON public.invoice_history USING btree (user_id) WHERE (user_id IS NOT NULL);
+
 -- Index on public.invoice_types
 CREATE UNIQUE INDEX invoice_types_code_key ON public.invoice_types USING btree (code);
 
@@ -4714,9 +4711,6 @@ CREATE INDEX idx_invoices_created_at ON public.invoices USING btree (created_at 
 
 -- Index on public.invoices
 CREATE INDEX idx_invoices_created_by ON public.invoices USING btree (created_by);
-
--- Index on public.invoices
-CREATE INDEX idx_invoices_description_trgm ON public.invoices USING gin (description gin_trgm_ops) WHERE (description IS NOT NULL);
 
 -- Index on public.invoices
 CREATE INDEX idx_invoices_internal_number ON public.invoices USING btree (internal_number);
@@ -4729,9 +4723,6 @@ CREATE INDEX idx_invoices_invoice_date ON public.invoices USING btree (invoice_d
 
 -- Index on public.invoices
 CREATE INDEX idx_invoices_invoice_number ON public.invoices USING btree (invoice_number);
-
--- Index on public.invoices
-CREATE INDEX idx_invoices_invoice_number_trgm ON public.invoices USING gin (invoice_number gin_trgm_ops);
 
 -- Index on public.invoices
 CREATE INDEX idx_invoices_material_responsible_person_id ON public.invoices USING btree (material_responsible_person_id);
@@ -4831,9 +4822,6 @@ CREATE INDEX idx_projects_active_name ON public.projects USING btree (name) WHER
 
 -- Index on public.projects
 CREATE INDEX idx_projects_is_active ON public.projects USING btree (is_active);
-
--- Index on public.projects
-CREATE INDEX idx_projects_name_trgm ON public.projects USING gin (name gin_trgm_ops);
 
 -- Index on public.projects
 CREATE INDEX idx_projects_project_code ON public.projects USING btree (project_code);

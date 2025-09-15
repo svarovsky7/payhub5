@@ -34,7 +34,6 @@ import {
 } from 'antd'
 import {
   ArrowLeftOutlined,
-  AuditOutlined,
   BankOutlined,
   CheckCircleOutlined,
   ClockCircleOutlined,
@@ -70,6 +69,7 @@ import {
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import 'dayjs/locale/ru'
+import { useQueryClient } from '@tanstack/react-query'
 import { useInvoice, useUpdateInvoice } from '@/services/hooks/useInvoices'
 import { useContractorsList } from '@/services/hooks/useContractors'
 import { useProjectsList } from '@/services/hooks/useProjects'
@@ -78,6 +78,8 @@ import { useMaterialResponsiblePersonsList } from '@/services/hooks/useMaterialR
 import { useCurrencies, usePriorities } from '@/services/hooks/useEnums'
 import { usePaymentsList } from '@/services/hooks/usePayments'
 import { useAuthStore } from '@/models/auth'
+import { useInvoiceHistory } from '@/services/hooks/useInvoiceHistory'
+import { InvoiceHistoryService } from '@/services/invoices/history-service'
 import { calculateDeliveryDate, calculateVATAmounts } from '../InvoiceCreate/utils/calculations'
 import { formatCurrency } from '@/utils/format'
 import { DEFAULT_CURRENCY, DEFAULT_VAT_RATE } from '../InvoiceCreate/constants'
@@ -93,6 +95,7 @@ export const InvoiceViewNew: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams()
   const [form] = Form.useForm<InvoiceFormValues>()
   const { user } = useAuthStore()
+  const queryClient = useQueryClient()
 
   // Получаем активную вкладку из URL или используем 'info' по умолчанию
   const tabFromUrl = searchParams.get('tab') || 'info'
@@ -127,13 +130,12 @@ export const InvoiceViewNew: React.FC = () => {
   const [previewFile, setPreviewFile] = useState<any>(null)
   const [previewLoading, setPreviewLoading] = useState(false)
 
-  // Document history state
-  const [documentHistory, setDocumentHistory] = useState<any[]>([])
-  const [loadingHistory, setLoadingHistory] = useState(false)
-
-  // Field changes history state
+  // Field changes history state (для локального отслеживания изменений)
   const [fieldChangesHistory, setFieldChangesHistory] = useState<any[]>([])
   const [originalValues, setOriginalValues] = useState<any>(null)
+
+  // История счета - вызываем хук на верхнем уровне компонента
+  const { data: historyData, isLoading: loadingHistory } = useInvoiceHistory(id)
 
   // Payment edit modal state
   const [editPaymentModalVisible, setEditPaymentModalVisible] = useState(false)
@@ -341,14 +343,44 @@ export const InvoiceViewNew: React.FC = () => {
   // Save changes
   const handleSave = async () => {
     try {
-      const values = await form.validateFields()
+      const rawValues = await form.validateFields()
 
-      console.log('[InvoiceViewNew.handleSave] Сохранение изменений:', {
-        invoiceId: id,
-        changes: values,
-        hasChanges,
-        activeTab
-      })
+      console.log('[InvoiceViewNew.handleSave] ============ НАЧАЛО СОХРАНЕНИЯ ============')
+      console.log('[InvoiceViewNew.handleSave] Сырые значения из формы:', rawValues)
+      console.log('[InvoiceViewNew.handleSave] Ключи сырых значений:', Object.keys(rawValues))
+      console.log('[InvoiceViewNew.handleSave] JSON сырых значений:', JSON.stringify(rawValues))
+
+      // Фильтруем только разрешенные поля формы
+      const allowedFormFields = [
+        'invoice_number',
+        'internal_number',
+        'invoice_date',
+        'invoice_type_id',
+        'description',
+        'supplier_id',
+        'payer_id',
+        'project_id',
+        'material_responsible_person_id',
+        'currency',
+        'amount_with_vat',
+        'amount_net',
+        'vat_rate',
+        'vat_amount',
+        'delivery_days',
+        'delivery_days_type',
+        'priority',
+        'title' // может быть в форме, но не в БД
+      ]
+
+      const values: any = {}
+      for (const field of allowedFormFields) {
+        if (field in rawValues) {
+          values[field] = rawValues[field]
+        }
+      }
+
+      console.log('[InvoiceViewNew.handleSave] Отфильтрованные значения:', values)
+      console.log('[InvoiceViewNew.handleSave] Ключи отфильтрованных значений:', Object.keys(values))
 
       // Определяем изменённые поля
       const changedFields: string[] = []
@@ -369,8 +401,7 @@ export const InvoiceViewNew: React.FC = () => {
         vat_amount: 'Сумма НДС',
         delivery_days: 'Срок поставки',
         delivery_days_type: 'Тип срока поставки',
-        priority: 'Приоритет',
-        notes: 'Примечания'
+        priority: 'Приоритет'
       }
 
       // Сравниваем текущие значения с оригинальными
@@ -389,32 +420,45 @@ export const InvoiceViewNew: React.FC = () => {
         })
       }
 
-      const updateData = {
-        invoice_number: values.invoice_number,
-        internal_number: values.internal_number,
-        invoice_date: values.invoice_date?.format('YYYY-MM-DD'),
-        type_id: values.invoice_type_id,
-        description: values.description,
-        supplier_id: values.supplier_id,
-        payer_id: values.payer_id,
-        project_id: values.project_id,
-        material_responsible_person_id: values.material_responsible_person_id,
-        currency: values.currency,
-        total_amount: Number(values.amount_with_vat),
-        amount_net: Number(values.amount_net || 0),
-        vat_amount: Number(values.vat_amount || 0),
-        vat_rate: Number(values.vat_rate || DEFAULT_VAT_RATE),
-        delivery_days: values.delivery_days ? Number(values.delivery_days) : null,
-        delivery_days_type: values.delivery_days_type || 'calendar',
-        priority: values.priority,
-        notes: values.notes
-      }
+      // Подготавливаем данные для БД - ТОЛЬКО поля БД
+      const updateData: any = {}
+
+      // Маппинг полей формы на поля БД
+      if (values.invoice_number !== undefined) updateData.invoice_number = values.invoice_number
+      if (values.internal_number !== undefined) updateData.internal_number = values.internal_number
+      if (values.invoice_date !== undefined) updateData.invoice_date = values.invoice_date?.format('YYYY-MM-DD')
+      if (values.invoice_type_id !== undefined) updateData.type_id = values.invoice_type_id // invoice_type_id -> type_id
+      if (values.description !== undefined) updateData.description = values.description
+      if (values.supplier_id !== undefined) updateData.supplier_id = values.supplier_id
+      if (values.payer_id !== undefined) updateData.payer_id = values.payer_id
+      if (values.project_id !== undefined) updateData.project_id = values.project_id
+      if (values.material_responsible_person_id !== undefined) updateData.material_responsible_person_id = values.material_responsible_person_id
+      if (values.currency !== undefined) updateData.currency = values.currency
+      if (values.amount_with_vat !== undefined) updateData.total_amount = Number(values.amount_with_vat)
+      if (values.amount_net !== undefined) updateData.amount_net = Number(values.amount_net || 0)
+      if (values.vat_amount !== undefined) updateData.vat_amount = Number(values.vat_amount || 0)
+      if (values.vat_rate !== undefined) updateData.vat_rate = Number(values.vat_rate || DEFAULT_VAT_RATE)
+      if (values.delivery_days !== undefined) updateData.delivery_days = values.delivery_days ? Number(values.delivery_days) : null
+      if (values.delivery_days_type !== undefined) updateData.delivery_days_type = values.delivery_days_type || 'calendar'
+      if (values.priority !== undefined) updateData.priority = values.priority
+
+      console.log('[InvoiceViewNew.handleSave] Подготовленные данные для БД:', updateData)
+      console.log('[InvoiceViewNew.handleSave] Ключи данных для БД:', Object.keys(updateData))
+      console.log('[InvoiceViewNew.handleSave] JSON данных для БД:', JSON.stringify(updateData))
+
+      console.log('[InvoiceViewNew.handleSave] Вызов мутации с параметрами:', {
+        id: id!,
+        updates: updateData,
+        companyId: user?.companyId || '1'
+      })
 
       await updateInvoiceMutation.mutateAsync({
         id: id!,
         updates: updateData,
         companyId: user?.companyId || '1'
       })
+
+      console.log('[InvoiceViewNew.handleSave] ============ УСПЕШНОЕ СОХРАНЕНИЕ ============')
 
       // Добавляем изменения в историю
       if (changedFields.length > 0) {
@@ -432,6 +476,8 @@ export const InvoiceViewNew: React.FC = () => {
       setIsEditing(false)
       setOriginalValues(values) // Обновляем оригинальные значения
       refetchInvoice()
+      // Инвалидируем кэш истории для мгновенного обновления
+      queryClient.invalidateQueries({ queryKey: ['invoice-history', id] })
       console.log('[InvoiceViewNew.handleSave] Изменения успешно сохранены')
     } catch (error) {
       console.error('[InvoiceViewNew.handleSave] Ошибка сохранения:', error)
@@ -1076,6 +1122,9 @@ const handleCreatePayment = async () => {
     // Перезагружаем данные счета и платежи
     refetchInvoice()
     refetchPayments()
+
+    // Инвалидируем кэш истории для мгновенного обновления
+    queryClient.invalidateQueries({ queryKey: ['invoice-history', id] })
   } catch (error) {
     console.error('[InvoiceViewNew.handleCreatePayment] Ошибка:', error)
     message.error('Ошибка при создании платежа')
@@ -1134,6 +1183,8 @@ const handleSaveEditedPayment = async () => {
     paymentEditForm.resetFields()
     refetchPayments()
     refetchInvoice()
+    // Инвалидируем кэш истории для мгновенного обновления
+    queryClient.invalidateQueries({ queryKey: ['invoice-history', id] })
   } catch (error: any) {
     console.error('[InvoiceViewNew.handleSaveEditedPayment] Ошибка сохранения:', error)
     message.error(error.message || 'Ошибка при сохранении платежа')
@@ -1161,6 +1212,8 @@ const handleDeletePayment = async (payment: any) => {
         message.success('Платеж успешно удален')
         refetchPayments()
         refetchInvoice()
+        // Инвалидируем кэш истории для мгновенного обновления
+        queryClient.invalidateQueries({ queryKey: ['invoice-history', id] })
       } catch (error) {
         console.error('[InvoiceViewNew.handleDeletePayment] Ошибка:', error)
         message.error('Ошибка при удалении платежа')
@@ -1311,10 +1364,8 @@ const handleUploadDocument = async (file: any) => {
       // Перезагружаем список документов
       await loadDocuments()
 
-      // Обновляем историю если мы на вкладке истории
-      if (activeTab === 'history') {
-        await loadDocumentHistory()
-      }
+      // Инвалидируем кэш истории для мгновенного обновления
+      queryClient.invalidateQueries({ queryKey: ['invoice-history', id] })
 
       // Также обновляем счет для получения актуальных данных
       if (refetchInvoice) {
@@ -1630,83 +1681,13 @@ const loadDocuments = useCallback(async () => {
   }
 }, [id])
 
-// Функция загрузки истории документов
-const loadDocumentHistory = useCallback(async () => {
-  if (!id) {return}
-
-  console.log('[InvoiceViewNew.loadDocumentHistory] Загрузка истории документов для счета:', id)
-  setLoadingHistory(true)
-
-  try {
-    // Получаем историю документов из invoice_documents с информацией о пользователях
-    const { supabase } = await import('@/services/supabase')
-    const { data, error } = await supabase
-      .from('invoice_documents')
-      .select(`
-        *,
-        attachment:attachments (
-          id,
-          original_name,
-          storage_path,
-          size_bytes,
-          mime_type,
-          created_at,
-          created_by
-        )
-      `)
-      .eq('invoice_id', parseInt(id))
-      .order('created_at', { ascending: false })
-
-    // Если есть документы, загружаем информацию о пользователях отдельно
-    if (data && data.length > 0) {
-      const userIds = [...new Set(data
-        .filter(d => d.attachment?.created_by)
-        .map(d => d.attachment.created_by))]
-
-      if (userIds.length > 0) {
-        const { data: users } = await supabase
-          .from('users')
-          .select('id, full_name, email')
-          .in('id', userIds)
-
-        // Добавляем информацию о пользователях к документам
-        if (users) {
-          data.forEach(doc => {
-            if (doc.attachment?.created_by) {
-              const user = users.find(u => u.id === doc.attachment.created_by)
-              if (user) {
-                doc.attachment.creator = user
-              }
-            }
-          })
-        }
-      }
-    }
-
-    if (error) {
-      console.error('[InvoiceViewNew.loadDocumentHistory] Ошибка загрузки истории:', error)
-      message.error('Ошибка при загрузке истории документов')
-      setDocumentHistory([])
-    } else {
-      console.log('[InvoiceViewNew.loadDocumentHistory] История документов:', data)
-      setDocumentHistory(data || [])
-    }
-  } catch (error) {
-    console.error('[InvoiceViewNew.loadDocumentHistory] Ошибка загрузки истории:', error)
-    message.error('Ошибка при загрузке истории документов')
-  } finally {
-    setLoadingHistory(false)
-  }
-}, [id])
 
 // Загружаем документы при монтировании компонента
 useEffect(() => {
   if (activeTab === 'documents') {
     loadDocuments()
-  } else if (activeTab === 'history') {
-    loadDocumentHistory()
   }
-}, [activeTab, loadDocuments, loadDocumentHistory])
+}, [activeTab, loadDocuments])
 
 // Получение иконки для файла
 const getFileIcon = (mimeType: string, fileName: string = '') => {
@@ -2054,11 +2035,9 @@ const renderDocuments = () => (
 
                         message.success('Документ удален')
                         await loadDocuments()
+                        // Инвалидируем кэш истории для мгновенного обновления
+                        queryClient.invalidateQueries({ queryKey: ['invoice-history', id] })
 
-                        // Обновляем историю если мы на вкладке истории
-                        if (activeTab === 'history') {
-                          await loadDocumentHistory()
-                        }
                       } catch (error) {
                         console.error('[InvoiceViewNew] Ошибка удаления документа:', error)
                         message.error('Ошибка при удалении документа')
@@ -2095,242 +2074,47 @@ const renderDocuments = () => (
 
 // Render history tab
 const renderHistory = () => {
-  // Формируем элементы истории с датами для сортировки
-  const historyItems = []
+  // Формируем элементы для Timeline из уже загруженных данных
+  const timelineItems = historyData?.map(event => {
+    const displayData = InvoiceHistoryService.formatEventForDisplay(event)
 
-  // Добавляем событие создания счета
-  if (invoice?.created_at) {
-    historyItems.push({
-      date: invoice.created_at,
-      color: 'blue',
-      children: (
-        <div>
-          <Text strong>Счет создан</Text>
-          <br />
-          <Text type="secondary">{dayjs(invoice.created_at).format('DD.MM.YYYY HH:mm')}</Text>
-          {invoice.created_by && (
-            <>
-              <br />
-              <Text type="secondary" style={{ fontSize: 12 }}>
-                Создал: {invoice.created_by_name || 'Пользователь'}
-              </Text>
-            </>
-          )}
-        </div>
-      )
-    })
-  }
-
-  // Добавляем события загрузки документов
-  documentHistory.forEach((doc) => {
-    if (doc.attachment) {
-      const isDeleted = !doc.attachment.storage_path || doc.attachment.storage_path.startsWith('deleted://')
-
-      historyItems.push({
-        date: doc.created_at,
-        color: isDeleted ? 'red' : 'green',
-        children: (
-          <div>
-            <Text strong>
-              {isDeleted ? 'Документ удален' : 'Документ загружен'}: {doc.attachment.original_name}
-            </Text>
-            <br />
-            <Text type="secondary">
-              {dayjs(doc.created_at).format('DD.MM.YYYY HH:mm')}
-            </Text>
-            <br />
-            <Text type="secondary" style={{ fontSize: 12 }}>
-              {doc.attachment.creator?.full_name || doc.attachment.creator?.email || 'Неизвестный пользователь'}
-            </Text>
-            {!isDeleted && doc.attachment.size_bytes && (
-              <>
-                <br />
-                <Text type="secondary" style={{ fontSize: 12 }}>
-                  Размер: {(doc.attachment.size_bytes / 1024).toFixed(2)} КБ
-                </Text>
-              </>
-            )}
-          </div>
-        )
-      })
+    // Определяем цвет для Timeline
+    const colorMap: Record<string, string> = {
+      'blue': 'blue',
+      'green': 'green',
+      'red': 'red',
+      'orange': 'orange',
+      'purple': 'purple',
+      'default': 'gray'
     }
-  })
 
-  // Добавляем события изменения полей
-  fieldChangesHistory.forEach((change) => {
-    historyItems.push({
-      date: change.date,
-      color: 'orange',
+    return {
+      color: colorMap[displayData.color] || 'gray',
       children: (
-        <div>
-          <Text strong>Изменены поля:</Text>
-          <br />
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            {change.fields.join(', ')}
-          </Text>
-          <br />
-          <Text type="secondary">
-            {dayjs(change.date).format('DD.MM.YYYY HH:mm')}
-          </Text>
-          <br />
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            Изменил: {change.user}
-          </Text>
-        </div>
-      )
-    })
-  })
-
-  // Добавляем события платежей
-  if (paymentsResponse?.data && paymentsResponse.data.length > 0) {
-    paymentsResponse.data.forEach((payment) => {
-      const statusConfig: Record<string, { color: string, text: string }> = {
-        draft: { color: 'default', text: 'Черновик' },
-        pending: { color: 'warning', text: 'На согласовании' },
-        approved: { color: 'volcano', text: 'Согласован' },
-        scheduled: { color: 'magenta', text: 'В графике' },
-        paid: { color: 'success', text: 'Оплачен' },
-        completed: { color: 'success', text: 'Завершен' },
-        processing: { color: 'processing', text: 'В обработке' },
-        failed: { color: 'error', text: 'Ошибка' },
-        cancelled: { color: 'error', text: 'Отменен' }
-      }
-
-      const status = payment.status || 'draft'
-      const statusConfigItem = statusConfig[status] || { color: 'default', text: status }
-
-      const paymentTypeText = payment.payment_type === 'ADV' ? 'Аванс' :
-                             payment.payment_type === 'RET' ? 'Возврат' :
-                             payment.payment_type === 'DEBT' ? 'Оплата долга' :
-                             payment.payment_type || 'Платеж'
-
-      // Добавляем событие создания платежа
-      historyItems.push({
-        date: payment.created_at,
-        color: 'purple',
-        children: (
-          <div>
-            <Text strong>Создан платеж: {payment.internal_number || `#${payment.id}`}</Text>
-            <br />
-            <Space size={4}>
-              <Tag color={statusConfigItem.color} style={{ fontSize: 10, margin: 0 }}>
-                {statusConfigItem.text}
-              </Tag>
-              <Text type="secondary" style={{ fontSize: 12 }}>
-                {paymentTypeText}
-              </Text>
-            </Space>
-            <br />
-            <Text style={{ fontSize: 12, fontWeight: 500 }}>
-              Сумма: {formatCurrency(payment.total_amount || 0, payment.currency || invoice?.currency || 'RUB')}
-            </Text>
-            <br />
-            <Text type="secondary" style={{ fontSize: 12 }}>
-              {dayjs(payment.created_at).format('DD.MM.YYYY HH:mm')}
-            </Text>
-            {payment.created_by_name && (
-              <>
-                <br />
-                <Text type="secondary" style={{ fontSize: 12 }}>
-                  Создал: {payment.created_by_name}
+        <div style={{ marginBottom: 4 }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+            <span style={{ fontSize: 14 }}>{displayData.icon}</span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+                <Text strong style={{ fontSize: 13 }}>{displayData.title}</Text>
+                {displayData.description && (
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    {displayData.description}
+                  </Text>
+                )}
+              </div>
+              <div style={{ marginTop: 2 }}>
+                <Text type="secondary" style={{ fontSize: 11 }}>
+                  {dayjs(event.event_date).format('DD.MM HH:mm')}
+                  {event.user_name && ` • ${event.user_name}`}
                 </Text>
-              </>
-            )}
+              </div>
+            </div>
           </div>
-        )
-      })
-
-      // Если платеж был одобрен или оплачен, добавляем событие изменения статуса
-      if (payment.approved_at && (payment.status === 'completed' || payment.status === 'paid' || payment.status === 'approved')) {
-        historyItems.push({
-          date: payment.approved_at,
-          color: 'green',
-          children: (
-            <div>
-              <Text strong>Платеж {payment.internal_number || `#${payment.id}`} подтвержден</Text>
-              <br />
-              <Tag color="success" style={{ fontSize: 10, margin: 0 }}>
-                {statusConfigItem.text}
-              </Tag>
-              <br />
-              <Text style={{ fontSize: 12, fontWeight: 500 }}>
-                Сумма: {formatCurrency(payment.total_amount || 0, payment.currency || invoice?.currency || 'RUB')}
-              </Text>
-              <br />
-              <Text type="secondary" style={{ fontSize: 12 }}>
-                {dayjs(payment.approved_at).format('DD.MM.YYYY HH:mm')}
-              </Text>
-              {payment.approved_by_name && (
-                <>
-                  <br />
-                  <Text type="secondary" style={{ fontSize: 12 }}>
-                    Подтвердил: {payment.approved_by_name}
-                  </Text>
-                </>
-              )}
-            </div>
-          )
-        })
-      }
-
-      // Если платеж был отменен, добавляем событие отмены
-      if (payment.status === 'cancelled' || payment.status === 'failed') {
-        const cancelDate = payment.approved_at || payment.updated_at || payment.created_at
-        historyItems.push({
-          date: cancelDate,
-          color: 'red',
-          children: (
-            <div>
-              <Text strong>
-                Платеж {payment.internal_number || `#${payment.id}`} {payment.status === 'cancelled' ? 'отменен' : 'завершен с ошибкой'}
-              </Text>
-              <br />
-              <Tag color="error" style={{ fontSize: 10, margin: 0 }}>
-                {statusConfigItem.text}
-              </Tag>
-              <br />
-              {payment.comment && (
-                <>
-                  <Text type="secondary" style={{ fontSize: 12 }}>
-                    Причина: {payment.comment}
-                  </Text>
-                  <br />
-                </>
-              )}
-              <Text type="secondary" style={{ fontSize: 12 }}>
-                {dayjs(cancelDate).format('DD.MM.YYYY HH:mm')}
-              </Text>
-            </div>
-          )
-        })
-      }
-    })
-  }
-
-  // Добавляем текущий статус
-  if (invoice?.status) {
-    historyItems.push({
-      date: new Date().toISOString(),
-      color: 'green',
-      children: (
-        <div>
-          <Text strong>Текущий статус: {invoice.status}</Text>
-          <br />
-          <Text type="secondary">{dayjs().format('DD.MM.YYYY HH:mm')}</Text>
         </div>
       )
-    })
-  }
-
-  // Сортируем по дате - новые события сверху
-  historyItems.sort((a, b) => {
-    const dateA = new Date(a.date).getTime()
-    const dateB = new Date(b.date).getTime()
-    return dateB - dateA // Сортировка по убыванию (новые сверху)
-  })
-
-  // Удаляем временное поле date перед передачей в Timeline
-  const sortedItems = historyItems.map(({ date, ...item }) => item)
+    }
+  }) || []
 
   return (
     <Card type="inner" title={<><HistoryOutlined style={{ marginRight: 8 }} />История изменений</>}>
@@ -2338,10 +2122,10 @@ const renderHistory = () => {
         <div style={{ textAlign: 'center', padding: 50 }}>
           <Spin size="large" />
         </div>
-      ) : sortedItems.length > 0 ? (
+      ) : timelineItems.length > 0 ? (
         <Timeline
           size="small"
-          items={sortedItems}
+          items={timelineItems}
         />
       ) : (
         <div style={{ textAlign: 'center', padding: 50 }}>
@@ -2509,7 +2293,7 @@ const renderHistory = () => {
                   </Space>
                 }
                 size="small"
-                bodyStyle={{ padding: '12px 16px' }}
+                styles={{ body: { padding: '12px 16px' } }}
               >
                 <Space direction="vertical" size={8} style={{ width: '100%' }}>
                   <Row gutter={8}>
@@ -2543,7 +2327,7 @@ const renderHistory = () => {
               <Card
                 title="Статус оплат"
                 size="small"
-                bodyStyle={{ padding: '8px 12px' }}
+                styles={{ body: { padding: '8px 12px' } }}
               >
                 {paymentsResponse?.data && paymentsResponse.data.length > 0 ? (
                   <>
@@ -3354,7 +3138,7 @@ const renderHistory = () => {
                             alignItems: 'center',
                             justifyContent: 'center'
                           }}>
-                            <AuditOutlined style={{ fontSize: 12, color: '#3b82f6' }} />
+                            <ClockCircleOutlined style={{ fontSize: 12, color: '#3b82f6' }} />
                           </div>
                           <Text strong style={{ fontSize: 13, color: '#1f2937' }}>
                             {workflow.name}
@@ -3457,7 +3241,7 @@ const renderHistory = () => {
         ]}
         width={800}
         centered
-        destroyOnClose
+        destroyOnHidden
       >
         {renderPreviewContent()}
       </Modal>

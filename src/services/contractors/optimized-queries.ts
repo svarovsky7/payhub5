@@ -391,7 +391,7 @@ export class OptimizedContractorQueryService {
 
   /**
    * OPTIMIZED: Search with limited, indexed query
-   * Uses full-text search index instead of ILIKE on multiple columns
+   * Uses ILIKE on multiple columns
    */
   static async optimizedSearch(
     searchQuery: string,
@@ -399,32 +399,20 @@ export class OptimizedContractorQueryService {
     limit = 10
   ): Promise<Contractor[]> {
     try {
-      // Use the full-text search index created in database-optimization.sql
+      // Direct search without RPC function
       const { data, error } = await supabase
-        .rpc('search_contractors', {
-          search_query: searchQuery,
-          company_filter: companyId,
-          result_limit: limit
-        })
+        .from('contractors')
+        .select('id, name, inn, is_active')
+        .eq('company_id', companyId)
+        .or(
+          `name.ilike.%${searchQuery}%,` +
+          `inn.ilike.%${searchQuery}%`
+        )
+        .eq('is_active', true)
+        .order('name')
+        .limit(limit)
 
-      if (error) {
-        // Fallback to regular search if RPC function doesn't exist
-        const { data: fallbackData, error: fallbackError } = await supabase
-          .from('contractors')
-          .select('id, name, inn, is_active')
-          .eq('company_id', companyId)
-          .or(
-            `name.ilike.%${searchQuery}%,` +
-            `inn.ilike.%${searchQuery}%`
-          )
-          .eq('is_active', true)
-          .order('name')
-          .limit(limit)
-        
-        if (fallbackError) {throw fallbackError}
-        return (fallbackData as Contractor[]) || []
-      }
-
+      if (error) {throw error}
       return (data as Contractor[]) || []
     } catch (error) {
       console.error('Ошибка оптимизированного поиска поставщиков:', error)
@@ -490,48 +478,3 @@ export class OptimizedContractorQueryService {
     }
   }
 }
-
-// PostgreSQL function for optimized search (to be created in database)
-export const searchContractorsFunction = `
-CREATE OR REPLACE FUNCTION search_contractors(
-  search_query TEXT,
-  company_filter UUID,
-  result_limit INTEGER DEFAULT 10
-)
-RETURNS TABLE (
-  id UUID,
-  name TEXT,
-  inn TEXT,
-  is_active BOOLEAN
-)
-LANGUAGE plpgsql
-AS $$
-BEGIN
-  RETURN QUERY
-  SELECT 
-    c.id,
-    c.name,
-    c.inn,
-    c.is_active
-  FROM contractors c
-  WHERE 
-    c.company_id = company_filter
-    AND c.is_active = true
-    AND (
-      c.name ILIKE '%' || search_query || '%'
-      OR c.inn ILIKE '%' || search_query || '%'
-      OR to_tsvector('russian', COALESCE(c.name, '') || ' ' || COALESCE(c.inn, '')) @@ plainto_tsquery('russian', search_query)
-    )
-  ORDER BY 
-    -- Prioritize exact matches
-    CASE 
-      WHEN c.name ILIKE search_query THEN 1
-      WHEN c.inn = search_query THEN 1
-      WHEN c.name ILIKE search_query || '%' THEN 2
-      ELSE 3
-    END,
-    c.name
-  LIMIT result_limit;
-END;
-$$;
-`;

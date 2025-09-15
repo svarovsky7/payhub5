@@ -183,8 +183,36 @@ export const useUpdateInvoice = (
   return useMutation({
     mutationKey: [mutationKeys.updateInvoice],
     mutationFn: async ({ id, updates }) => {
-      const result = await InvoiceCrudService.update(id, updates)
-      if (result.error) {throw new Error(result.error)}
+      console.log('[useUpdateInvoice.mutationFn] Начало обновления счета')
+      console.log('[useUpdateInvoice.mutationFn] ID счета:', id)
+      console.log('[useUpdateInvoice.mutationFn] Исходные данные для обновления:', updates)
+      console.log('[useUpdateInvoice.mutationFn] Ключи исходных данных:', Object.keys(updates))
+      console.log('[useUpdateInvoice.mutationFn] Полный JSON исходных данных:', JSON.stringify(updates))
+
+      // Создаем копию и удаляем недопустимые поля
+      const cleanUpdates = { ...updates }
+      const fieldsToRemove = ['key', 'companyId', 'invoice_type_id', 'title']
+      fieldsToRemove.forEach(field => {
+        if (field in cleanUpdates) {
+          console.warn(`[useUpdateInvoice.mutationFn] Удаляем недопустимое поле: ${field}`)
+          delete cleanUpdates[field]
+        }
+      })
+
+      console.log('[useUpdateInvoice.mutationFn] Очищенные данные для обновления:', cleanUpdates)
+      console.log('[useUpdateInvoice.mutationFn] Ключи очищенных данных:', Object.keys(cleanUpdates))
+      console.log('[useUpdateInvoice.mutationFn] Полный JSON очищенных данных:', JSON.stringify(cleanUpdates))
+
+      console.log('[useUpdateInvoice.mutationFn] Вызов InvoiceCrudService.update')
+      const result = await InvoiceCrudService.update(id, cleanUpdates)
+      console.log('[useUpdateInvoice.mutationFn] Результат от InvoiceCrudService:', result)
+
+      if (result.error) {
+        console.error('[useUpdateInvoice.mutationFn] Ошибка от InvoiceCrudService:', result.error)
+        throw new Error(result.error)
+      }
+
+      console.log('[useUpdateInvoice.mutationFn] Успешное обновление, возвращаем данные')
       return result.data!
     },
     onMutate: async ({ id, updates }) => {

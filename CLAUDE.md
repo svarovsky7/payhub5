@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-PayHub5 is a procurement and payment management system for construction companies built with React 18, TypeScript 5.8, and Vite 7. The application provides invoice management, payment processing, workflow automation, and real-time reporting via Supabase.
+PayHub5 is a procurement and payment management system for construction companies built with React 18, TypeScript 5.8, and Vite 7. The application provides invoice management, payment processing, workflow automation, and reporting capabilities via Supabase backend.
 
 ## Development Commands
 
@@ -45,7 +45,6 @@ Located in `src/services/`:
 ### State Management
 - **Server State**: TanStack Query 5.0 with configurable stale time (default 30s)
 - **Auth State**: Zustand 4.4 with immer middleware, persisted to localStorage (`models/auth.tsx`)
-- **Real-time**: Supabase channels with automatic cache invalidation
 
 ### Routing Strategy
 - Lazy-loaded routes via `React.lazy()` in `app/router.tsx`
@@ -92,11 +91,6 @@ Strict TypeScript checks enabled:
 - Auth state managed in `models/auth.tsx` with Zustand
 - Session persistence and auto-refresh handled
 
-### Real-time Subscriptions
-- Managed via `realtime/subscriptions.ts`
-- Per-table subscriptions with optional filters
-- Automatic TanStack Query cache invalidation on changes
-- Channel cleanup on unmount
 
 ### Build Configuration
 Vite configuration (`vite.config.ts`):
@@ -124,7 +118,6 @@ Configured MCP servers (`.mcp.json`):
 
 - **Code Organization**: Maximum 600 lines per file
 - **Excel Export**: Dynamic imports of `xlsx` library for performance
-- **Performance Monitoring**: Custom implementation in `utils/performance-monitor.ts`
 - **UI Language**: Russian for user-facing text, English for code comments
 - **Component Library**: Ant Design Pro Components with custom theme
 - **Form Validation**: Ant Design Form with async validation support
@@ -144,7 +137,6 @@ Configured MCP servers (`.mcp.json`):
 - **Lazy Loading**: All routes are lazy-loaded to reduce initial bundle size
 - **Dynamic Imports**: xlsx library is dynamically imported for Excel export functionality
 - **Optimized Dependencies**: Pre-bundled critical dependencies in vite config
-- **Performance Monitoring**: Custom implementation in `utils/performance-monitor.ts`
 
 ## Development Guidelines
 

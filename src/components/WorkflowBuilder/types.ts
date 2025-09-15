@@ -48,7 +48,7 @@ export interface WorkflowRole {
   permissions: string[]
 }
 
-interface ApprovalAction {
+export interface ApprovalAction {
   id: number
   invoice_id: number
   stage_id: number
@@ -58,7 +58,7 @@ interface ApprovalAction {
   created_at: string
 }
 
-interface WorkflowWithStages extends WorkflowDefinition {
+export interface WorkflowWithStages extends WorkflowDefinition {
   stages: WorkflowStage[]
   invoice_type?: {
     id: number
@@ -67,20 +67,20 @@ interface WorkflowWithStages extends WorkflowDefinition {
   }
 }
 
-interface CreateWorkflowInput {
+export interface CreateWorkflowInput {
   name: string
   description?: string
   invoice_type_id?: number
   stages: Omit<WorkflowStage, 'id' | 'workflow_id' | 'created_at' | 'updated_at'>[]
 }
 
-interface UpdateWorkflowInput {
+export interface UpdateWorkflowInput {
   name?: string
   description?: string
   is_active?: boolean
 }
 
-interface CreateStageInput {
+export interface CreateStageInput {
   workflow_id: number
   position: number
   name: string
@@ -92,7 +92,7 @@ interface CreateStageInput {
   assigned_users?: string[]
 }
 
-interface UpdateStageInput {
+export interface UpdateStageInput {
   position?: number
   name?: string
   approval_quorum?: number
@@ -114,12 +114,16 @@ export const SYSTEM_ROLES = {
 } as const
 
 
-// Типы платежей
-const PAYMENT_TYPES = {
-  MATERIALS: { id: 'materials', name: 'Материалы' },
-  SERVICES: { id: 'services', name: 'Услуги' },
-  OTHER: { id: 'other', name: 'Прочее' },
+// Типы счетов из БД (таблица invoice_types)
+export const INVOICE_TYPES = {
+  MTRL: { id: 1, name: 'МАТЕРИАЛЫ', code: 'MTRL', description: 'Счета за физические товары, строительные и расходные материалы' },
+  SUBC: { id: 2, name: 'СУБПОДРЯД', code: 'SUBC', description: 'Счета на строительные работы и услуги подрядчиков' },
+  RENT: { id: 3, name: 'АРЕНДА', code: 'RENT', description: 'Счета за аренду оборудования, опалубку, автотехнику' },
+  UTIL: { id: 4, name: 'КОММУНАЛКА', code: 'UTIL', description: 'Счета за коммунальные услуги и эксплуатационные расходы' },
 } as const
+
+// Типы платежей - такие же как типы счетов (из таблицы invoice_types)
+export const PAYMENT_TYPES = INVOICE_TYPES
 
 // Типы контрагентов
 const CONTRACTOR_TYPES = {

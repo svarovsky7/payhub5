@@ -244,16 +244,20 @@ export class WorkflowConfigService {
                 .eq('id', id)
 
             if (error) {
+                // Проверяем на ошибку внешнего ключа (409 Conflict)
+                if (error.code === '23503' || error.message?.includes('violates foreign key constraint')) {
+                    throw new Error('Невозможно удалить процесс: он используется в существующих счетах')
+                }
                 throw error
             }
 
             console.log('[WorkflowConfigService] Deleted workflow:', id)
             return {data: null, error: null}
         } catch (_error: any) {
-            console.error('[WorkflowConfigService] Error deleting workflow:', error)
+            console.error('[WorkflowConfigService] Error deleting workflow:', _error)
             return {
                 data: null,
-                error: error.message || 'Failed to delete workflow'
+                error: _error.message || 'Failed to delete workflow'
             }
         }
     }

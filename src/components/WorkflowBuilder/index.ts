@@ -24,6 +24,5 @@ export type {
 export {
   SYSTEM_ROLES,
   INVOICE_TYPES,
-  WORKFLOW_ACTIONS,
-  WORKFLOW_STATUS,
+  PAYMENT_TYPES,
 } from './types'

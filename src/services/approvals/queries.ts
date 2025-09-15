@@ -183,9 +183,7 @@ export class ApprovalQueryService {
           current_stage:workflow_stages!current_stage_id(
             id,
             name,
-            position,
-            assigned_users,
-            assigned_roles
+            position
           )
         `, {count: 'exact'})
                 .eq('status', 'in_progress')
@@ -230,33 +228,27 @@ export class ApprovalQueryService {
                 }
 
                 // Проверяем, является ли пользователь approver на текущем этапе
-                const assignedUsers = workflow.current_stage.assigned_users ?? []
-                const assignedRoles = workflow.current_stage.assigned_roles ?? []
+                // NOTE: assigned_users и assigned_roles не существуют в таблице workflow_stages
+                // Эта логика временно отключена до добавления этих полей в БД
+                const assignedUsers: string[] = []
+                const assignedRoles: string[] = []
 
                 console.log(`[ApprovalQueryService.getMyApprovals] Детали согласования для workflow ${workflow.id}:`, {
                     stageName: workflow.current_stage.name,
-                    assignedUsers,
-                    assignedRoles,
                     currentUserId: userId,
                     currentUserRole: userRole,
-                    userInAssignedUsers: assignedUsers.includes(userId),
-                    roleInAssignedRoles: assignedRoles.includes(userRole)
+                    // NOTE: assigned_users и assigned_roles временно отключены
+                    assignedFieldsDisabled: true
                 })
 
-                // Проверяем прямое назначение пользователя
-                if (assignedUsers.includes(userId)) {
-                    console.log(`[ApprovalQueryService.getMyApprovals] Workflow ${workflow.id} включен - пользователь в assigned_users`)
-                    return true
-                }
+                // TODO: Восстановить проверку после добавления assigned_users и assigned_roles в БД
+                // Временно возвращаем true для всех workflows в статусе in_progress
+                console.log(`[ApprovalQueryService.getMyApprovals] Workflow ${workflow.id} включен - временная логика без проверки назначений`)
+                return true
 
-                // Проверяем назначение по роли
-                if (assignedRoles.includes(userRole)) {
-                    console.log(`[ApprovalQueryService.getMyApprovals] Workflow ${workflow.id} включен - роль пользователя в assigned_roles`)
-                    return true
-                }
-
-                console.log(`[ApprovalQueryService.getMyApprovals] Workflow ${workflow.id} исключен - пользователь не является согласующим`)
-                return false
+                // Эта строка больше не достижима с временной логикой
+                // console.log(`[ApprovalQueryService.getMyApprovals] Workflow ${workflow.id} исключен - пользователь не является согласующим`)
+                // return false
             }) || []
 
             console.log('[ApprovalQueryService.getMyApprovals] Отфильтровано workflows для пользователя:', {

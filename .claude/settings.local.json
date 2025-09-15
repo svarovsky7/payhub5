@@ -61,7 +61,8 @@
       "Bash(npx depcheck:*)",
       "Bash(git add:*)",
       "Bash(git push:*)",
-      "Bash(git stash:*)"
+      "Bash(git stash:*)",
+      "Bash(node:*)"
     ]
   },
   "enableAllProjectMcpServers": true,
