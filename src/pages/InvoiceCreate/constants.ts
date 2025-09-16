@@ -5,31 +5,7 @@
 const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
 const MAX_TOTAL_SIZE = 50 * 1024 * 1024 // 50MB
 
-export const DEFAULT_CURRENCY = 'RUB'
 export const DEFAULT_VAT_RATE = 20
-
-// Unused export - removed
-// export const CURRENCY_OPTIONS = [
-//   { value: 'RUB', label: '₽ (RUB)' },
-//   { value: 'USD', label: '$ (USD)' },
-//   { value: 'EUR', label: '€ (EUR)' },
-//   { value: 'CNY', label: '¥ (CNY)' },
-//   { value: 'GBP', label: '£ (GBP)' }
-// ]
-
-// Unused export - removed
-// const CURRENCY_SYMBOLS: Record<string, string> = {
-//   'RUB': '₽',
-//   'USD': '$',
-//   'EUR': '€',
-//   'CNY': '¥',
-//   'GBP': '£'
-// }
-
-// Unused export - removed
-// export const getCurrencySymbol = (currency: string): string => {
-//   return CURRENCY_SYMBOLS[currency] || currency
-// }
 
 export const VAT_RATE_OPTIONS = [
   { value: 0, label: 'Без НДС (0%)' },

@@ -34,17 +34,6 @@ const ENUM_DEFINITIONS = {
             {value: 'high', label: 'Высокий', color: 'orange', order: 3},
             {value: 'urgent', label: 'Срочный', color: 'red', order: 4}
         ]
-    },
-    // Database type: currency_code (только 4 валюты согласно миграции)
-    currencyCode: {
-        name: 'Коды валют',
-        description: 'Валютные коды ISO 4217 (currency_code)',
-        items: [
-            {value: 'RUB', label: '₽ Российский рубль', color: 'blue', order: 1},
-            {value: 'USD', label: '$ Доллар США', color: 'green', order: 2},
-            {value: 'EUR', label: '€ Евро', color: 'gold', order: 3},
-            {value: 'CNY', label: '¥ Китайский юань', color: 'red', order: 4}
-        ]
     }
 }
 

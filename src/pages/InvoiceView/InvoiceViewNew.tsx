@@ -85,6 +85,7 @@ import { formatCurrency } from '@/utils/format'
 import { DEFAULT_CURRENCY, DEFAULT_VAT_RATE } from '../InvoiceCreate/constants'
 import { InvoiceFileStorage } from '@/services/invoices/file-storage'
 import type { InvoiceFormValues } from '../InvoiceCreate/types'
+import './InvoiceView.css'
 
 const { Title, Text } = Typography
 const { TextArea } = Input
@@ -169,10 +170,10 @@ export const InvoiceViewNew: React.FC = () => {
   const payers = contractors.filter((c: any) => c.type_id === 2)
   const projects = projectsResponse ?? []
 
-  // Получаем ID платежа для подсветки из URL
-  const highlightPaymentId = searchParams.get('payment_id')
-  // Получаем URL для возврата
-  const returnUrl = searchParams.get('return_url')
+  // Получаем ID платежа для подсветки из URL (поддерживаем оба варианта параметра)
+  const highlightPaymentId = searchParams.get('paymentId') || searchParams.get('payment_id')
+  // Получаем флаг для отображения кнопки возврата
+  const showReturnButton = searchParams.get('from') === 'payments'
 
   // Синхронизация вкладки с URL при изменении URL
   useEffect(() => {
@@ -207,7 +208,7 @@ export const InvoiceViewNew: React.FC = () => {
         number: invoice.invoice_number,
         status: invoice.status,
         totalAmount: invoice.total_amount,
-        currency: invoice.currency,
+        
         vatRate: invoice.vat_rate,
         mrpId: invoice.material_responsible_person_id,
         paymentsCount: invoice.payments?.length || 0
@@ -254,7 +255,7 @@ export const InvoiceViewNew: React.FC = () => {
         supplier_id: invoice.supplier_id,
         payer_id: invoice.payer_id,
         project_id: invoice.project_id,
-        currency: invoice.currency || DEFAULT_CURRENCY,
+        
         amount_with_vat: totalAmount,
         amount_net: amountNet,
         vat_rate: invoice.vat_rate || DEFAULT_VAT_RATE,
@@ -361,7 +362,7 @@ export const InvoiceViewNew: React.FC = () => {
         'payer_id',
         'project_id',
         'material_responsible_person_id',
-        'currency',
+        
         'amount_with_vat',
         'amount_net',
         'vat_rate',
@@ -394,7 +395,7 @@ export const InvoiceViewNew: React.FC = () => {
         payer_id: 'Плательщик',
         project_id: 'Проект',
         material_responsible_person_id: 'МОЛ',
-        currency: 'Валюта',
+        
         amount_with_vat: 'Сумма с НДС',
         amount_net: 'Сумма без НДС',
         vat_rate: 'Ставка НДС',
@@ -433,7 +434,7 @@ export const InvoiceViewNew: React.FC = () => {
       if (values.payer_id !== undefined) updateData.payer_id = values.payer_id
       if (values.project_id !== undefined) updateData.project_id = values.project_id
       if (values.material_responsible_person_id !== undefined) updateData.material_responsible_person_id = values.material_responsible_person_id
-      if (values.currency !== undefined) updateData.currency = values.currency
+      
       if (values.amount_with_vat !== undefined) updateData.total_amount = Number(values.amount_with_vat)
       if (values.amount_net !== undefined) updateData.amount_net = Number(values.amount_net || 0)
       if (values.vat_amount !== undefined) updateData.vat_amount = Number(values.vat_amount || 0)
@@ -504,7 +505,7 @@ export const InvoiceViewNew: React.FC = () => {
             supplier_id: invoice.supplier_id,
             payer_id: invoice.payer_id,
             project_id: invoice.project_id,
-            currency: invoice.currency || DEFAULT_CURRENCY,
+            
             amount_with_vat: Number(invoice.total_amount || 0),
             amount_net: Number(invoice.amount_net || 0),
             vat_rate: invoice.vat_rate || DEFAULT_VAT_RATE,
@@ -563,8 +564,8 @@ export const InvoiceViewNew: React.FC = () => {
       render: (amount: number, record: any) => (
         <Text strong>
           {new Intl.NumberFormat('ru-RU', {
-            style: 'currency',
-            currency: record.currency || invoice?.currency || 'RUB'
+            style: 
+            currency: 'RUB'
           }).format(amount)}
         </Text>
       )
@@ -588,7 +589,7 @@ export const InvoiceViewNew: React.FC = () => {
           status,
           amount: 0,
           count: 0,
-          currency: payment.currency || invoice?.currency || 'RUB'
+          currency: 'RUB'
         }
       }
       acc[status].amount += Number(payment.total_amount || 0)
@@ -1787,8 +1788,8 @@ const renderPayments = () => {
           render: (amount: number) => (
             <Text strong>
               {new Intl.NumberFormat('ru-RU', {
-                style: 'currency',
-                currency: invoice?.currency || 'RUB'
+                style: 
+                currency: 'RUB'
               }).format(amount || 0)}
             </Text>
           )
@@ -2159,6 +2160,19 @@ const renderHistory = () => {
 
   return (
     <div style={{ padding: '24px' }}>
+      {/* Кнопка возврата к платежам, если пришли со страницы платежей */}
+      {showReturnButton && (
+        <div style={{ marginBottom: 16 }}>
+          <Button
+            icon={<ArrowLeftOutlined />}
+            onClick={() => navigate('/payments/list')}
+            style={{ marginBottom: 8 }}
+          >
+            Вернуться к платежам
+          </Button>
+        </div>
+      )}
+
       {/* Breadcrumb */}
       <Breadcrumb
         style={{ marginBottom: 16 }}

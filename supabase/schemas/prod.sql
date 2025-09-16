@@ -1,5 +1,5 @@
 -- Database Schema SQL Export
--- Generated: 2025-09-15T22:54:19.387759
+-- Generated: 2025-09-16T23:49:50.415413
 -- Database: postgres
 -- Host: 31.128.51.210
 
@@ -369,19 +369,17 @@ COMMENT ON TABLE public.contractors IS 'Contractors (suppliers and payers) infor
 COMMENT ON COLUMN public.contractors.supplier_code IS 'Уникальный код поставщика (3 буквы + 4 цифры ИНН)';
 
 -- Table: public.invoice_documents
--- Description: Junction table linking invoices to attached documents
+-- Description: Таблица связи документов со счетами. РАЗРЕШЕНО множество документов на один счет!
 CREATE TABLE IF NOT EXISTS public.invoice_documents (
     id integer(32) NOT NULL DEFAULT nextval('invoice_documents_id_seq'::regclass),
     invoice_id integer(32),
     attachment_id integer(32),
     created_at timestamp with time zone DEFAULT now(),
     CONSTRAINT invoice_documents_attachment_id_fkey FOREIGN KEY (attachment_id) REFERENCES None.None(None),
-    CONSTRAINT invoice_documents_invoice_id_attachment_id_key UNIQUE (attachment_id),
-    CONSTRAINT invoice_documents_invoice_id_attachment_id_key UNIQUE (invoice_id),
     CONSTRAINT invoice_documents_invoice_id_fkey FOREIGN KEY (invoice_id) REFERENCES None.None(None),
     CONSTRAINT invoice_documents_pkey PRIMARY KEY (id)
 );
-COMMENT ON TABLE public.invoice_documents IS 'Junction table linking invoices to attached documents';
+COMMENT ON TABLE public.invoice_documents IS 'Таблица связи документов со счетами. РАЗРЕШЕНО множество документов на один счет!';
 
 -- Table: public.invoice_history
 -- Description: История всех изменений счетов, платежей и связанных документов
@@ -399,7 +397,6 @@ CREATE TABLE IF NOT EXISTS public.invoice_history (
     status_to character varying(50),
     amount_from numeric(15,2),
     amount_to numeric(15,2),
-    currency character varying(3),
     changed_fields jsonb,
     old_values jsonb,
     new_values jsonb,
@@ -408,6 +405,7 @@ CREATE TABLE IF NOT EXISTS public.invoice_history (
     user_role character varying(100),
     metadata jsonb,
     created_at timestamp with time zone DEFAULT now(),
+    currency character varying(10) DEFAULT 'RUB'::character varying,
     CONSTRAINT invoice_history_attachment_id_fkey FOREIGN KEY (attachment_id) REFERENCES None.None(None),
     CONSTRAINT invoice_history_document_id_fkey FOREIGN KEY (document_id) REFERENCES None.None(None),
     CONSTRAINT invoice_history_payment_id_fkey FOREIGN KEY (payment_id) REFERENCES None.None(None),
@@ -455,7 +453,6 @@ CREATE TABLE IF NOT EXISTS public.invoices (
     created_by uuid NOT NULL,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone DEFAULT now(),
-    currency USER-DEFINED,
     status character varying(50) NOT NULL DEFAULT 'draft'::character varying,
     delivery_days integer(32),
     material_responsible_person_id integer(32),
@@ -509,22 +506,33 @@ COMMENT ON COLUMN public.material_responsible_persons.created_by IS 'ID поль
 -- Table: public.payment_workflows
 CREATE TABLE IF NOT EXISTS public.payment_workflows (
     id integer(32) NOT NULL DEFAULT nextval('payment_workflows_id_seq'::regclass),
-    payment_id character varying(50) NOT NULL,
-    invoice_id character varying(50),
+    payment_id integer(32) NOT NULL,
+    invoice_id integer(32),
     workflow_id integer(32) NOT NULL,
     current_stage_id integer(32),
     current_stage_position integer(32) DEFAULT 1,
     status character varying(50) DEFAULT 'pending'::character varying,
+    amount numeric(15,2) NOT NULL,
+    description text,
+    contractor_id integer(32),
+    project_id integer(32),
+    payment_date date,
     stages_total integer(32) NOT NULL DEFAULT 0,
     stages_completed integer(32) DEFAULT 0,
+    approval_progress jsonb,
     started_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    started_by character varying(50),
+    started_by uuid,
+    completed_at timestamp with time zone,
+    completed_by uuid,
+    cancelled_at timestamp with time zone,
+    cancelled_by uuid,
+    cancelled_reason text,
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT payment_workflows_current_stage_id_fkey FOREIGN KEY (current_stage_id) REFERENCES None.None(None),
+    CONSTRAINT payment_workflows_invoice_id_fkey FOREIGN KEY (invoice_id) REFERENCES None.None(None),
+    CONSTRAINT payment_workflows_payment_id_fkey FOREIGN KEY (payment_id) REFERENCES None.None(None),
     CONSTRAINT payment_workflows_payment_id_key UNIQUE (payment_id),
-    CONSTRAINT payment_workflows_pkey PRIMARY KEY (id),
-    CONSTRAINT payment_workflows_workflow_id_fkey FOREIGN KEY (workflow_id) REFERENCES None.None(None)
+    CONSTRAINT payment_workflows_pkey PRIMARY KEY (id)
 );
 
 -- Table: public.payments
@@ -692,8 +700,7 @@ CREATE TABLE IF NOT EXISTS public.workflow_approval_progress (
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT workflow_approval_progress_pkey PRIMARY KEY (id),
     CONSTRAINT workflow_approval_progress_stage_id_fkey FOREIGN KEY (stage_id) REFERENCES None.None(None),
-    CONSTRAINT workflow_approval_progress_user_id_fkey FOREIGN KEY (user_id) REFERENCES None.None(None),
-    CONSTRAINT workflow_approval_progress_workflow_id_fkey FOREIGN KEY (workflow_id) REFERENCES None.None(None)
+    CONSTRAINT workflow_approval_progress_user_id_fkey FOREIGN KEY (user_id) REFERENCES None.None(None)
 );
 COMMENT ON TABLE public.workflow_approval_progress IS 'История всех действий по согласованию платежей';
 COMMENT ON COLUMN public.workflow_approval_progress.workflow_id IS 'ID процесса согласования';
@@ -953,9 +960,6 @@ CREATE TYPE auth.factor_type AS ENUM ('totp', 'webauthn', 'phone');
 
 CREATE TYPE auth.one_time_token_type AS ENUM ('confirmation_token', 'reauthentication_token', 'recovery_token', 'email_change_token_new', 'email_change_token_current', 'phone_change_token');
 
-CREATE TYPE public.currency_code AS ENUM ('RUB', 'USD', 'EUR', 'CNY');
-COMMENT ON TYPE public.currency_code IS 'Currency codes enum for financial operations';
-
 CREATE TYPE public.payment_type AS ENUM ('ADV', 'RET', 'DEBT');
 COMMENT ON TYPE public.payment_type IS 'Типы платежей: ADV - аванс, RET - возврат удержаний, DEBT - погашение долга';
 
@@ -973,45 +977,36 @@ CREATE TYPE storage.buckettype AS ENUM ('STANDARD', 'ANALYTICS');
 -- VIEWS
 -- ============================================
 
--- View: public.invoice_history_view
-CREATE OR REPLACE VIEW public.invoice_history_view AS
- SELECT ih.id,
-    ih.invoice_id,
-    ih.event_type,
-    ih.event_date,
-    ih.action,
-    ih.description,
-    i.invoice_number,
-    i.internal_number AS invoice_internal_number,
-    ih.payment_id,
-    p.internal_number AS payment_internal_number,
+-- View: public.v_payment_summary
+CREATE OR REPLACE VIEW public.v_payment_summary AS
+ SELECT p.id,
+    p.invoice_id,
+    p.internal_number AS payment_number,
+    p.total_amount,
+    p.status,
+    p.payment_date,
+    p.comment AS description,
     p.payment_type,
-    ih.document_id,
-    ih.attachment_id,
-    a.original_name AS document_name,
-    ih.status_from,
-    ih.status_to,
-    ih.amount_from,
-    ih.amount_to,
-    ih.currency,
-    ih.changed_fields,
-    ih.old_values,
-    ih.new_values,
-    ih.user_id,
-    ih.user_name,
-    ih.user_role,
-    u.email AS user_email,
-    u.full_name AS user_full_name,
-    r.name AS role_name,
-    ih.metadata,
-    ih.created_at
-   FROM (((((invoice_history ih
-     LEFT JOIN invoices i ON ((ih.invoice_id = i.id)))
-     LEFT JOIN payments p ON ((ih.payment_id = p.id)))
-     LEFT JOIN attachments a ON ((ih.attachment_id = a.id)))
-     LEFT JOIN users u ON ((ih.user_id = u.id)))
-     LEFT JOIN roles r ON ((u.role_id = r.id)))
-  ORDER BY ih.event_date DESC, ih.id DESC;
+    i.invoice_number,
+    i.invoice_date,
+    i.internal_number AS invoice_internal_number,
+    s.name AS supplier_name,
+    s.inn AS supplier_inn,
+    pyr.name AS payer_name,
+    pyr.inn AS payer_inn,
+    pr.name AS project_name,
+        CASE
+            WHEN ((p.status)::text = ANY ((ARRAY['completed'::character varying, 'paid'::character varying])::text[])) THEN p.total_amount
+            WHEN ((p.status)::text = ANY ((ARRAY['processing'::character varying, 'approved'::character varying, 'scheduled'::character varying])::text[])) THEN (p.total_amount * 0.5)
+            ELSE (0)::numeric
+        END AS effective_paid_amount,
+    p.created_at,
+    p.updated_at
+   FROM ((((payments p
+     LEFT JOIN invoices i ON ((i.id = p.invoice_id)))
+     LEFT JOIN contractors s ON ((s.id = i.supplier_id)))
+     LEFT JOIN contractors pyr ON ((pyr.id = i.payer_id)))
+     LEFT JOIN projects pr ON ((pr.id = i.project_id)));
 
 -- View: vault.decrypted_secrets
 CREATE OR REPLACE VIEW vault.decrypted_secrets AS
@@ -1396,7 +1391,7 @@ AS '$libdir/pgcrypto', $function$pgp_key_id_w$function$
 
 
 -- Function: extensions.pgp_pub_decrypt
-CREATE OR REPLACE FUNCTION extensions.pgp_pub_decrypt(bytea, bytea)
+CREATE OR REPLACE FUNCTION extensions.pgp_pub_decrypt(bytea, bytea, text, text)
  RETURNS text
  LANGUAGE c
  IMMUTABLE PARALLEL SAFE STRICT
@@ -1404,7 +1399,7 @@ AS '$libdir/pgcrypto', $function$pgp_pub_decrypt_text$function$
 
 
 -- Function: extensions.pgp_pub_decrypt
-CREATE OR REPLACE FUNCTION extensions.pgp_pub_decrypt(bytea, bytea, text, text)
+CREATE OR REPLACE FUNCTION extensions.pgp_pub_decrypt(bytea, bytea)
  RETURNS text
  LANGUAGE c
  IMMUTABLE PARALLEL SAFE STRICT
@@ -1428,7 +1423,7 @@ AS '$libdir/pgcrypto', $function$pgp_pub_decrypt_bytea$function$
 
 
 -- Function: extensions.pgp_pub_decrypt_bytea
-CREATE OR REPLACE FUNCTION extensions.pgp_pub_decrypt_bytea(bytea, bytea)
+CREATE OR REPLACE FUNCTION extensions.pgp_pub_decrypt_bytea(bytea, bytea, text)
  RETURNS bytea
  LANGUAGE c
  IMMUTABLE PARALLEL SAFE STRICT
@@ -1436,7 +1431,7 @@ AS '$libdir/pgcrypto', $function$pgp_pub_decrypt_bytea$function$
 
 
 -- Function: extensions.pgp_pub_decrypt_bytea
-CREATE OR REPLACE FUNCTION extensions.pgp_pub_decrypt_bytea(bytea, bytea, text)
+CREATE OR REPLACE FUNCTION extensions.pgp_pub_decrypt_bytea(bytea, bytea)
  RETURNS bytea
  LANGUAGE c
  IMMUTABLE PARALLEL SAFE STRICT
@@ -1476,7 +1471,7 @@ AS '$libdir/pgcrypto', $function$pgp_pub_encrypt_bytea$function$
 
 
 -- Function: extensions.pgp_sym_decrypt
-CREATE OR REPLACE FUNCTION extensions.pgp_sym_decrypt(bytea, text, text)
+CREATE OR REPLACE FUNCTION extensions.pgp_sym_decrypt(bytea, text)
  RETURNS text
  LANGUAGE c
  IMMUTABLE PARALLEL SAFE STRICT
@@ -1484,7 +1479,7 @@ AS '$libdir/pgcrypto', $function$pgp_sym_decrypt_text$function$
 
 
 -- Function: extensions.pgp_sym_decrypt
-CREATE OR REPLACE FUNCTION extensions.pgp_sym_decrypt(bytea, text)
+CREATE OR REPLACE FUNCTION extensions.pgp_sym_decrypt(bytea, text, text)
  RETURNS text
  LANGUAGE c
  IMMUTABLE PARALLEL SAFE STRICT
@@ -1508,7 +1503,7 @@ AS '$libdir/pgcrypto', $function$pgp_sym_decrypt_bytea$function$
 
 
 -- Function: extensions.pgp_sym_encrypt
-CREATE OR REPLACE FUNCTION extensions.pgp_sym_encrypt(text, text, text)
+CREATE OR REPLACE FUNCTION extensions.pgp_sym_encrypt(text, text)
  RETURNS bytea
  LANGUAGE c
  PARALLEL SAFE STRICT
@@ -1516,7 +1511,7 @@ AS '$libdir/pgcrypto', $function$pgp_sym_encrypt_text$function$
 
 
 -- Function: extensions.pgp_sym_encrypt
-CREATE OR REPLACE FUNCTION extensions.pgp_sym_encrypt(text, text)
+CREATE OR REPLACE FUNCTION extensions.pgp_sym_encrypt(text, text, text)
  RETURNS bytea
  LANGUAGE c
  PARALLEL SAFE STRICT
@@ -1912,6 +1907,65 @@ END;
 $function$
 
 
+-- Function: public.auto_generate_payment_number
+CREATE OR REPLACE FUNCTION public.auto_generate_payment_number()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+    v_invoice_number VARCHAR(100);
+    v_payment_count INTEGER;
+    v_payment_type_suffix VARCHAR(10);
+    v_invoice_id INTEGER;
+BEGIN
+    -- Если internal_number уже заполнен, не генерируем новый
+    IF NEW.internal_number IS NOT NULL AND NEW.internal_number != '' THEN
+        RETURN NEW;
+    END IF;
+
+    -- Определяем invoice_id
+    IF NEW.invoice_id IS NOT NULL THEN
+        v_invoice_id := NEW.invoice_id;
+    ELSE
+        RAISE EXCEPTION 'invoice_id не может быть NULL';
+    END IF;
+
+    -- Получаем номер счета
+    SELECT internal_number INTO v_invoice_number
+    FROM public.invoices
+    WHERE id = v_invoice_id;
+
+    IF v_invoice_number IS NULL THEN
+        RAISE EXCEPTION 'Не найден счет с id = %', v_invoice_id;
+    END IF;
+
+    -- Определяем суффикс типа платежа
+    v_payment_type_suffix := CASE NEW.payment_type
+        WHEN 'ADV' THEN '-ADV'
+        WHEN 'DEBT' THEN '-DEBT'
+        WHEN 'RET' THEN '-RET'
+        ELSE ''
+    END;
+
+    -- Считаем количество существующих платежей для этого счета с таким же типом
+    SELECT COUNT(*) + 1 INTO v_payment_count
+    FROM public.payments
+    WHERE invoice_id = v_invoice_id
+    AND payment_type = NEW.payment_type
+    AND id != COALESCE(NEW.id, -1);
+
+    -- Генерируем номер платежа
+    NEW.internal_number := format('%s/PAY-%02d%s',
+        v_invoice_number,
+        v_payment_count,
+        v_payment_type_suffix
+    );
+
+    RETURN NEW;
+END;
+$function$
+
+
 -- Function: public.calculate_payment_vat
 CREATE OR REPLACE FUNCTION public.calculate_payment_vat()
  RETURNS trigger
@@ -1964,6 +2018,86 @@ END;
 $function$
 
 
+-- Function: public.cascade_delete_invoice
+-- Description: Каскадное удаление счета со всеми связанными данными: платежи, документы, история, workflow состояния
+CREATE OR REPLACE FUNCTION public.cascade_delete_invoice(p_invoice_id uuid)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+AS $function$
+DECLARE
+    v_deleted_payments integer := 0;
+    v_deleted_documents integer := 0;
+    v_deleted_history integer := 0;
+    v_deleted_workflow integer := 0;
+    v_deleted_approvals integer := 0;
+    v_invoice_ref text;
+BEGIN
+    -- Получаем reference счета для логирования
+    SELECT reference INTO v_invoice_ref
+    FROM public.invoices
+    WHERE id = p_invoice_id;
+
+    IF v_invoice_ref IS NULL THEN
+        RAISE EXCEPTION 'Счет с ID % не найден', p_invoice_id;
+    END IF;
+
+    -- Удаляем платежи по счету
+    DELETE FROM public.payments
+    WHERE invoice_id = p_invoice_id;
+    GET DIAGNOSTICS v_deleted_payments = ROW_COUNT;
+
+    -- Удаляем документы/вложения счета
+    DELETE FROM public.documents
+    WHERE invoice_id = p_invoice_id;
+    GET DIAGNOSTICS v_deleted_documents = ROW_COUNT;
+
+    -- Удаляем историю изменений счета
+    DELETE FROM public.invoice_history
+    WHERE invoice_id = p_invoice_id;
+    GET DIAGNOSTICS v_deleted_history = ROW_COUNT;
+
+    -- Удаляем записи workflow состояния
+    DELETE FROM public.invoice_workflow_state
+    WHERE invoice_id = p_invoice_id;
+    GET DIAGNOSTICS v_deleted_workflow = ROW_COUNT;
+
+    -- Удаляем записи об одобрениях
+    DELETE FROM public.invoice_approvals
+    WHERE invoice_id = p_invoice_id;
+    GET DIAGNOSTICS v_deleted_approvals = ROW_COUNT;
+
+    -- Удаляем сам счет
+    DELETE FROM public.invoices
+    WHERE id = p_invoice_id;
+
+    -- Возвращаем результат
+    RETURN jsonb_build_object(
+        'success', true,
+        'invoice_id', p_invoice_id,
+        'invoice_ref', v_invoice_ref,
+        'deleted', jsonb_build_object(
+            'payments', v_deleted_payments,
+            'documents', v_deleted_documents,
+            'history', v_deleted_history,
+            'workflow_states', v_deleted_workflow,
+            'approvals', v_deleted_approvals
+        ),
+        'timestamp', now()
+    );
+
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN jsonb_build_object(
+            'success', false,
+            'error', SQLERRM,
+            'invoice_id', p_invoice_id,
+            'timestamp', now()
+        );
+END;
+$function$
+
+
 -- Function: public.fn_recalc_invoice_amounts
 -- Description: Recalculates VAT and total amounts before invoice insert/update
 CREATE OR REPLACE FUNCTION public.fn_recalc_invoice_amounts()
@@ -2001,36 +2135,116 @@ $function$
 
 
 -- Function: public.fn_sync_invoice_payment
--- Description: Синхронизирует paid_amount счета на основе платежей. Учитывает только платежи со статусами paid, approved и scheduled. НЕ изменяет статус счета автоматически.
+-- Description: Синхронизирует оплаченную сумму счета. Работает ТОЛЬКО с реальными статусами: completed, processing
 CREATE OR REPLACE FUNCTION public.fn_sync_invoice_payment()
  RETURNS trigger
  LANGUAGE plpgsql
 AS $function$
 DECLARE
-    total_paid numeric(15,2);
     target_invoice_id integer;
+    total_paid numeric(15,2);
+    invoice_total numeric(15,2);
+    v_last_payment_date timestamp with time zone;
+    v_old_status character varying(50);
 BEGIN
-    -- Determine which invoice to update
+    -- Определяем целевой счет
     IF TG_OP = 'DELETE' THEN
         target_invoice_id := OLD.invoice_id;
     ELSE
         target_invoice_id := NEW.invoice_id;
     END IF;
 
-    -- Calculate total paid amount for the invoice
-    -- Учитываем только платежи со статусами: paid, approved, scheduled
-    SELECT COALESCE(SUM(total_amount), 0)
-    INTO total_paid
+    -- Получаем старый статус счета
+    SELECT status INTO v_old_status
+    FROM invoices
+    WHERE id = target_invoice_id;
+
+    -- Суммируем платежи с РЕАЛЬНЫМИ статусами из приложения
+    -- completed и processing - это статусы, которые реально используются
+    SELECT
+        COALESCE(SUM(total_amount), 0),
+        MAX(CASE
+            WHEN status = 'completed' THEN updated_at
+            ELSE NULL
+        END)
+    INTO total_paid, v_last_payment_date
     FROM payments
     WHERE invoice_id = target_invoice_id
-    AND status IN ('paid', 'approved', 'scheduled');
+    AND status IN (
+        'completed',   -- Основной статус завершенного платежа
+        'processing'   -- Платеж в обработке (тоже считаем)
+        -- НЕ включаем: 'pending', 'draft', 'failed', 'cancelled'
+        -- НЕ включаем устаревшие: 'paid', 'approved', 'scheduled'
+    );
 
-    -- Update only invoice paid_amount (NOT status)
+    -- Получаем общую сумму счета
+    SELECT total_amount
+    INTO invoice_total
+    FROM invoices
+    WHERE id = target_invoice_id;
+
+    -- Обновляем счет
     UPDATE invoices
     SET
         paid_amount = total_paid,
+        -- Устанавливаем paid_at когда полностью оплачено
+        paid_at = CASE
+            WHEN total_paid >= invoice_total AND paid_at IS NULL
+                THEN COALESCE(v_last_payment_date, NOW())
+            WHEN total_paid < invoice_total
+                THEN NULL
+            ELSE paid_at
+        END,
+        -- Автоматически обновляем статус счета
+        status = CASE
+            WHEN total_paid = 0 THEN 'draft'
+            WHEN total_paid > 0 AND total_paid < invoice_total THEN 'partially_paid'
+            WHEN total_paid >= invoice_total THEN 'paid'
+            ELSE status
+        END,
         updated_at = NOW()
     WHERE id = target_invoice_id;
+
+    -- Логирование для отладки
+    IF TG_OP IN ('INSERT', 'UPDATE') THEN
+        RAISE NOTICE 'Синхронизация счета #%: paid=% of %, status=%',
+            target_invoice_id, total_paid, invoice_total, NEW.status;
+
+        -- Записываем в историю в правильном формате
+        INSERT INTO public.invoice_history (
+            invoice_id,
+            payment_id,
+            event_type,
+            event_date,
+            action,
+            description,
+            status_from,
+            status_to,
+            amount_from,
+            amount_to,
+            changed_fields,
+            user_id,
+            created_at
+        ) VALUES (
+            target_invoice_id,
+            NEW.id,
+            'payment',
+            NOW(),
+            'payment_sync',
+            format('Синхронизация платежей: %s из %s', total_paid::money, invoice_total::money),
+            v_old_status,
+            (SELECT status FROM invoices WHERE id = target_invoice_id),
+            (SELECT paid_amount FROM invoices WHERE id = target_invoice_id) - NEW.total_amount,
+            total_paid,
+            jsonb_build_object(
+                'payment_status', NEW.status,
+                'payment_amount', NEW.total_amount,
+                'total_paid', total_paid
+            ),
+            NEW.created_by,
+            NOW()
+        );
+    END IF;
 
     RETURN NEW;
 END;
@@ -2377,7 +2591,8 @@ $function$
 
 
 -- Function: public.start_payment_workflow_simple
-CREATE OR REPLACE FUNCTION public.start_payment_workflow_simple(p_payment_id character varying, p_invoice_id character varying, p_workflow_id integer, p_user_id character varying)
+-- Description: Запускает процесс согласования платежа. Все ID теперь INTEGER
+CREATE OR REPLACE FUNCTION public.start_payment_workflow_simple(p_payment_id integer, p_invoice_id integer, p_workflow_id integer, p_user_id uuid, p_amount numeric, p_description text DEFAULT NULL::text, p_supplier_id integer DEFAULT NULL::integer, p_project_id integer DEFAULT NULL::integer, p_payment_date date DEFAULT CURRENT_DATE)
  RETURNS integer
  LANGUAGE plpgsql
 AS $function$
@@ -2386,12 +2601,21 @@ DECLARE
     v_first_stage_id integer;
     v_stages_total integer;
 BEGIN
+    -- Валидация обязательных параметров
+    IF p_amount IS NULL OR p_amount <= 0 THEN
+        RAISE EXCEPTION 'Сумма платежа должна быть больше 0';
+    END IF;
+
     -- Получаем первый этап workflow
     SELECT id INTO v_first_stage_id
     FROM public.workflow_stages
     WHERE workflow_id = p_workflow_id
     ORDER BY position ASC
     LIMIT 1;
+
+    IF v_first_stage_id IS NULL THEN
+        RAISE EXCEPTION 'Не найдены этапы для workflow_id = %', p_workflow_id;
+    END IF;
 
     -- Получаем общее количество этапов
     SELECT COUNT(*) INTO v_stages_total
@@ -2400,29 +2624,68 @@ BEGIN
 
     -- Создаем запись payment_workflow
     INSERT INTO public.payment_workflows (
-        payment_id,
-        invoice_id,
+        payment_id,          -- INTEGER
+        invoice_id,          -- INTEGER
         workflow_id,
         current_stage_id,
         current_stage_position,
         status,
+        amount,
+        description,
+        contractor_id,
+        project_id,
+        payment_date,
         stages_total,
         stages_completed,
         started_by,
         started_at
     ) VALUES (
-        p_payment_id,
-        p_invoice_id,
+        p_payment_id,        -- Прямо передаем INTEGER
+        p_invoice_id,        -- Прямо передаем INTEGER
         p_workflow_id,
         v_first_stage_id,
         1,
         'in_progress',
+        p_amount,
+        p_description,
+        p_supplier_id,
+        p_project_id,
+        p_payment_date,
         v_stages_total,
         0,
         p_user_id,
         NOW()
     )
     RETURNING id INTO v_workflow_id;
+
+    -- Логирование в правильном формате для invoice_history
+    INSERT INTO public.invoice_history (
+        invoice_id,
+        event_type,
+        event_date,
+        action,
+        description,
+        payment_id,
+        user_id,
+        new_values,
+        created_at
+    ) VALUES (
+        p_invoice_id,
+        'workflow',
+        NOW(),
+        'workflow_started',
+        format('Запущен workflow для платежа #%s на сумму %s', p_payment_id, p_amount::money),
+        p_payment_id,
+        p_user_id,
+        jsonb_build_object(
+            'workflow_id', v_workflow_id,
+            'payment_id', p_payment_id,
+            'amount', p_amount,
+            'supplier_id', p_supplier_id,
+            'project_id', p_project_id
+        ),
+        NOW()
+    );
 
     RETURN v_workflow_id;
 END;
@@ -2555,6 +2818,7 @@ DECLARE
     v_new_values JSONB;
     v_invoice_id INTEGER;
     v_field_names TEXT;
+    v_temp_name VARCHAR(255);
 BEGIN
     -- Получаем информацию о текущем пользователе
     v_user_id := auth.uid();
@@ -2602,6 +2866,7 @@ BEGIN
                 'supplier_id', OLD.supplier_id,
                 'payer_id', OLD.payer_id,
                 'project_id', OLD.project_id,
+                'material_responsible_person_id', OLD.material_responsible_person_id,
                 'deleted_at', NOW()
             ),
             NOW()
@@ -2612,31 +2877,72 @@ BEGIN
 
     ELSIF TG_OP = 'INSERT' THEN
         -- Запись о создании счета
-        INSERT INTO public.invoice_history (
-            invoice_id,
-            event_type,
-            action,
-            user_id,
-            user_name,
-            user_role,
-            status_to,
-            amount_to,
-            currency,
-            new_values,
-            description
-        ) VALUES (
-            NEW.id,
-            'INVOICE_CREATED',
-            'Счет создан',
-            v_user_id,
-            COALESCE(v_user_name, 'Система'),
-            v_user_role,
-            NEW.status,
-            NEW.total_amount,
-            NEW.currency,
-            to_jsonb(NEW),
-            'Создан новый счет №' || NEW.invoice_number
-        );
+        -- Проверяем существование колонки currency в invoice_history
+        IF EXISTS (
+            SELECT 1 FROM information_schema.columns
+            WHERE table_schema = 'public'
+            AND table_name = 'invoice_history'
+            AND column_name = 'currency'
+        ) THEN
+            INSERT INTO public.invoice_history (
+                invoice_id,
+                event_type,
+                action,
+                user_id,
+                user_name,
+                user_role,
+                status_to,
+                amount_to,
+                currency,  -- Всегда RUB
+                new_values,
+                description,
+                metadata
+            ) VALUES (
+                NEW.id,
+                'INVOICE_CREATED',
+                'Счет создан',
+                v_user_id,
+                COALESCE(v_user_name, 'Система'),
+                v_user_role,
+                NEW.status,
+                NEW.total_amount,
+                'RUB',  -- Жёстко закодированная валюта
+                to_jsonb(NEW),
+                'Создан новый счет №' || NEW.invoice_number,
+                jsonb_build_object(
+                    'material_responsible_person_id', NEW.material_responsible_person_id
+                )
+            );
+        ELSE
+            -- Если колонки currency нет, вставляем без неё
+            INSERT INTO public.invoice_history (
+                invoice_id,
+                event_type,
+                action,
+                user_id,
+                user_name,
+                user_role,
+                status_to,
+                amount_to,
+                new_values,
+                description,
+                metadata
+            ) VALUES (
+                NEW.id,
+                'INVOICE_CREATED',
+                'Счет создан',
+                v_user_id,
+                COALESCE(v_user_name, 'Система'),
+                v_user_role,
+                NEW.status,
+                NEW.total_amount,
+                to_jsonb(NEW),
+                'Создан новый счет №' || NEW.invoice_number,
+                jsonb_build_object(
+                    'material_responsible_person_id', NEW.material_responsible_person_id
+                )
+            );
+        END IF;
 
     ELSIF TG_OP = 'UPDATE' THEN
         -- Проверяем изменение статуса
@@ -2669,11 +2975,29 @@ BEGIN
         v_old_values := '{}';
         v_new_values := '{}';
 
-        -- Проверяем важные поля
+        -- Проверяем важные поля и собираем старые/новые значения
         IF OLD.total_amount IS DISTINCT FROM NEW.total_amount THEN
             v_changed_fields := v_changed_fields || jsonb_build_object('total_amount', true);
             v_old_values := v_old_values || jsonb_build_object('total_amount', OLD.total_amount);
             v_new_values := v_new_values || jsonb_build_object('total_amount', NEW.total_amount);
+        END IF;
+
+        IF OLD.amount_net IS DISTINCT FROM NEW.amount_net THEN
+            v_changed_fields := v_changed_fields || jsonb_build_object('amount_net', true);
+            v_old_values := v_old_values || jsonb_build_object('amount_net', OLD.amount_net);
+            v_new_values := v_new_values || jsonb_build_object('amount_net', NEW.amount_net);
+        END IF;
+
+        IF OLD.vat_amount IS DISTINCT FROM NEW.vat_amount THEN
+            v_changed_fields := v_changed_fields || jsonb_build_object('vat_amount', true);
+            v_old_values := v_old_values || jsonb_build_object('vat_amount', OLD.vat_amount);
+            v_new_values := v_new_values || jsonb_build_object('vat_amount', NEW.vat_amount);
+        END IF;
+
+        IF OLD.vat_rate IS DISTINCT FROM NEW.vat_rate THEN
+            v_changed_fields := v_changed_fields || jsonb_build_object('vat_rate', true);
+            v_old_values := v_old_values || jsonb_build_object('vat_rate', OLD.vat_rate);
+            v_new_values := v_new_values || jsonb_build_object('vat_rate', NEW.vat_rate);
         END IF;
 
         IF OLD.supplier_id IS DISTINCT FROM NEW.supplier_id THEN
@@ -2700,11 +3024,43 @@ BEGIN
             v_new_values := v_new_values || jsonb_build_object('description', NEW.description);
         END IF;
 
+        -- ВАЖНО: Проверка изменения МОЛ (материально ответственного лица)
+        IF OLD.material_responsible_person_id IS DISTINCT FROM NEW.material_responsible_person_id THEN
+            v_changed_fields := v_changed_fields || jsonb_build_object('material_responsible_person_id', true);
+            v_old_values := v_old_values || jsonb_build_object('material_responsible_person_id', OLD.material_responsible_person_id);
+            v_new_values := v_new_values || jsonb_build_object('material_responsible_person_id', NEW.material_responsible_person_id);
+
+            -- Получаем имена МОЛ из правильной таблицы
+            IF OLD.material_responsible_person_id IS NOT NULL THEN
+                SELECT full_name INTO v_temp_name
+                FROM public.material_responsible_persons
+                WHERE id = OLD.material_responsible_person_id;
+                IF v_temp_name IS NOT NULL THEN
+                    v_old_values := v_old_values || jsonb_build_object('material_responsible_person_name', v_temp_name);
+                END IF;
+            END IF;
+
+            IF NEW.material_responsible_person_id IS NOT NULL THEN
+                SELECT full_name INTO v_temp_name
+                FROM public.material_responsible_persons
+                WHERE id = NEW.material_responsible_person_id;
+                IF v_temp_name IS NOT NULL THEN
+                    v_new_values := v_new_values || jsonb_build_object('material_responsible_person_name', v_temp_name);
+                END IF;
+            END IF;
+        END IF;
+
         -- Проверяем дополнительные поля
         IF OLD.invoice_number IS DISTINCT FROM NEW.invoice_number THEN
             v_changed_fields := v_changed_fields || jsonb_build_object('invoice_number', true);
             v_old_values := v_old_values || jsonb_build_object('invoice_number', OLD.invoice_number);
             v_new_values := v_new_values || jsonb_build_object('invoice_number', NEW.invoice_number);
+        END IF;
+
+        IF OLD.internal_number IS DISTINCT FROM NEW.internal_number THEN
+            v_changed_fields := v_changed_fields || jsonb_build_object('internal_number', true);
+            v_old_values := v_old_values || jsonb_build_object('internal_number', OLD.internal_number);
+            v_new_values := v_new_values || jsonb_build_object('internal_number', NEW.internal_number);
         END IF;
 
         IF OLD.invoice_date IS DISTINCT FROM NEW.invoice_date THEN
@@ -2713,17 +3069,8 @@ BEGIN
             v_new_values := v_new_values || jsonb_build_object('invoice_date', NEW.invoice_date);
         END IF;
 
-        IF OLD.currency IS DISTINCT FROM NEW.currency THEN
-            v_changed_fields := v_changed_fields || jsonb_build_object('currency', true);
-            v_old_values := v_old_values || jsonb_build_object('currency', OLD.currency);
-            v_new_values := v_new_values || jsonb_build_object('currency', NEW.currency);
-        END IF;
-
-        IF OLD.vat_rate IS DISTINCT FROM NEW.vat_rate THEN
-            v_changed_fields := v_changed_fields || jsonb_build_object('vat_rate', true);
-            v_old_values := v_old_values || jsonb_build_object('vat_rate', OLD.vat_rate);
-            v_new_values := v_new_values || jsonb_build_object('vat_rate', NEW.vat_rate);
-        END IF;
+        -- УДАЛЕНА проверка OLD.currency IS DISTINCT FROM NEW.currency
+        -- так как поля currency больше нет в таблице invoices
 
         IF OLD.priority IS DISTINCT FROM NEW.priority THEN
             v_changed_fields := v_changed_fields || jsonb_build_object('priority', true);
@@ -2731,40 +3078,91 @@ BEGIN
             v_new_values := v_new_values || jsonb_build_object('priority', NEW.priority);
         END IF;
 
+        IF OLD.delivery_days IS DISTINCT FROM NEW.delivery_days THEN
+            v_changed_fields := v_changed_fields || jsonb_build_object('delivery_days', true);
+            v_old_values := v_old_values || jsonb_build_object('delivery_days', OLD.delivery_days);
+            v_new_values := v_new_values || jsonb_build_object('delivery_days', NEW.delivery_days);
+        END IF;
+
+        IF OLD.delivery_days_type IS DISTINCT FROM NEW.delivery_days_type THEN
+            v_changed_fields := v_changed_fields || jsonb_build_object('delivery_days_type', true);
+            v_old_values := v_old_values || jsonb_build_object('delivery_days_type', OLD.delivery_days_type);
+            v_new_values := v_new_values || jsonb_build_object('delivery_days_type', NEW.delivery_days_type);
+        END IF;
+
         -- Если были изменения полей (кроме статуса)
         IF v_changed_fields != '{}' THEN
-            -- Формируем список измененных полей более безопасным способом
+            -- Формируем список измененных полей
             SELECT string_agg(field_name, ', ')
             INTO v_field_names
             FROM jsonb_object_keys(v_changed_fields) AS field_name;
 
-            INSERT INTO public.invoice_history (
-                invoice_id,
-                event_type,
-                action,
-                user_id,
-                user_name,
-                user_role,
-                changed_fields,
-                old_values,
-                new_values,
-                amount_from,
-                amount_to,
-                description
-            ) VALUES (
-                NEW.id,
-                'INVOICE_UPDATED',
-                'Счет изменен',
-                v_user_id,
-                COALESCE(v_user_name, 'Система'),
-                v_user_role,
-                v_changed_fields,
-                v_old_values,
-                v_new_values,
-                OLD.total_amount,
-                NEW.total_amount,
-                'Изменены поля: ' || COALESCE(v_field_names, 'нет')
-            );
+            -- Проверяем существование колонки currency в invoice_history
+            IF EXISTS (
+                SELECT 1 FROM information_schema.columns
+                WHERE table_schema = 'public'
+                AND table_name = 'invoice_history'
+                AND column_name = 'currency'
+            ) THEN
+                INSERT INTO public.invoice_history (
+                    invoice_id,
+                    event_type,
+                    action,
+                    user_id,
+                    user_name,
+                    user_role,
+                    changed_fields,
+                    old_values,
+                    new_values,
+                    amount_from,
+                    amount_to,
+                    currency,  -- Всегда RUB
+                    description
+                ) VALUES (
+                    NEW.id,
+                    'INVOICE_UPDATED',
+                    'Счет изменен',
+                    v_user_id,
+                    COALESCE(v_user_name, 'Система'),
+                    v_user_role,
+                    v_changed_fields,
+                    v_old_values,
+                    v_new_values,
+                    OLD.total_amount,
+                    NEW.total_amount,
+                    'RUB',  -- Жёстко закодированная валюта
+                    'Изменены поля: ' || COALESCE(v_field_names, 'нет')
+                );
+            ELSE
+                -- Если колонки currency нет, вставляем без неё
+                INSERT INTO public.invoice_history (
+                    invoice_id,
+                    event_type,
+                    action,
+                    user_id,
+                    user_name,
+                    user_role,
+                    changed_fields,
+                    old_values,
+                    new_values,
+                    amount_from,
+                    amount_to,
+                    description
+                ) VALUES (
+                    NEW.id,
+                    'INVOICE_UPDATED',
+                    'Счет изменен',
+                    v_user_id,
+                    COALESCE(v_user_name, 'Система'),
+                    v_user_role,
+                    v_changed_fields,
+                    v_old_values,
+                    v_new_values,
+                    OLD.total_amount,
+                    NEW.total_amount,
+                    'Изменены поля: ' || COALESCE(v_field_names, 'нет')
+                );
+            END IF;
         END IF;
     END IF;
 
@@ -2790,7 +3188,7 @@ DECLARE
     v_user_name VARCHAR(255);
     v_user_role VARCHAR(100);
     v_invoice_id INTEGER;
-    v_currency VARCHAR(10);
+    v_has_currency_column BOOLEAN;
 BEGIN
     -- Получаем информацию о текущем пользователе
     v_user_id := auth.uid();
@@ -2803,91 +3201,18 @@ BEGIN
         WHERE u.id = v_user_id;
     END IF;
 
+    -- Проверяем существование колонки currency в invoice_history один раз
+    SELECT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public'
+        AND table_name = 'invoice_history'
+        AND column_name = 'currency'
+    ) INTO v_has_currency_column;
+
     IF TG_OP = 'DELETE' THEN
         v_invoice_id := OLD.invoice_id;
 
-        -- Получаем валюту из связанного счета
-        SELECT currency INTO v_currency FROM public.invoices WHERE id = v_invoice_id;
-
-        INSERT INTO public.invoice_history (
-            invoice_id,
-            payment_id,
-            event_type,
-            action,
-            user_id,
-            user_name,
-            user_role,
-            status_from,
-            amount_from,
-            currency,
-            old_values,
-            description,
-            metadata
-        ) VALUES (
-            v_invoice_id,
-            OLD.id,
-            'PAYMENT_DELETED',
-            'Платеж удален',
-            v_user_id,
-            COALESCE(v_user_name, 'Система'),
-            v_user_role,
-            OLD.status,
-            OLD.total_amount,  -- Используем total_amount вместо amount
-            v_currency,
-            to_jsonb(OLD),
-            'Удален платеж №' || COALESCE(OLD.internal_number, OLD.id::text),
-            jsonb_build_object(
-                'payment_id', OLD.id,
-                'payment_type', OLD.payment_type,
-                'deleted_at', NOW()
-            )
-        );
-        RETURN OLD;
-
-    ELSIF TG_OP = 'INSERT' THEN
-        -- Получаем валюту из связанного счета
-        SELECT currency INTO v_currency FROM public.invoices WHERE id = NEW.invoice_id;
-
-        INSERT INTO public.invoice_history (
-            invoice_id,
-            payment_id,
-            event_type,
-            action,
-            user_id,
-            user_name,
-            user_role,
-            status_to,
-            amount_to,
-            currency,
-            new_values,
-            description,
-            metadata
-        ) VALUES (
-            NEW.invoice_id,
-            NEW.id,
-            'PAYMENT_CREATED',
-            'Платеж создан',
-            v_user_id,
-            COALESCE(v_user_name, 'Система'),
-            v_user_role,
-            NEW.status,
-            NEW.total_amount,  -- Используем total_amount вместо amount
-            v_currency,
-            to_jsonb(NEW),
-            'Создан платеж №' || COALESCE(NEW.internal_number, NEW.id::text),
-            jsonb_build_object(
-                'payment_type', NEW.payment_type,
-                'payer_id', NEW.payer_id,
-                'created_at', NOW()
-            )
-        );
-        RETURN NEW;
-
-    ELSIF TG_OP = 'UPDATE' THEN
-        -- Получаем валюту из связанного счета
-        SELECT currency INTO v_currency FROM public.invoices WHERE id = NEW.invoice_id;
-
-        IF OLD.status IS DISTINCT FROM NEW.status THEN
+        IF v_has_currency_column THEN
             INSERT INTO public.invoice_history (
                 invoice_id,
                 payment_id,
@@ -2897,23 +3222,32 @@ BEGIN
                 user_name,
                 user_role,
                 status_from,
-                status_to,
-                description
+                amount_from,
+                currency,  -- Всегда RUB
+                old_values,
+                description,
+                metadata
             ) VALUES (
-                NEW.invoice_id,
-                NEW.id,
-                'PAYMENT_STATUS_CHANGED',
-                'Изменен статус платежа',
+                v_invoice_id,
+                OLD.id,
+                'PAYMENT_DELETED',
+                'Платеж удален',
                 v_user_id,
                 COALESCE(v_user_name, 'Система'),
                 v_user_role,
                 OLD.status,
-                NEW.status,
-                'Статус платежа изменен с "' || COALESCE(OLD.status, 'нет') || '" на "' || NEW.status || '"'
+                OLD.total_amount,
+                'RUB',  -- Жёстко закодированная валюта
+                to_jsonb(OLD),
+                'Удален платеж №' || COALESCE(OLD.internal_number, 'без номера'),
+                jsonb_build_object(
+                    'payment_id', OLD.id,
+                    'payment_type', OLD.payment_type,
+                    'internal_number', OLD.internal_number,
+                    'deleted_at', NOW()
+                )
             );
-        END IF;
-
-        IF OLD.total_amount IS DISTINCT FROM NEW.total_amount THEN
+        ELSE
             INSERT INTO public.invoice_history (
                 invoice_id,
                 payment_id,
@@ -2922,28 +3256,448 @@ BEGIN
                 user_id,
                 user_name,
                 user_role,
+                status_from,
                 amount_from,
-                amount_to,
-                currency,
-                description
+                old_values,
+                description,
+                metadata
             ) VALUES (
-                NEW.invoice_id,
-                NEW.id,
-                'PAYMENT_AMOUNT_CHANGED',
-                'Изменена сумма платежа',
+                v_invoice_id,
+                OLD.id,
+                'PAYMENT_DELETED',
+                'Платеж удален',
                 v_user_id,
                 COALESCE(v_user_name, 'Система'),
                 v_user_role,
-                OLD.total_amount,  -- Используем total_amount вместо amount
-                NEW.total_amount,  -- Используем total_amount вместо amount
-                v_currency,
-                'Сумма платежа изменена с ' || OLD.total_amount || ' на ' || NEW.total_amount
+                OLD.status,
+                OLD.total_amount,
+                to_jsonb(OLD),
+                'Удален платеж №' || COALESCE(OLD.internal_number, 'без номера'),
+                jsonb_build_object(
+                    'payment_id', OLD.id,
+                    'payment_type', OLD.payment_type,
+                    'internal_number', OLD.internal_number,
+                    'deleted_at', NOW()
+                )
             );
         END IF;
+
+        -- Обновляем paid_amount в счете
+        UPDATE public.invoices
+        SET
+            paid_amount = GREATEST(0, paid_amount - OLD.total_amount),
+            updated_at = NOW()
+        WHERE id = v_invoice_id;
+
+        RETURN OLD;
+
+    ELSIF TG_OP = 'INSERT' THEN
+        v_invoice_id := NEW.invoice_id;
+
+        IF v_has_currency_column THEN
+            INSERT INTO public.invoice_history (
+                invoice_id,
+                payment_id,
+                event_type,
+                action,
+                user_id,
+                user_name,
+                user_role,
+                status_to,
+                amount_to,
+                currency,  -- Всегда RUB
+                new_values,
+                description,
+                metadata
+            ) VALUES (
+                v_invoice_id,
+                NEW.id,
+                'PAYMENT_CREATED',
+                'Создан платеж',
+                v_user_id,
+                COALESCE(v_user_name, 'Система'),
+                v_user_role,
+                NEW.status,
+                NEW.total_amount,
+                'RUB',  -- Жёстко закодированная валюта
+                to_jsonb(NEW),
+                'Создан платеж ' ||
+                CASE NEW.payment_type
+                    WHEN 'ADV' THEN 'Аванс'
+                    WHEN 'RET' THEN 'Возврат удержаний'
+                    WHEN 'DEBT' THEN 'Погашение долга'
+                    ELSE NEW.payment_type
+                END ||
+                ' на сумму ' || NEW.total_amount || ' RUB',
+                jsonb_build_object(
+                    'payment_id', NEW.id,
+                    'payment_type', NEW.payment_type,
+                    'internal_number', NEW.internal_number,
+                    'payer_id', NEW.payer_id
+                )
+            );
+        ELSE
+            INSERT INTO public.invoice_history (
+                invoice_id,
+                payment_id,
+                event_type,
+                action,
+                user_id,
+                user_name,
+                user_role,
+                status_to,
+                amount_to,
+                new_values,
+                description,
+                metadata
+            ) VALUES (
+                v_invoice_id,
+                NEW.id,
+                'PAYMENT_CREATED',
+                'Создан платеж',
+                v_user_id,
+                COALESCE(v_user_name, 'Система'),
+                v_user_role,
+                NEW.status,
+                NEW.total_amount,
+                to_jsonb(NEW),
+                'Создан платеж ' ||
+                CASE NEW.payment_type
+                    WHEN 'ADV' THEN 'Аванс'
+                    WHEN 'RET' THEN 'Возврат удержаний'
+                    WHEN 'DEBT' THEN 'Погашение долга'
+                    ELSE NEW.payment_type
+                END ||
+                ' на сумму ' || NEW.total_amount || ' RUB',
+                jsonb_build_object(
+                    'payment_id', NEW.id,
+                    'payment_type', NEW.payment_type,
+                    'internal_number', NEW.internal_number,
+                    'payer_id', NEW.payer_id
+                )
+            );
+        END IF;
+
+        -- Обновляем paid_amount в счете при создании платежа в статусе paid
+        IF NEW.status = 'paid' THEN
+            UPDATE public.invoices
+            SET
+                paid_amount = paid_amount + NEW.total_amount,
+                updated_at = NOW()
+            WHERE id = v_invoice_id;
+        END IF;
+
+    ELSIF TG_OP = 'UPDATE' THEN
+        v_invoice_id := NEW.invoice_id;
+
+        -- Проверяем изменение статуса
+        IF OLD.status IS DISTINCT FROM NEW.status THEN
+            IF v_has_currency_column THEN
+                INSERT INTO public.invoice_history (
+                    invoice_id,
+                    payment_id,
+                    event_type,
+                    action,
+                    user_id,
+                    user_name,
+                    user_role,
+                    status_from,
+                    status_to,
+                    amount_to,
+                    currency,  -- Всегда RUB
+                    description,
+                    metadata
+                ) VALUES (
+                    v_invoice_id,
+                    NEW.id,
+                    'PAYMENT_STATUS_CHANGED',
+                    'Изменен статус платежа',
+                    v_user_id,
+                    COALESCE(v_user_name, 'Система'),
+                    v_user_role,
+                    OLD.status,
+                    NEW.status,
+                    NEW.total_amount,
+                    'RUB',  -- Жёстко закодированная валюта
+                    'Статус платежа изменен с "' || COALESCE(OLD.status, 'нет') || '" на "' || NEW.status || '"',
+                    jsonb_build_object(
+                        'payment_id', NEW.id,
+                        'payment_type', NEW.payment_type,
+                        'internal_number', NEW.internal_number
+                    )
+                );
+            ELSE
+                INSERT INTO public.invoice_history (
+                    invoice_id,
+                    payment_id,
+                    event_type,
+                    action,
+                    user_id,
+                    user_name,
+                    user_role,
+                    status_from,
+                    status_to,
+                    amount_to,
+                    description,
+                    metadata
+                ) VALUES (
+                    v_invoice_id,
+                    NEW.id,
+                    'PAYMENT_STATUS_CHANGED',
+                    'Изменен статус платежа',
+                    v_user_id,
+                    COALESCE(v_user_name, 'Система'),
+                    v_user_role,
+                    OLD.status,
+                    NEW.status,
+                    NEW.total_amount,
+                    'Статус платежа изменен с "' || COALESCE(OLD.status, 'нет') || '" на "' || NEW.status || '"',
+                    jsonb_build_object(
+                        'payment_id', NEW.id,
+                        'payment_type', NEW.payment_type,
+                        'internal_number', NEW.internal_number
+                    )
+                );
+            END IF;
+
+            -- Обновляем paid_amount в счете при изменении статуса
+            IF OLD.status != 'paid' AND NEW.status = 'paid' THEN
+                -- Платеж стал оплаченным
+                UPDATE public.invoices
+                SET
+                    paid_amount = paid_amount + NEW.total_amount,
+                    updated_at = NOW()
+                WHERE id = v_invoice_id;
+            ELSIF OLD.status = 'paid' AND NEW.status != 'paid' THEN
+                -- Платеж перестал быть оплаченным
+                UPDATE public.invoices
+                SET
+                    paid_amount = GREATEST(0, paid_amount - NEW.total_amount),
+                    updated_at = NOW()
+                WHERE id = v_invoice_id;
+            END IF;
+        END IF;
+
+        -- Проверяем изменение суммы
+        IF OLD.total_amount IS DISTINCT FROM NEW.total_amount THEN
+            IF v_has_currency_column THEN
+                INSERT INTO public.invoice_history (
+                    invoice_id,
+                    payment_id,
+                    event_type,
+                    action,
+                    user_id,
+                    user_name,
+                    user_role,
+                    amount_from,
+                    amount_to,
+                    currency,  -- Всегда RUB
+                    description,
+                    metadata
+                ) VALUES (
+                    v_invoice_id,
+                    NEW.id,
+                    'PAYMENT_AMOUNT_CHANGED',
+                    'Изменена сумма платежа',
+                    v_user_id,
+                    COALESCE(v_user_name, 'Система'),
+                    v_user_role,
+                    OLD.total_amount,
+                    NEW.total_amount,
+                    'RUB',  -- Жёстко закодированная валюта
+                    'Сумма платежа изменена с ' || OLD.total_amount || ' на ' || NEW.total_amount || ' RUB',
+                    jsonb_build_object(
+                        'payment_id', NEW.id,
+                        'payment_type', NEW.payment_type,
+                        'internal_number', NEW.internal_number,
+                        'difference', NEW.total_amount - OLD.total_amount
+                    )
+                );
+            ELSE
+                INSERT INTO public.invoice_history (
+                    invoice_id,
+                    payment_id,
+                    event_type,
+                    action,
+                    user_id,
+                    user_name,
+                    user_role,
+                    amount_from,
+                    amount_to,
+                    description,
+                    metadata
+                ) VALUES (
+                    v_invoice_id,
+                    NEW.id,
+                    'PAYMENT_AMOUNT_CHANGED',
+                    'Изменена сумма платежа',
+                    v_user_id,
+                    COALESCE(v_user_name, 'Система'),
+                    v_user_role,
+                    OLD.total_amount,
+                    NEW.total_amount,
+                    'Сумма платежа изменена с ' || OLD.total_amount || ' на ' || NEW.total_amount || ' RUB',
+                    jsonb_build_object(
+                        'payment_id', NEW.id,
+                        'payment_type', NEW.payment_type,
+                        'internal_number', NEW.internal_number,
+                        'difference', NEW.total_amount - OLD.total_amount
+                    )
+                );
+            END IF;
+
+            -- Если платеж в статусе paid, корректируем paid_amount в счете
+            IF NEW.status = 'paid' THEN
+                UPDATE public.invoices
+                SET
+                    paid_amount = GREATEST(0, paid_amount - OLD.total_amount + NEW.total_amount),
+                    updated_at = NOW()
+                WHERE id = v_invoice_id;
+            END IF;
+        END IF;
+    END IF;
+
+    -- Для INSERT и UPDATE возвращаем NEW
+    IF TG_OP != 'DELETE' THEN
         RETURN NEW;
     END IF;
 
+    -- Для DELETE возвращаем OLD (уже обработано выше)
     RETURN NULL;
+END;
+$function$
+
+
+-- Function: public.track_payment_history
+CREATE OR REPLACE FUNCTION public.track_payment_history()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+    v_user_id UUID;
+    v_user_name VARCHAR(255);
+    v_user_role VARCHAR(100);
+    v_invoice_id INTEGER;
+BEGIN
+    -- Получаем информацию о текущем пользователе
+    v_user_id := auth.uid();
+
+    IF v_user_id IS NOT NULL THEN
+        SELECT full_name INTO v_user_name FROM public.users WHERE id = v_user_id;
+        SELECT r.code INTO v_user_role
+        FROM public.user_profiles up
+        JOIN public.roles r ON up.role_id = r.id
+        WHERE up.user_id = v_user_id;
+    END IF;
+
+    -- Определяем invoice_id
+    IF TG_OP = 'DELETE' THEN
+        v_invoice_id := OLD.invoice_id;
+    ELSE
+        v_invoice_id := NEW.invoice_id;
+    END IF;
+
+    IF TG_OP = 'INSERT' THEN
+        -- Создание платежа
+        INSERT INTO public.invoice_history (
+            invoice_id,
+            event_type,
+            event_date,
+            user_id,
+            user_name,
+            user_role,
+            event_description,
+            field_changes,
+            payment_id,
+            payment_status,
+            payment_amount
+        ) VALUES (
+            v_invoice_id,
+            'payment_created',
+            NOW(),
+            v_user_id,
+            v_user_name,
+            v_user_role,
+            format('Создан платеж на сумму %s руб.', NEW.total_amount),
+            jsonb_build_object(
+                'payment_id', NEW.id,
+                'amount', NEW.total_amount,
+                'status', NEW.status,
+                'payment_type', NEW.payment_type
+            ),
+            NEW.id,
+            NEW.status,
+            NEW.total_amount
+        );
+
+    ELSIF TG_OP = 'UPDATE' THEN
+        -- Обновление платежа
+        IF OLD.status IS DISTINCT FROM NEW.status THEN
+            INSERT INTO public.invoice_history (
+                invoice_id,
+                event_type,
+                event_date,
+                user_id,
+                user_name,
+                user_role,
+                event_description,
+                field_changes,
+                payment_id,
+                payment_status,
+                payment_amount
+            ) VALUES (
+                v_invoice_id,
+                'payment_status_changed',
+                NOW(),
+                v_user_id,
+                v_user_name,
+                v_user_role,
+                format('Статус платежа изменен: %s → %s', OLD.status, NEW.status),
+                jsonb_build_object(
+                    'old_status', OLD.status,
+                    'new_status', NEW.status,
+                    'amount', NEW.total_amount
+                ),
+                NEW.id,
+                NEW.status,
+                NEW.total_amount
+            );
+        END IF;
+
+    ELSIF TG_OP = 'DELETE' THEN
+        -- Удаление платежа
+        INSERT INTO public.invoice_history (
+            invoice_id,
+            event_type,
+            event_date,
+            user_id,
+            user_name,
+            user_role,
+            event_description,
+            field_changes,
+            payment_id,
+            payment_status,
+            payment_amount
+        ) VALUES (
+            v_invoice_id,
+            'payment_deleted',
+            NOW(),
+            v_user_id,
+            v_user_name,
+            v_user_role,
+            format('Удален платеж на сумму %s руб.', OLD.total_amount),
+            jsonb_build_object(
+                'payment_id', OLD.id,
+                'amount', OLD.total_amount,
+                'status', OLD.status
+            ),
+            OLD.id,
+            OLD.status,
+            OLD.total_amount
+        );
+    END IF;
+
+    RETURN NEW;
 END;
 $function$
 
@@ -4422,6 +5176,9 @@ CREATE TRIGGER document_history_trigger_after_insert AFTER INSERT ON public.invo
 -- Trigger: document_history_trigger_before_delete on public.invoice_documents
 CREATE TRIGGER document_history_trigger_before_delete BEFORE DELETE ON public.invoice_documents FOR EACH ROW EXECUTE FUNCTION track_document_changes()
 
+-- Trigger: invoice_history_trigger on public.invoices
+CREATE TRIGGER invoice_history_trigger AFTER INSERT OR DELETE OR UPDATE ON public.invoices FOR EACH ROW EXECUTE FUNCTION track_invoice_changes()
+
 -- Trigger: invoice_history_trigger_after_insert on public.invoices
 CREATE TRIGGER invoice_history_trigger_after_insert AFTER INSERT ON public.invoices FOR EACH ROW EXECUTE FUNCTION track_invoice_changes()
 
@@ -4437,11 +5194,11 @@ CREATE TRIGGER trigger_recalc_invoice_amounts BEFORE INSERT OR UPDATE ON public.
 -- Trigger: update_invoices_updated_at on public.invoices
 CREATE TRIGGER update_invoices_updated_at BEFORE UPDATE ON public.invoices FOR EACH ROW EXECUTE FUNCTION update_updated_at()
 
--- Trigger: update_payment_workflows_updated_at on public.payment_workflows
-CREATE TRIGGER update_payment_workflows_updated_at BEFORE UPDATE ON public.payment_workflows FOR EACH ROW EXECUTE FUNCTION update_updated_at()
-
 -- Trigger: calculate_payment_vat_trigger on public.payments
 CREATE TRIGGER calculate_payment_vat_trigger BEFORE INSERT OR UPDATE ON public.payments FOR EACH ROW EXECUTE FUNCTION calculate_payment_vat()
+
+-- Trigger: payment_history_trigger on public.payments
+CREATE TRIGGER payment_history_trigger AFTER INSERT OR DELETE OR UPDATE ON public.payments FOR EACH ROW EXECUTE FUNCTION track_payment_changes()
 
 -- Trigger: payment_history_trigger_after_insert on public.payments
 CREATE TRIGGER payment_history_trigger_after_insert AFTER INSERT ON public.payments FOR EACH ROW EXECUTE FUNCTION track_payment_changes()
@@ -4460,6 +5217,9 @@ CREATE TRIGGER tr_sync_invoice_payment_on_insert AFTER INSERT ON public.payments
 
 -- Trigger: tr_sync_invoice_payment_on_update on public.payments
 CREATE TRIGGER tr_sync_invoice_payment_on_update AFTER UPDATE ON public.payments FOR EACH ROW EXECUTE FUNCTION fn_sync_invoice_payment()
+
+-- Trigger: trg_sync_invoice_payment on public.payments
+CREATE TRIGGER trg_sync_invoice_payment AFTER INSERT OR DELETE OR UPDATE ON public.payments FOR EACH ROW EXECUTE FUNCTION fn_sync_invoice_payment()
 
 -- Trigger: update_payments_updated_at on public.payments
 CREATE TRIGGER update_payments_updated_at BEFORE UPDATE ON public.payments FOR EACH ROW EXECUTE FUNCTION update_updated_at()
@@ -4683,7 +5443,7 @@ CREATE INDEX idx_invoice_documents_attachment_id ON public.invoice_documents USI
 CREATE INDEX idx_invoice_documents_invoice_id ON public.invoice_documents USING btree (invoice_id);
 
 -- Index on public.invoice_documents
-CREATE UNIQUE INDEX invoice_documents_invoice_id_attachment_id_key ON public.invoice_documents USING btree (invoice_id, attachment_id);
+CREATE UNIQUE INDEX invoice_documents_composite_key ON public.invoice_documents USING btree (invoice_id, attachment_id);
 
 -- Index on public.invoice_history
 CREATE INDEX idx_invoice_history_created_at ON public.invoice_history USING btree (created_at DESC);
@@ -4764,13 +5524,13 @@ CREATE INDEX idx_mrp_full_name ON public.material_responsible_persons USING btre
 CREATE INDEX idx_mrp_is_active ON public.material_responsible_persons USING btree (is_active);
 
 -- Index on public.payment_workflows
-CREATE INDEX idx_payment_workflows_current_stage ON public.payment_workflows USING btree (current_stage_id);
-
--- Index on public.payment_workflows
 CREATE INDEX idx_payment_workflows_invoice_id ON public.payment_workflows USING btree (invoice_id);
 
 -- Index on public.payment_workflows
 CREATE INDEX idx_payment_workflows_payment_id ON public.payment_workflows USING btree (payment_id);
+
+-- Index on public.payment_workflows
+CREATE INDEX idx_payment_workflows_payment_invoice ON public.payment_workflows USING btree (payment_id, invoice_id);
 
 -- Index on public.payment_workflows
 CREATE INDEX idx_payment_workflows_status ON public.payment_workflows USING btree (status);
@@ -4807,6 +5567,12 @@ CREATE INDEX idx_payments_payment_type ON public.payments USING btree (payment_t
 
 -- Index on public.payments
 CREATE INDEX idx_payments_status ON public.payments USING btree (status);
+
+-- Index on public.payments
+CREATE INDEX idx_payments_status_invoice ON public.payments USING btree (status, invoice_id);
+
+-- Index on public.payments
+CREATE INDEX idx_payments_status_invoice_id ON public.payments USING btree (status, invoice_id);
 
 -- Index on public.payments
 CREATE INDEX idx_payments_total_amount ON public.payments USING btree (total_amount);

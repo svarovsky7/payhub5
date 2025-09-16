@@ -20,7 +20,7 @@ export class PaymentWorkflowService {
     /**
      * Получить подходящий workflow для платежа по типу счета
      */
-    static async getWorkflowForPayment(invoiceTypeId: number, companyId: string) {
+    static async getWorkflowForPayment(invoiceTypeId: number) {
         try {
             console.log('[PaymentWorkflowService] Getting workflow for invoice type:', invoiceTypeId)
 
@@ -31,7 +31,6 @@ export class PaymentWorkflowService {
           *,
           stages:workflow_stages(*)
         `)
-                .eq('company_id', companyId)
                 .eq('is_active', true)
                 .contains('invoice_type_ids', [invoiceTypeId])
                 .order('created_at', {ascending: false})
@@ -59,11 +58,11 @@ export class PaymentWorkflowService {
     }
 
     /**
-     * Получить все доступные workflow для компании
+     * Получить все доступные workflow
      */
-    static async getAvailableWorkflows(companyId: string, invoiceTypeId?: number) {
+    static async getAvailableWorkflows(invoiceTypeId?: number) {
         try {
-            console.log('[PaymentWorkflowService] Getting available workflows:', {companyId, invoiceTypeId})
+            console.log('[PaymentWorkflowService] Getting available workflows:', {invoiceTypeId})
 
             let query = supabase
                 .from('workflows')
@@ -112,10 +111,21 @@ export class PaymentWorkflowService {
         try {
             console.log('[PaymentWorkflowService] Starting payment workflow:', {paymentId, workflowId, userId})
 
-            // Получаем информацию о платеже
+            // Получаем полную информацию о платеже и связанном счете
             const {data: payment, error: paymentFetchError} = await supabase
                 .from('payments')
-                .select('total_amount, invoice_id')
+                .select(`
+                    id,
+                    total_amount,
+                    invoice_id,
+                    comment,
+                    payment_date,
+                    invoice:invoices!invoice_id(
+                        supplier_id,
+                        project_id,
+                        description
+                    )
+                `)
                 .eq('id', paymentId)
                 .single()
 
@@ -145,12 +155,17 @@ export class PaymentWorkflowService {
                 throw new Error('Workflow has no stages')
             }
 
-            // Создаем экземпляр процесса
+            // Подготавливаем описание для workflow
+            const workflowDescription = payment.comment ||
+                                       payment.invoice?.description ||
+                                       `Платеж по счету №${payment.invoice_id}`
+
+            // Создаем экземпляр процесса с новыми обязательными полями
             const {data: instance, error: instanceError} = await supabase
                 .from('payment_workflows')
                 .insert({
-                    payment_id: paymentId.toString(),
-                    invoice_id: payment.invoice_id?.toString(),
+                    payment_id: paymentId,  // Убрали toString() - payment_id теперь INTEGER
+                    invoice_id: payment.invoice_id,  // Убрали toString() - invoice_id теперь INTEGER
                     workflow_id: workflowId,
                     current_stage_id: firstStage.id,
                     current_stage_position: 1,
@@ -160,6 +175,10 @@ export class PaymentWorkflowService {
                     started_at: new Date().toISOString(),
                     started_by: userId,
                     amount: payment.total_amount || 0,
+                    description: workflowDescription,
+                    contractor_id: payment.invoice?.supplier_id || null,
+                    project_id: payment.invoice?.project_id || null,
+                    payment_date: payment.payment_date || new Date().toISOString().split('T')[0],
                     approval_progress: []
                 })
                 .select()

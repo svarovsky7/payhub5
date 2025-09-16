@@ -1,0 +1,33 @@
+/* Стили для подсветки выбранной строки платежа */
+.highlighted-row {
+  background-color: #e6f7ff !important;
+  animation: pulse 2s ease-in-out;
+}
+
+.highlighted-row:hover {
+  background-color: #bae7ff !important;
+}
+
+/* Анимация пульсации для привлечения внимания */
+@keyframes pulse {
+  0% {
+    background-color: #e6f7ff;
+  }
+  50% {
+    background-color: #bae7ff;
+  }
+  100% {
+    background-color: #e6f7ff;
+  }
+}
+
+/* Дополнительные стили для улучшения выделения */
+.highlighted-row td {
+  font-weight: 500;
+  border-color: #91d5ff !important;
+}
+
+/* Стиль для строки при наведении (не выделенной) */
+.ant-table-tbody > tr:not(.highlighted-row):hover > td {
+  background-color: #fafafa;
+}

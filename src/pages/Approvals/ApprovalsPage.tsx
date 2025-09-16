@@ -228,7 +228,7 @@ export const ApprovalsPage: React.FC = () => {
             exportable: true,
             sorter: (a: ApprovalItem, b: ApprovalItem) => a.amount - b.amount,
             render: (amount: number) => (
-                <MoneyCell amount={amount} currency="RUB" strong/>
+                <MoneyCell amount={amount} strong/>
             ),
         },
         {

@@ -8,36 +8,24 @@ import 'dayjs/locale/ru'
 // Установка русской локали по умолчанию
 dayjs.locale('ru')
 
-// Форматирование валюты
+// Форматирование валюты - всегда в рублях
 export const formatCurrency = (
   amount: number,
-  currency = 'RUB',
+  _currency?: string, // Параметр оставлен для обратной совместимости, но не используется
   locale = 'ru-RU'
 ): string => {
   if (isNaN(amount)) {return '0 ₽'}
-  
-  // Handle null/undefined currency
-  const validCurrency = currency || 'RUB'
-  
-  // Map currency codes to symbols for fallback
-  const currencySymbols: Record<string, string> = {
-    'RUB': '₽',
-    'USD': '$',
-    'EUR': '€',
-    'CNY': '¥'
-  }
-  
+
   try {
     return new Intl.NumberFormat(locale, {
       style: 'currency',
-      currency: validCurrency,
+      currency: 'RUB',
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     }).format(amount)
   } catch (error) {
-    // Fallback to manual formatting if currency code is invalid
-    const symbol = currencySymbols[validCurrency] || validCurrency
-    return `${formatNumber(amount)} ${symbol}`
+    // Fallback to manual formatting
+    return `${formatNumber(amount)} ₽`
   }
 }
 

@@ -454,12 +454,12 @@ export class ProjectQueryService {
       const exportData = result.data.map(project => ({
         ...project,
         statusLabel: this.getStatusLabel(project.status),
-        formattedBudget: `${project.budget} ${project.currency}`,
-        formattedSpentAmount: `${project.spent_amount} ${project.currency}`,
-        formattedBudgetRemaining: `${project.stats.budgetRemaining} ${project.currency}`,
+        formattedBudget: `${project.budget} RUB`,
+        formattedSpentAmount: `${project.spent_amount} RUB`,
+        formattedBudgetRemaining: `${project.stats.budgetRemaining} RUB`,
         budgetUsagePercent: Math.round(project.stats.budgetUsagePercent),
         invoicesCount: project.stats.invoicesCount,
-        formattedTotalInvoices: `${project.stats.totalInvoicesAmount} ${project.currency}`,
+        formattedTotalInvoices: `${project.stats.totalInvoicesAmount} RUB`,
         managerName: project.manager 
           ? `${project.manager.first_name} ${project.manager.last_name}`
           : '',

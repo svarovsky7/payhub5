@@ -408,7 +408,7 @@ export class ProjectCrudService {
         return {
           isAvailable: false,
           remaining,
-          reason: `Недостаточно средств в бюджете. Доступно: ${formatCurrency(remaining, project.currency)}`
+          reason: `Недостаточно средств в бюджете. Доступно: ${formatCurrency(remaining, 'RUB')}`
         }
       }
 
@@ -486,12 +486,12 @@ export class ProjectCrudService {
   static formatProjectForDisplay(project: ProjectWithRelations) {
     return {
       ...project,
-      formattedBudget: formatCurrency(project.budget, project.currency),
-      formattedSpentAmount: formatCurrency(project.spent_amount, project.currency),
-      formattedBudgetRemaining: formatCurrency(project.stats.budgetRemaining, project.currency),
-      formattedTotalInvoices: formatCurrency(project.stats.totalInvoicesAmount, project.currency),
-      formattedPaidAmount: formatCurrency(project.stats.paidAmount, project.currency),
-      formattedPendingAmount: formatCurrency(project.stats.pendingAmount, project.currency),
+      formattedBudget: formatCurrency(project.budget, 'RUB'),
+      formattedSpentAmount: formatCurrency(project.spent_amount, 'RUB'),
+      formattedBudgetRemaining: formatCurrency(project.stats.budgetRemaining, 'RUB'),
+      formattedTotalInvoices: formatCurrency(project.stats.totalInvoicesAmount, 'RUB'),
+      formattedPaidAmount: formatCurrency(project.stats.paidAmount, 'RUB'),
+      formattedPendingAmount: formatCurrency(project.stats.pendingAmount, 'RUB'),
       formattedCreatedDate: formatDate(project.created_at),
       formattedStartDate: project.start_date ? formatDate(project.start_date) : null,
       formattedEndDate: project.end_date ? formatDate(project.end_date) : null,

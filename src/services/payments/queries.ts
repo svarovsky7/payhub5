@@ -219,20 +219,29 @@ export class PaymentQueryService {
       }
 
       // Преобразуем данные для совместимости с компонентом
-      const transformedData = (data || []).map(payment => ({
-        ...payment,
-        // Добавляем информацию о пользователях
-        creator: payment.created_by ? usersMap[payment.created_by] : null,
-        confirmed_by: payment.confirmed_by ? usersMap[payment.confirmed_by] : null,
-        // Добавляем информацию о workflow
-        workflow: workflowsMap[payment.id] || null,
-        // Преобразуем данные счета
-        invoice: payment.invoice ? {
-          ...payment.invoice,
-          title: payment.invoice.description || 'Без описания',
-          contractor: payment.invoice.supplier || payment.invoice.payer
-        } : null
-      }))
+      const transformedData = (data || []).map(payment => {
+        console.log('[PaymentQueryService.getList] Обработка платежа:', {
+          id: payment.id,
+          total_amount: payment.total_amount,
+          amount: payment.total_amount || 0
+        })
+        return {
+          ...payment,
+          // Добавляем поле amount для совместимости с компонентом (в БД это total_amount)
+          amount: payment.total_amount || 0,
+          // Добавляем информацию о пользователях
+          creator: payment.created_by ? usersMap[payment.created_by] : null,
+          confirmed_by: payment.confirmed_by ? usersMap[payment.confirmed_by] : null,
+          // Добавляем информацию о workflow
+          workflow: workflowsMap[payment.id] || null,
+          // Преобразуем данные счета
+          invoice: payment.invoice ? {
+            ...payment.invoice,
+            title: payment.invoice.description || 'Без описания',
+            contractor: payment.invoice.supplier || payment.invoice.payer
+          } : null
+        }
+      })
 
       const totalPages = Math.ceil((count || 0) / limit)
 

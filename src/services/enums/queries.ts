@@ -26,27 +26,6 @@ export class EnumQueryService {
   }
 
   /**
-   * Get currency code options for dropdowns
-   */
-  static async getCurrencyOptions(): Promise<EnumValue[]> {
-    try {
-      console.log('[EnumQueryService.getCurrencyOptions] Getting currency options')
-      const currencies = await EnumCrudService.getCurrencyCodes()
-      console.log('[EnumQueryService.getCurrencyOptions] Retrieved currencies:', currencies)
-      return currencies
-    } catch (error) {
-      console.error('[EnumQueryService.getCurrencyOptions] Error:', error)
-      // Return default values as fallback
-      return [
-        { value: 'RUB', label: '₽ (RUB)' },
-        { value: 'USD', label: '$ (USD)' },
-        { value: 'EUR', label: '€ (EUR)' },
-        { value: 'CNY', label: '¥ (CNY)' }
-      ]
-    }
-  }
-
-  /**
    * Get priority level options for dropdowns
    */
   static async getPriorityOptions(): Promise<EnumValue[]> {
@@ -65,19 +44,6 @@ export class EnumQueryService {
         { value: 'urgent', label: 'Срочный' }
       ]
     }
-  }
-
-  /**
-   * Get currency symbol for a currency code
-   */
-  static getCurrencySymbol(currencyCode: string): string {
-    const symbols: Record<string, string> = {
-      'RUB': '₽',
-      'USD': '$',
-      'EUR': '€',
-      'CNY': '¥'
-    }
-    return symbols[currencyCode] || currencyCode
   }
 
   /**

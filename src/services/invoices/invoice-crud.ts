@@ -126,7 +126,6 @@ export class InvoiceCrudOperations {
         'paid_amount',
         'description',
         'priority',
-        'currency',
         'status',
         'delivery_days',
         'material_responsible_person_id',
@@ -261,21 +260,44 @@ export class InvoiceCrudOperations {
   /**
    * Delete invoice
    */
-  static async delete(id: string): Promise<ApiResponse<null>> {
+  static async delete(id: string, cascade: boolean = false): Promise<ApiResponse<null>> {
     try {
-      console.log('[InvoiceCrudOperations.delete] Deleting invoice:', id)
+      console.log('[InvoiceCrudOperations.delete] Deleting invoice:', { id, cascade })
 
-      const { error } = await supabase
-        .from('invoices')
-        .delete()
-        .eq('id', id)
+      if (cascade) {
+        // Используем функцию каскадного удаления
+        const { data, error } = await supabase
+          .rpc('cascade_delete_invoice', { p_invoice_id: id })
 
-      if (error) {
-        console.error('[InvoiceCrudOperations.delete] Error deleting invoice:', error)
-        throw error
+        if (error) {
+          console.error('[InvoiceCrudOperations.delete] Error cascade deleting invoice:', error)
+          throw error
+        }
+
+        console.log('[InvoiceCrudOperations.delete] Cascade deletion result:', data)
+
+        if (!data?.success) {
+          throw new Error(data?.error || 'Failed to delete invoice')
+        }
+
+        console.log('[InvoiceCrudOperations.delete] Invoice deleted successfully with cascade:', {
+          invoice_ref: data.invoice_ref,
+          deleted: data.deleted
+        })
+      } else {
+        // Обычное удаление (только счет)
+        const { error } = await supabase
+          .from('invoices')
+          .delete()
+          .eq('id', id)
+
+        if (error) {
+          console.error('[InvoiceCrudOperations.delete] Error deleting invoice:', error)
+          throw error
+        }
+
+        console.log('[InvoiceCrudOperations.delete] Invoice deleted successfully')
       }
-
-      console.log('[InvoiceCrudOperations.delete] Invoice deleted successfully')
 
       return { data: null, error: null }
     } catch (error) {

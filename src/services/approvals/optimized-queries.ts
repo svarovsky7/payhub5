@@ -93,7 +93,6 @@ export class OptimizedApprovalQueryService {
             invoice_number,
             description,
             total_amount,
-            currency,
             status,
             supplier:contractorssupplier_id(id, name, inn),
             payer:contractorspayer_id(id, name, inn),

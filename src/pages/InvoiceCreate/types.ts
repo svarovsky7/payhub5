@@ -22,7 +22,6 @@ export interface InvoiceFormValues {
   supplier_id: number
   payer_id: number
   project_id?: number
-  currency: string
   amount_with_vat: number
   amount_net?: number
   vat_rate: number

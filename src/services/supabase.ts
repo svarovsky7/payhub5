@@ -263,10 +263,10 @@ export const exportToExcel = async <T extends Record<string, any>>(
 }
 
 // Утилиты для форматирования данных
-export const formatCurrency = (amount: number, currency = 'RUB'): string => {
+export const formatCurrency = (amount: number, _currency = 'RUB'): string => {
   return new Intl.NumberFormat('ru-RU', {
     style: 'currency',
-    currency,
+    currency: 'RUB',
     minimumFractionDigits: 2,
   }).format(amount)
 }

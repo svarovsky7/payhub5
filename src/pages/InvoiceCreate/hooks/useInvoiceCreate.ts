@@ -192,7 +192,6 @@ export const useInvoiceCreate = () => {
         priority: values.priority,
         created_by: user?.id,
         status: launchApproval ? 'pending' : 'draft',
-        currency: values.currency,
         // Map form field names to DB column names
         total_amount: Number(values.amount_with_vat),  // amount_with_vat -> total_amount
         amount_net: Number(values.amount_net || 0),  // amount_net (Amount excluding VAT)

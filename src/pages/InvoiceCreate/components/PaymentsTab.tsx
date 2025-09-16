@@ -29,7 +29,6 @@ const { Text } = Typography
 export interface Payment {
   id?: string
   amount: number
-  currency: string
   payment_date: dayjs.Dayjs | null
   status: 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled'
   description?: string
@@ -38,13 +37,11 @@ export interface Payment {
 interface PaymentsTabProps {
   payments: Payment[]
   onPaymentsChange: (payments: Payment[]) => void
-  currency: string
 }
 
 export const PaymentsTab: React.FC<PaymentsTabProps> = ({
   payments,
-  onPaymentsChange,
-  currency
+  onPaymentsChange
 }) => {
   const [modalOpen, setModalOpen] = useState(false)
   const [editingPayment, setEditingPayment] = useState<Payment | null>(null)
@@ -56,7 +53,6 @@ export const PaymentsTab: React.FC<PaymentsTabProps> = ({
       setEditingPayment(payment)
       form.setFieldsValue({
         amount: payment.amount,
-        currency: payment.currency,
         payment_date: payment.payment_date,
         status: payment.status,
         description: payment.description
@@ -65,7 +61,6 @@ export const PaymentsTab: React.FC<PaymentsTabProps> = ({
       setEditingPayment(null)
       form.resetFields()
       form.setFieldsValue({
-        currency: currency,
         status: 'pending',
         payment_date: dayjs()
       })
@@ -129,9 +124,9 @@ export const PaymentsTab: React.FC<PaymentsTabProps> = ({
       title: 'Сумма',
       dataIndex: 'amount',
       key: 'amount',
-      render: (amount: number, record: Payment) => (
+      render: (amount: number) => (
         <Text strong>
-          {amount.toLocaleString('ru-RU')} {record.currency}
+          {amount.toLocaleString('ru-RU')} ₽
         </Text>
       ),
       width: 150
@@ -207,7 +202,7 @@ export const PaymentsTab: React.FC<PaymentsTabProps> = ({
           Добавить платеж
         </Button>
         <Text strong style={{ fontSize: 16 }}>
-          Итого: {totalAmount.toLocaleString('ru-RU')} {currency}
+          Итого: {totalAmount.toLocaleString('ru-RU')} ₽
         </Text>
       </div>
 
@@ -263,21 +258,6 @@ export const PaymentsTab: React.FC<PaymentsTabProps> = ({
               formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ' ')}
               parser={value => value!.replace(/\s?/g, '')}
               placeholder="0.00"
-            />
-          </Form.Item>
-
-          <Form.Item
-            name="currency"
-            label="Валюта"
-            rules={[{ required: true }]}
-          >
-            <Select
-              options={[
-                { value: 'RUB', label: 'RUB - Российский рубль' },
-                { value: 'USD', label: 'USD - Доллар США' },
-                { value: 'EUR', label: 'EUR - Евро' },
-                { value: 'KZT', label: 'KZT - Казахстанский тенге' }
-              ]}
             />
           </Form.Item>
 

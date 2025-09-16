@@ -25,7 +25,6 @@ export interface Database {
           created_by: string // uuid
           created_at: string
           updated_at: string
-          currency: 'RUB' | 'USD' | 'EUR'
           status: string // Dynamic status from database
           delivery_days: number | null
           material_responsible_person_id: number | null
@@ -51,7 +50,6 @@ export interface Database {
           created_by: string
           created_at?: string
           updated_at?: string
-          currency?: 'RUB' | 'USD' | 'EUR'
           status?: string
           delivery_days?: number | null
           material_responsible_person_id?: number | null
@@ -74,7 +72,6 @@ export interface Database {
           description?: string | null
           priority?: 'low' | 'normal' | 'high' | 'urgent'
           updated_at?: string
-          currency?: 'RUB' | 'USD' | 'EUR'
           status?: string
           delivery_days?: number | null
           material_responsible_person_id?: number | null
@@ -403,7 +400,6 @@ export interface Database {
           current_stage_position: number | null
           status: string | null
           amount: number
-          currency: string | null
           description: string | null
           contractor_id: string | null
           project_id: string | null
@@ -430,7 +426,6 @@ export interface Database {
           current_stage_position?: number | null
           status?: string | null
           amount: number
-          currency?: string | null
           description?: string | null
           contractor_id?: string | null
           project_id?: string | null
@@ -456,7 +451,6 @@ export interface Database {
           current_stage_position?: number | null
           status?: string | null
           amount?: number
-          currency?: string | null
           description?: string | null
           contractor_id?: string | null
           project_id?: string | null
@@ -572,7 +566,6 @@ export interface Database {
     }
     Enums: {
       priority_level: 'low' | 'normal' | 'high' | 'urgent'
-      currency_type: 'RUB' | 'USD' | 'EUR'
       payment_type: 'ADV' | 'RET' | 'DEBT'
     }
     CompositeTypes: {

@@ -40,7 +40,6 @@ export class OptimizedInvoiceQueryService {
           amount_net,
           vat_amount,
           vat_rate,
-          currency,
           status,
           invoice_date,
           payment_due_date,
@@ -309,7 +308,6 @@ export class OptimizedInvoiceQueryService {
             invoice_number,
             description,
             total_amount,
-            currency,
             status,
             created_at,
             supplier:contractors!supplier_id(name)
@@ -393,7 +391,6 @@ export class OptimizedInvoiceQueryService {
           invoice_number,
           description,
           total_amount,
-          currency,
           status,
           created_at,
           supplier:contractors!supplier_id(name)
@@ -411,7 +408,7 @@ export class OptimizedInvoiceQueryService {
         const { data: fallbackData, error: fallbackError } = await supabase
           .from('invoices')
           .select(`
-            id, invoice_number, description, total_amount, currency, status, created_at,
+            id, invoice_number, description, total_amount, status, created_at,
             supplier:contractors!supplier_id(name)
           `)
           .eq('company_id', companyId)
@@ -449,7 +446,6 @@ export class OptimizedInvoiceQueryService {
           invoice_number,
           description,
           total_amount,
-          currency,
           status,
           invoice_date,
           payment_due_date,
@@ -475,7 +471,7 @@ export class OptimizedInvoiceQueryService {
       return (data || []).map(invoice => ({
         'Номер заявки': invoice.invoice_number,
         'Описание': invoice.description,
-        'Сумма': `${invoice.total_amount} ${invoice.currency}`,
+        'Сумма': `${invoice.total_amount} RUB`,
         'Статус': this.getStatusLabel(invoice.status),
         'Поставщик': invoice.supplier?.name || '',
         'ИНН поставщика': invoice.supplier?.inn || '',
@@ -510,7 +506,6 @@ export class OptimizedInvoiceQueryService {
           amount_net,
           vat_amount,
           vat_rate,
-          currency,
           status,
           invoice_date,
           payment_due_date,

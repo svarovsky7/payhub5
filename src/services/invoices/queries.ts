@@ -410,7 +410,7 @@ export class InvoiceQueryService {
         supplierName: invoice.supplier?.name || '',
         projectName: invoice.project?.name || '',
         createdByName: invoice.created_by_profile?.full_name || '',
-        formattedAmount: `${invoice.total_amount} ${invoice.currency}`,
+        formattedAmount: `${invoice.total_amount} RUB`,
         formattedInvoiceDate: new Date(invoice.invoice_date).toLocaleDateString('ru-RU'),
         formattedDueDate: invoice.payment_due_date 
           ? new Date(invoice.payment_due_date).toLocaleDateString('ru-RU') 

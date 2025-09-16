@@ -57,7 +57,7 @@ interface Payment {
         }
     }
     amount: number
-    currency?: string
+    total_amount?: number // Поле из БД
     status: 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled'
     payment_date: string
     approved_at?: string
@@ -163,8 +163,9 @@ const PaymentsPage: React.FC<PaymentsPageProps> = ({invoiceId}) => {
     const handleView = (record: Payment) => {
         console.log('[PaymentsPage.handleView] Просмотр платежа:', record)
         // Переход на страницу счета на вкладку Платежи с выделением конкретного платежа
+        // Добавляем параметр from=payments для отображения кнопки возврата
         if (record.invoice_id) {
-            navigate(`/invoices/${record.invoice_id}?tab=payments&paymentId=${record.id}`)
+            navigate(`/invoices/${record.invoice_id}?tab=payments&paymentId=${record.id}&from=payments`)
         } else {
             message.warning('Счет не найден для этого платежа')
         }
@@ -240,7 +241,6 @@ const PaymentsPage: React.FC<PaymentsPageProps> = ({invoiceId}) => {
         try {
             // Получаем доступные workflow для типа счета
             const workflows = await PaymentWorkflowService.getAvailableWorkflows(
-                '1', // TODO: получить company_id из контекста
                 record.invoice.type_id
             )
 
@@ -267,17 +267,22 @@ const PaymentsPage: React.FC<PaymentsPageProps> = ({invoiceId}) => {
             return
         }
 
+        if (!user?.id) {
+            message.error('Ошибка авторизации. Пожалуйста, перезагрузите страницу')
+            return
+        }
+
         try {
             console.log('[PaymentsPage] Starting workflow:', {
                 paymentId: selectedPayment.id,
                 workflowId: selectedWorkflow,
-                userId: user?.id
+                userId: user.id
             })
 
             await PaymentWorkflowService.startPaymentWorkflow(
                 selectedPayment.id,
                 selectedWorkflow,
-                user?.id || '1'
+                user.id
             )
 
             message.success('Платеж отправлен на согласование')
@@ -402,10 +407,18 @@ const PaymentsPage: React.FC<PaymentsPageProps> = ({invoiceId}) => {
             align: 'right',
             priority: 5,
             exportable: true,
-            sorter: (a, b) => a.amount - b.amount,
-            render: (amount, record) => (
-                <MoneyCell amount={amount} currency={record.currency || 'RUB'} strong/>
-            ),
+            sorter: (a, b) => (a.amount || a.total_amount || 0) - (b.amount || b.total_amount || 0),
+            render: (amount, record) => {
+                console.log('[PaymentsPage] Рендер суммы платежа:', {
+                    id: record.id,
+                    amount: amount,
+                    record_amount: record.amount,
+                    total_amount: record.total_amount
+                })
+                return (
+                    <MoneyCell amount={amount || record.total_amount || 0} strong/>
+                )
+            },
         },
         {
             title: 'Статус',
@@ -709,7 +722,7 @@ const PaymentsPage: React.FC<PaymentsPageProps> = ({invoiceId}) => {
                         <div>
                             <Text strong>Платеж:</Text> {selectedPayment.reference ?? `PAY-${selectedPayment.id}`}
                             <br/>
-                            <Text strong>Сумма:</Text> {selectedPayment.amount.toLocaleString('ru-RU')} ₽
+                            <Text strong>Сумма:</Text> {(selectedPayment.amount || selectedPayment.total_amount || 0).toLocaleString('ru-RU')} ₽
                             <br/>
                             <Text strong>Счет:</Text> {selectedPayment.invoice?.invoice_number || '—'}
                         </div>
@@ -734,7 +747,7 @@ const PaymentsPage: React.FC<PaymentsPageProps> = ({invoiceId}) => {
                                     style={{width: '100%'}}
                                     placeholder="Выберите процесс"
                                     value={selectedWorkflow}
-                                    onChange={() => void setSelectedWorkflow()}
+                                    onChange={(value) => setSelectedWorkflow(value)}
                                     options={availableWorkflows.map(wf => ({
                                         value: wf.id,
                                         label: wf.name

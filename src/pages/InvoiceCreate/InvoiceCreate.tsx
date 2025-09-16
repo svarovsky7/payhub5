@@ -106,7 +106,6 @@ const InvoiceCreate: React.FC = () => {
           onFinish={onFinish}
           size="small"
           initialValues={{
-            currency: 'RUB',
             vat_rate: 20,
             invoice_date: dayjs(),
             priority: 'normal',
@@ -313,22 +312,9 @@ const InvoiceCreate: React.FC = () => {
             <Col span={12}>
               <Text strong style={{ fontSize: '13px', color: '#fa8c16' }}>ФИНАНСОВАЯ ИНФОРМАЦИЯ</Text>
               <Row gutter={[12, 0]} style={{ marginTop: 8 }}>
-                <Col span={8}>
+                <Col span={24}>
                   <Form.Item
-                    label="Валюта"
-                    name="currency"
-                    rules={[{ required: true }]}
-                    style={{ marginBottom: 12 }}
-                  >
-                    <Select
-                      options={currencies}
-                      loading={loadingCurrencies}
-                    />
-                  </Form.Item>
-                </Col>
-                <Col span={16}>
-                  <Form.Item
-                    label="Сумма с НДС"
+                    label="Сумма с НДС (₽)"
                     name="amount_with_vat"
                     rules={[{ required: true, message: 'Введите сумму' }]}
                     style={{ marginBottom: 12 }}
@@ -590,7 +576,6 @@ const InvoiceCreate: React.FC = () => {
                   <PaymentsTab
                     payments={payments as Payment[]}
                     onPaymentsChange={(newPayments) => setPayments(newPayments as any)}
-                    currency={form.getFieldValue('currency') || 'RUB'}
                   />
                 )
               }

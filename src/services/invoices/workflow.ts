@@ -75,7 +75,6 @@ export class InvoiceWorkflowService {
           workflow:workflows!workflow_id(*)
         `)
         .eq('workflows.entity_type', 'invoice')
-        .eq('workflows.company_id', invoice.company_id)
         .eq('workflows.is_active', true)
         .eq('position', 1)
         .single()

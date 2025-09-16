@@ -23,7 +23,6 @@ export interface InvoiceHistoryEntry {
   status_to: string | null
   amount_from: number | null
   amount_to: number | null
-  currency: string | null
 
   // Изменения полей
   changed_fields: Record<string, any> | null
@@ -63,6 +62,7 @@ export type EventType =
   | 'DOCUMENT_REMOVED'
   | 'COMMENT_ADDED'
   | 'WORKFLOW_CHANGED'
+  | 'MRP_CHANGED'
 
 export interface HistoryFilter {
   event_types?: EventType[]
@@ -299,23 +299,15 @@ export class InvoiceHistoryService {
   /**
    * Форматирование суммы с валютой
    */
-  static formatCurrency(amount: number | null, currency?: string | null): string {
+  static formatCurrency(amount: number | null, _currency?: string | null): string {
     if (!amount) return ''
 
-    const currencySymbols: Record<string, string> = {
-      'RUB': '₽',
-      'USD': '$',
-      'EUR': '€',
-      'CNY': '¥'
-    }
-
-    const symbol = currencySymbols[currency || 'RUB'] || currency || 'RUB'
     const formatted = amount.toLocaleString('ru-RU', {
       minimumFractionDigits: 0,
       maximumFractionDigits: 2
     })
 
-    return `${formatted} ${symbol}`
+    return `${formatted} ₽`
   }
 
   /**
@@ -367,7 +359,7 @@ export class InvoiceHistoryService {
         color = 'blue'
         title = 'Создан'
         if (event.amount_to) {
-          description = this.formatCurrency(event.amount_to, event.currency)
+          description = this.formatCurrency(event.amount_to, 'RUB')
         }
         break
 
@@ -375,7 +367,7 @@ export class InvoiceHistoryService {
         icon = '✏️'
         color = 'orange'
         title = 'Изменен'
-        if (event.changed_fields) {
+        if (event.changed_fields && event.old_values && event.new_values) {
           const fieldNames: Record<string, string> = {
             'amount': 'сумма',
             'total_amount': 'общая сумма',
@@ -392,32 +384,123 @@ export class InvoiceHistoryService {
             'invoice_number': 'номер счета',
             'internal_number': 'внутренний номер',
             'invoice_date': 'дата счета',
-            'currency': 'валюта',
             'delivery_days': 'срок поставки',
+            'delivery_days_type': 'тип срока поставки',
+            'priority': 'приоритет',
             'material_responsible_person_id': 'МОЛ'
           }
 
-          // Если есть изменение суммы, показываем старое и новое значение
-          if (event.old_values?.total_amount && event.new_values?.total_amount) {
-            const oldAmount = this.formatCurrency(event.old_values.total_amount, event.currency)
-            const newAmount = this.formatCurrency(event.new_values.total_amount, event.currency)
-            description = `Сумма: ${oldAmount} → ${newAmount}`
+          // Маппинг значений для более понятного отображения
+          const priorityMap: Record<string, string> = {
+            'low': 'низкий',
+            'normal': 'обычный',
+            'high': 'высокий',
+            'urgent': 'срочный'
           }
-          // Если есть изменение статуса НДС
-          else if (event.old_values?.vat_rate !== undefined && event.new_values?.vat_rate !== undefined) {
-            description = `НДС: ${event.old_values.vat_rate}% → ${event.new_values.vat_rate}%`
+
+          const deliveryTypeMap: Record<string, string> = {
+            'calendar': 'календарные дни',
+            'working': 'рабочие дни'
           }
-          // Для остальных полей показываем список измененных полей
-          else {
-            const fields = Object.keys(event.changed_fields).map(f => fieldNames[f] || f)
-            if (fields.length === 1) {
-              description = fields[0]
-            } else if (fields.length <= 3) {
-              description = fields.join(', ')
+
+          // Собираем изменения для каждого поля
+          const changes: string[] = []
+
+          for (const field of Object.keys(event.changed_fields)) {
+            const fieldName = fieldNames[field] || field
+            const oldValue = event.old_values[field]
+            const newValue = event.new_values[field]
+
+            // Специальная обработка для разных типов полей
+            if (field === 'total_amount' || field === 'amount_net' || field === 'vat_amount') {
+              const oldAmount = oldValue ? this.formatCurrency(oldValue, 'RUB') : '0'
+              const newAmount = newValue ? this.formatCurrency(newValue, 'RUB') : '0'
+              changes.push(`${fieldName}: ${oldAmount} → ${newAmount}`)
+            } else if (field === 'vat_rate') {
+              changes.push(`${fieldName}: ${oldValue ?? 0}% → ${newValue ?? 0}%`)
+            } else if (field === 'priority') {
+              const oldPriority = priorityMap[oldValue] || oldValue || 'не указан'
+              const newPriority = priorityMap[newValue] || newValue || 'не указан'
+              changes.push(`${fieldName}: ${oldPriority} → ${newPriority}`)
+            } else if (field === 'delivery_days_type') {
+              const oldType = deliveryTypeMap[oldValue] || oldValue || 'не указан'
+              const newType = deliveryTypeMap[newValue] || newValue || 'не указан'
+              changes.push(`${fieldName}: ${oldType} → ${newType}`)
+            } else if (field === 'material_responsible_person_id') {
+              // Для МОЛ показываем имена если есть, иначе просто изменение
+              if (event.old_values.material_responsible_person_name || event.new_values.material_responsible_person_name) {
+                const oldName = event.old_values.material_responsible_person_name || 'не назначен'
+                const newName = event.new_values.material_responsible_person_name || 'не назначен'
+                changes.push(`${fieldName}: ${oldName} → ${newName}`)
+              } else {
+                // Если имен нет, просто фиксируем изменение
+                changes.push(`${fieldName} изменен`)
+              }
+            } else if (field === 'supplier_id' || field === 'payer_id' || field === 'project_id') {
+              // Для связанных сущностей пытаемся получить имена из metadata
+              // Если имен нет, просто фиксируем изменение
+              if (event.metadata?.[`old_${field}_name`] || event.metadata?.[`new_${field}_name`]) {
+                const oldName = event.metadata[`old_${field}_name`] || 'не указано'
+                const newName = event.metadata[`new_${field}_name`] || 'не указано'
+                changes.push(`${fieldName}: ${oldName} → ${newName}`)
+              } else {
+                // Просто фиксируем факт изменения без ID
+                changes.push(`${fieldName} изменен`)
+              }
+            } else if (field === 'invoice_date' || field === 'due_date') {
+              // Для дат форматируем
+              const oldDate = oldValue ? new Date(oldValue).toLocaleDateString('ru-RU') : 'не указано'
+              const newDate = newValue ? new Date(newValue).toLocaleDateString('ru-RU') : 'не указано'
+              changes.push(`${fieldName}: ${oldDate} → ${newDate}`)
+            } else if (field === 'description') {
+              // Для описания показываем сокращенную версию если слишком длинное
+              let oldDesc = oldValue || 'пусто'
+              let newDesc = newValue || 'пусто'
+              if (oldDesc.length > 30) oldDesc = oldDesc.substring(0, 27) + '...'
+              if (newDesc.length > 30) newDesc = newDesc.substring(0, 27) + '...'
+              changes.push(`${fieldName}: ${oldDesc} → ${newDesc}`)
             } else {
-              description = `${fields.length} полей`
+              // Для остальных полей показываем как есть
+              const oldDisplay = oldValue !== null && oldValue !== undefined ? String(oldValue) : 'не указано'
+              const newDisplay = newValue !== null && newValue !== undefined ? String(newValue) : 'не указано'
+              changes.push(`${fieldName}: ${oldDisplay} → ${newDisplay}`)
             }
           }
+
+          // Всегда показываем все изменения, даже если их много
+          if (changes.length === 1) {
+            description = changes[0]
+          } else if (changes.length === 2) {
+            description = changes.join('; ')
+          } else {
+            // Для множественных изменений показываем каждое с новой строки
+            description = changes.join(', ')
+          }
+        } else if (event.changed_fields) {
+          // Если нет old_values/new_values, показываем просто список полей
+          const fieldNames: Record<string, string> = {
+            'amount': 'сумма',
+            'total_amount': 'общая сумма',
+            'amount_with_vat': 'сумма с НДС',
+            'amount_net': 'сумма без НДС',
+            'vat_amount': 'сумма НДС',
+            'vat_rate': 'ставка НДС',
+            'contractor_id': 'контрагент',
+            'supplier_id': 'поставщик',
+            'payer_id': 'плательщик',
+            'project_id': 'проект',
+            'description': 'описание',
+            'due_date': 'срок оплаты',
+            'invoice_number': 'номер счета',
+            'internal_number': 'внутренний номер',
+            'invoice_date': 'дата счета',
+            'delivery_days': 'срок поставки',
+            'delivery_days_type': 'тип срока поставки',
+            'priority': 'приоритет',
+            'material_responsible_person_id': 'МОЛ'
+          }
+          const fields = Object.keys(event.changed_fields).map(f => fieldNames[f] || f)
+          description = fields.join(', ')
         }
         break
 
@@ -443,7 +526,7 @@ export class InvoiceHistoryService {
           }
           const paymentType = event.metadata?.payment_type ?
             typeMap[event.metadata.payment_type] || event.metadata.payment_type : 'Оплата'
-          description = `${paymentType} ${this.formatCurrency(event.amount_to, event.currency)}`
+          description = `${paymentType} ${this.formatCurrency(event.amount_to, 'RUB')}`
         }
         break
 
@@ -464,7 +547,7 @@ export class InvoiceHistoryService {
         if (event.amount_from && event.amount_to) {
           const diff = event.amount_to - event.amount_from
           const sign = diff > 0 ? '+' : ''
-          description = `${sign}${this.formatCurrency(diff, event.currency)}`
+          description = `${sign}${this.formatCurrency(diff, 'RUB')}`
         }
         break
 
@@ -531,6 +614,20 @@ export class InvoiceHistoryService {
         color = 'purple'
         title = 'Маршрут'
         description = event.description || 'Изменен маршрут согласования'
+        break
+
+      case 'MRP_CHANGED':
+        icon = '👤'
+        color = 'blue'
+        title = 'МОЛ'
+        // Показываем старое и новое значение МОЛ
+        if (event.old_values && event.new_values) {
+          const oldName = event.old_values.material_responsible_person_name || 'не назначен'
+          const newName = event.new_values.material_responsible_person_name || 'не назначен'
+          description = `${oldName} → ${newName}`
+        } else {
+          description = 'изменен'
+        }
         break
 
       default:

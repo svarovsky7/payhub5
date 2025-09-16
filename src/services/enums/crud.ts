@@ -28,25 +28,6 @@ export class EnumCrudService {
   }
 
   /**
-   * Get currency code enum values from database
-   */
-  static async getCurrencyCodes(): Promise<EnumValue[]> {
-    console.log('[EnumCrudService.getCurrencyCodes] Fetching currency codes from database')
-
-    // Since we can't directly query enum values, we'll return the known values
-    // These match the database enum: CREATE TYPE public.currency_code AS ENUM ('RUB', 'USD', 'EUR', 'CNY')
-    const currencyCodes: EnumValue[] = [
-      { value: 'RUB', label: '₽ (RUB)' },
-      { value: 'USD', label: '$ (USD)' },
-      { value: 'EUR', label: '€ (EUR)' },
-      { value: 'CNY', label: '¥ (CNY)' }
-    ]
-
-    console.log('[EnumCrudService.getCurrencyCodes] Returning currency codes:', currencyCodes)
-    return currencyCodes
-  }
-
-  /**
    * Get priority level enum values
    */
   static async getPriorityLevels(): Promise<EnumValue[]> {
@@ -69,13 +50,6 @@ export class EnumCrudService {
    */
   static isValidPaymentType(value: string): boolean {
     return ['ADV', 'RET', 'DEBT'].includes(value)
-  }
-
-  /**
-   * Validate if a value exists in currency_code enum
-   */
-  static isValidCurrencyCode(value: string): boolean {
-    return ['RUB', 'USD', 'EUR', 'CNY'].includes(value)
   }
 
   /**

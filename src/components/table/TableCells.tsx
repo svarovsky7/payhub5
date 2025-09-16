@@ -21,21 +21,17 @@ import { formatCurrency } from '../../utils/format'
 
 const { Text, Link } = Typography
 
-// Money Cell Component
+// Money Cell Component - всегда показываем в рублях
 interface MoneyCellProps {
   amount: number
-  currency?: string
   type?: 'default' | 'success' | 'warning' | 'danger' | 'secondary'
   strong?: boolean
-  showCurrency?: boolean
 }
 
 export const MoneyCell: React.FC<MoneyCellProps> = ({
   amount,
-  currency = 'RUB',
   type = 'default',
-  strong = false,
-  showCurrency = true
+  strong = false
 }) => {
   const getColor = () => {
     switch (type) {
@@ -52,7 +48,7 @@ export const MoneyCell: React.FC<MoneyCellProps> = ({
       strong={strong}
       style={{ color: getColor() }}
     >
-      {formatCurrency(amount, showCurrency ? currency : undefined)}
+      {formatCurrency(amount, 'RUB')}
     </Text>
   )
 }

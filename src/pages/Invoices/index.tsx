@@ -137,48 +137,85 @@ export const InvoicesPage: React.FC<InvoicesPageProps> = ({companyId = '1'}) => 
     const handleDelete = async (record: InvoiceWithRelations) => {
         console.log('[InvoicesPage.handleDelete] Проверка возможности удаления счета:', record.id)
 
-        // Сначала проверяем наличие платежей
         try {
-            // Загружаем платежи для этого счета
+            // Загружаем связанные данные для информирования пользователя
             const { supabase } = await import('../../services/supabase')
-            const { data: payments, error } = await supabase
+
+            // Проверяем наличие платежей
+            const { data: payments, error: paymentsError } = await supabase
                 .from('payments')
                 .select('id')
                 .eq('invoice_id', record.id)
-                .limit(1)
 
-            if (error) {
-                console.error('[InvoicesPage.handleDelete] Ошибка проверки платежей:', error)
-                message.error('Ошибка при проверке платежей')
+            if (paymentsError) {
+                console.error('[InvoicesPage.handleDelete] Ошибка проверки платежей:', paymentsError)
+                message.error('Ошибка при проверке связанных данных')
                 return
             }
 
-            // Если есть платежи, не разрешаем удалить
-            if (payments && payments.length > 0) {
-                console.log('[InvoicesPage.handleDelete] Счет имеет платежи, удаление запрещено')
-                Modal.warning({
-                    title: 'Невозможно удалить счет',
-                    content: 'Счет нельзя удалить, так как к нему привязаны платежи. Сначала удалите все платежи.',
-                    okText: 'Понятно'
-                })
-                return
+            // Проверяем наличие документов
+            const { data: documents, error: docsError } = await supabase
+                .from('invoice_documents')
+                .select('id')
+                .eq('invoice_id', record.id)
+
+            if (docsError) {
+                console.error('[InvoicesPage.handleDelete] Ошибка проверки документов:', docsError)
             }
 
-            // Если платежей нет, спрашиваем подтверждение
+            const hasPayments = payments && payments.length > 0
+            const hasDocuments = documents && documents.length > 0
+            const paymentsCount = payments?.length || 0
+            const documentsCount = documents?.length || 0
+
+            // Формируем предупреждение о том, что будет удалено
+            let warningContent = [
+                `Счет №${record.invoice_number} будет удален безвозвратно.`,
+                ''
+            ]
+
+            if (hasPayments || hasDocuments) {
+                warningContent.push('⚠️ ВНИМАНИЕ! Вместе со счетом будут удалены:')
+                if (hasPayments) {
+                    warningContent.push(`• ${paymentsCount} платеж(ей)`)
+                }
+                if (hasDocuments) {
+                    warningContent.push(`• ${documentsCount} документ(ов)`)
+                }
+                warningContent.push('• Вся история изменений')
+                warningContent.push('')
+                warningContent.push('Это действие необратимо!')
+            } else {
+                warningContent.push('Также будет удалена вся история изменений.')
+                warningContent.push('')
+                warningContent.push('Это действие необратимо!')
+            }
+
+            // Показываем модальное окно с предупреждением
             Modal.confirm({
-                title: 'Удалить счет?',
-                content: `Вы уверены, что хотите удалить счет ${record.invoice_number}?`,
-                okText: 'Да, удалить',
+                title: '⚠️ Удалить счет со всеми данными?',
+                content: (
+                    <div style={{ whiteSpace: 'pre-line' }}>
+                        {warningContent.join('\n')}
+                    </div>
+                ),
+                okText: 'Да, удалить всё',
                 cancelText: 'Отмена',
-                okButtonProps: {danger: true},
+                okButtonProps: { danger: true },
+                width: 500,
+                icon: <ExclamationCircleOutlined style={{ color: '#ff4d4f' }} />,
                 onOk: async () => {
                     try {
-                        console.log('[InvoicesPage.handleDelete] Удаление счета:', record.id)
+                        console.log('[InvoicesPage.handleDelete] Полное удаление счета:', record.id)
+
+                        // Вызываем функцию полного удаления
                         await deleteInvoiceMutation.mutateAsync({
                             id: record.id,
-                            companyId
+                            companyId,
+                            cascade: true // Флаг для каскадного удаления
                         })
-                        message.success('Счет успешно удален')
+
+                        message.success('Счет и все связанные данные успешно удалены')
                         void refetch()
                     } catch (error) {
                         console.error('[InvoicesPage.handleDelete] Ошибка удаления:', error)
@@ -353,7 +390,6 @@ export const InvoicesPage: React.FC<InvoicesPageProps> = ({companyId = '1'}) => 
             render: (text, record) => (
                 <MoneyCell
                     amount={text}
-                    currency={record.currency}
                     strong
                 />
             ),
@@ -464,22 +500,14 @@ export const InvoicesPage: React.FC<InvoicesPageProps> = ({companyId = '1'}) => 
                         disabled={!['draft', 'pending', 'approved'].includes(record.status)}
                         style={{opacity: !['draft', 'pending', 'approved'].includes(record.status) ? 0.3 : 1}}
                     />
-                    {/* Удалить - только для draft и cancelled и если нет платежей */}
+                    {/* Удалить - доступно для всех счетов */}
                     <Button
                         type="text"
                         size="small"
                         icon={<DeleteOutlined/>}
                         onClick={() => void handleDelete(record)}
-                        title={
-                            invoicePayments[record.id]
-                                ? "Нельзя удалить - есть платежи"
-                                : !['draft', 'cancelled'].includes(record.status)
-                                    ? "Можно удалить только черновики и отмененные счета"
-                                    : "Удалить"
-                        }
+                        title="Удалить счет со всеми данными"
                         danger
-                        disabled={!['draft', 'cancelled'].includes(record.status) || invoicePayments[record.id]}
-                        style={{opacity: (!['draft', 'cancelled'].includes(record.status) || invoicePayments[record.id]) ? 0.3 : 1}}
                     />
                 </Space>
             ),
@@ -636,7 +664,6 @@ export const InvoicesPage: React.FC<InvoicesPageProps> = ({companyId = '1'}) => 
                         'project.name': 'project_id',
                         'description': 'description',
                         'total_amount': 'total_amount',
-                        'currency': 'currency',
                         'status': 'status',
                         'priority': 'priority',
                         'payment_due_date': 'payment_due_date',

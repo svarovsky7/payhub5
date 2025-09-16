@@ -255,19 +255,19 @@ export const useUpdateInvoice = (
 }
 
 export const useDeleteInvoice = (
-  options?: UseMutationOptions<null, Error, { id: string; companyId: string }>
+  options?: UseMutationOptions<null, Error, { id: string; companyId: string; cascade?: boolean }>
 ) => {
   const queryClient = useQueryClient()
 
   return useMutation({
     mutationKey: [mutationKeys.deleteInvoice],
-    mutationFn: async ({ id }) => {
-      const result = await InvoiceCrudService.delete(id)
+    mutationFn: async ({ id, cascade = false }) => {
+      const result = await InvoiceCrudService.delete(id, cascade)
       if (result.error) {throw new Error(result.error)}
       return result.data
     },
-    onSuccess: (_, { id, companyId }) => {
-      message.success('Заявка удалена успешно')
+    onSuccess: (_, { id, companyId, cascade }) => {
+      message.success(cascade ? 'Счет и все связанные данные удалены' : 'Заявка удалена успешно')
       
       // Remove from cache
       queryClient.removeQueries({ queryKey: queryKeys.invoices.item(id) })

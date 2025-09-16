@@ -91,7 +91,6 @@ Strict TypeScript checks enabled:
 - Auth state managed in `models/auth.tsx` with Zustand
 - Session persistence and auto-refresh handled
 
-
 ### Build Configuration
 Vite configuration (`vite.config.ts`):
 - Dev server runs on port 4000
@@ -101,7 +100,7 @@ Vite configuration (`vite.config.ts`):
 
 ### Core Domain Services
 - **Invoices**: Full CRUD, workflow management (`workflow.ts`), document attachments
-- **Payments**: Transaction tracking, partial payments, bank reconciliation
+- **Payments**: Transaction tracking, partial payments
 - **Contractors**: Supplier/payer management with INN validation
 - **Projects**: Project tracking with address and budget management
 - **Admin**: User management, workflow configuration, role management
@@ -222,23 +221,22 @@ VITE_SHOW_DEBUG_INFO=false
 
 The system handles procurement and payment workflows with the following status models:
 
-### Invoice Statuses
-- `draft` - Initial state
-- `pending` - Under approval
-- `approved` - Approved for payment
-- `paid` - Payment completed
-- `rejected` - Rejected
-- `cancelled` - Cancelled
+### Invoice Statuses (Статусы счетов)
+1. `draft` - **Черновик** - Счет создан, но не имеет платежей
+2. `pending` - **В ожидании** - У счета есть созданные платежи, но они не согласованы
+3. `partially_paid` - **Частично оплачен** - Частично оплачен
+4. `paid` - **Полностью оплачен** - Все платежи согласованы и оплачены
+5. `cancelled` - **Отменён** - Счет закрыт, не используется
 
-### Payment Statuses
-- `pending` - Awaiting processing
-- `processing` - Being processed
-- `completed` - Successfully completed
-- `failed` - Failed
-- `cancelled` - Cancelled
+### Payment Statuses (Статусы платежей)
+1. `draft` - **Черновик** - Платеж создан, но не отправлен на согласование
+2. `pending` - **На согласовании** - Ожидает утверждения
+3. `approved` - **Согласован** - Одобрен к исполнению
+4. `scheduled` - **В графике на оплату** - Согласован и стоит в плане оплаты
+5. `paid` - **Оплачен** - Деньги списаны
+6. `cancelled` - **Отменён** - Платеж отменен
 
 ### Workflow System
 - Configurable approval routes with multiple steps
-- Quorum-based approval for critical decisions
 - Automatic notifications on status changes
 - Escalation mechanisms for delayed approvals
