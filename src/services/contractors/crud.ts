@@ -93,7 +93,7 @@ export class ContractorCrudService {
       })
       return {
         data: null,
-        error: handleSupabaseError(error)
+        error: handleSupabaseError(error).error
       }
     }
   }
@@ -116,7 +116,7 @@ export class ContractorCrudService {
       console.error('Ошибка получения поставщика:', error)
       return {
         data: null,
-        error: handleSupabaseError(error)
+        error: handleSupabaseError(error).error
       }
     }
   }
@@ -143,7 +143,7 @@ export class ContractorCrudService {
       console.error('Ошибка получения поставщика со статистикой:', error)
       return {
         data: null,
-        error: handleSupabaseError(error)
+        error: handleSupabaseError(error).error
       }
     }
   }
@@ -200,7 +200,7 @@ export class ContractorCrudService {
       console.error('Ошибка обновления поставщика:', error)
       return {
         data: null,
-        error: handleSupabaseError(error)
+        error: handleSupabaseError(error).error
       }
     }
   }
@@ -238,7 +238,7 @@ export class ContractorCrudService {
       console.error('Ошибка удаления поставщика:', error)
       return {
         data: null,
-        error: handleSupabaseError(error)
+        error: handleSupabaseError(error).error
       }
     }
   }
@@ -267,7 +267,7 @@ export class ContractorCrudService {
       console.error('Ошибка деактивации поставщика:', error)
       return {
         data: null,
-        error: handleSupabaseError(error)
+        error: handleSupabaseError(error).error
       }
     }
   }
@@ -296,7 +296,7 @@ export class ContractorCrudService {
       console.error('Ошибка активации поставщика:', error)
       return {
         data: null,
-        error: handleSupabaseError(error)
+        error: handleSupabaseError(error).error
       }
     }
   }

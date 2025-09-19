@@ -10,23 +10,14 @@ import {
   type PaymentUpdate,
   supabase
 } from '../supabase'
-import { PaymentType } from '../../types/payment'
 
 export interface PaymentWithRelations extends Payment {
   invoice?: {
     id: string
     invoice_number: string
   }
-  payment_type?: PaymentType
 }
 
-export interface PaymentInsertWithType extends PaymentInsert {
-  payment_type: PaymentType
-}
-
-interface PaymentUpdateWithType extends PaymentUpdate {
-  payment_type?: PaymentType
-}
 
 export class PaymentCrudService {
   
@@ -38,7 +29,6 @@ export class PaymentCrudService {
       console.log('[PaymentCrudService.create] Создание платежа:', {
         invoice_id: payment.invoice_id,
         total_amount: payment.total_amount,
-        payment_type: payment.payment_type,
         status: payment.status || 'draft'
       })
       
@@ -97,10 +87,9 @@ export class PaymentCrudService {
           }
         }
 
-        // Генерируем internal_number в формате {номер счета}/PAY-NN-TYPE
-        const typeStr = payment.payment_type === 'ADV' ? 'ADV' : payment.payment_type === 'RET' ? 'RET' : 'DEBT'
+        // Генерируем internal_number в формате {номер счета}/PAY-NN
         const invoiceNum = invoice.internal_number || invoice.invoice_number || invoice.id
-        generatedInternalNumber = `${invoiceNum}/PAY-${nextNumber.toString().padStart(2, '0')}-${typeStr}`
+        generatedInternalNumber = `${invoiceNum}/PAY-${nextNumber.toString().padStart(2, '0')}`
       }
 
       // Подготавливаем данные для вставки в соответствии со схемой БД
@@ -108,7 +97,6 @@ export class PaymentCrudService {
         invoice_id: payment.invoice_id,
         payment_date: payment.payment_date || new Date().toISOString().split('T')[0],
         total_amount: payment.total_amount,
-        payment_type: payment.payment_type, // Добавляем тип платежа
         payer_id: payment.payer_id || invoice.payer_id, // Используем payer_id из invoice если не указан
         type_id: invoice.type_id, // Наследуем тип счета от связанного счета
         internal_number: generatedInternalNumber || (payment as any).internal_number,
@@ -143,7 +131,7 @@ export class PaymentCrudService {
       console.error('Ошибка создания платежа:', error)
       return {
         data: null,
-        error: handleSupabaseError(error)
+        error: handleSupabaseError(error).error
       }
     }
   }
@@ -172,7 +160,7 @@ export class PaymentCrudService {
       console.error('Ошибка получения платежа:', error)
       return {
         data: null,
-        error: handleSupabaseError(error)
+        error: handleSupabaseError(error).error
       }
     }
   }
@@ -204,7 +192,7 @@ export class PaymentCrudService {
       console.error('Ошибка обновления платежа:', error)
       return {
         data: null,
-        error: handleSupabaseError(error)
+        error: handleSupabaseError(error).error
       }
     }
   }
@@ -242,7 +230,7 @@ export class PaymentCrudService {
       console.error('Ошибка удаления платежа:', error)
       return {
         data: null,
-        error: handleSupabaseError(error)
+        error: handleSupabaseError(error).error
       }
     }
   }
@@ -320,7 +308,7 @@ export class PaymentCrudService {
       console.error('Ошибка подтверждения платежа:', error)
       return {
         data: null,
-        error: handleSupabaseError(error)
+        error: handleSupabaseError(error).error
       }
     }
   }
@@ -354,7 +342,7 @@ export class PaymentCrudService {
       console.error('Ошибка отклонения платежа:', error)
       return {
         data: null,
-        error: handleSupabaseError(error)
+        error: handleSupabaseError(error).error
       }
     }
   }
@@ -408,7 +396,7 @@ export class PaymentCrudService {
       console.error('Ошибка отмены платежа:', error)
       return {
         data: null,
-        error: handleSupabaseError(error)
+        error: handleSupabaseError(error).error
       }
     }
   }
@@ -443,7 +431,7 @@ export class PaymentCrudService {
       console.error('Ошибка загрузки файла для платежа:', error)
       return {
         data: null,
-        error: handleSupabaseError(error)
+        error: handleSupabaseError(error).error
       }
     }
   }
@@ -498,7 +486,7 @@ export class PaymentCrudService {
       console.error('[PaymentCrudService.deletePayment] Ошибка:', error)
       return {
         data: null,
-        error: handleSupabaseError(error)
+        error: handleSupabaseError(error).error
       }
     }
   }

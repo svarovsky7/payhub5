@@ -4,7 +4,6 @@ export interface WorkflowDefinition {
   id: number
   name: string
   description?: string
-  company_id?: string
   is_active: boolean
   // Условия для платежей
   invoice_type_ids?: number[] // ID типов заявок
@@ -113,17 +112,6 @@ export const SYSTEM_ROLES = {
   DIRECTOR: { id: 'director', name: 'Директор', code: 'DIRECTOR' },
 } as const
 
-
-// Типы счетов из БД (таблица invoice_types)
-export const INVOICE_TYPES = {
-  MTRL: { id: 1, name: 'МАТЕРИАЛЫ', code: 'MTRL', description: 'Счета за физические товары, строительные и расходные материалы' },
-  SUBC: { id: 2, name: 'СУБПОДРЯД', code: 'SUBC', description: 'Счета на строительные работы и услуги подрядчиков' },
-  RENT: { id: 3, name: 'АРЕНДА', code: 'RENT', description: 'Счета за аренду оборудования, опалубку, автотехнику' },
-  UTIL: { id: 4, name: 'КОММУНАЛКА', code: 'UTIL', description: 'Счета за коммунальные услуги и эксплуатационные расходы' },
-} as const
-
-// Типы платежей - такие же как типы счетов (из таблицы invoice_types)
-export const PAYMENT_TYPES = INVOICE_TYPES
 
 // Типы контрагентов
 const CONTRACTOR_TYPES = {

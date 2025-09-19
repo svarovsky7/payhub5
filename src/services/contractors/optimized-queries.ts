@@ -185,7 +185,7 @@ export class OptimizedContractorQueryService {
       console.error('Ошибка получения оптимизированного списка поставщиков:', error)
       return {
         data: [],
-        error: handleSupabaseError(error),
+        error: handleSupabaseError(error).error,
         count: 0,
         page: pagination.page || 1,
         limit: pagination.limit || 20,

@@ -192,7 +192,7 @@ export class InvoiceQueryService {
       console.error('Ошибка получения списка заявок:', error)
       return {
         data: [],
-        error: handleSupabaseError(error),
+        error: handleSupabaseError(error).error,
         count: 0,
         page: pagination.page || 1,
         limit: pagination.limit || 20,
@@ -422,7 +422,7 @@ export class InvoiceQueryService {
       await exportToExcel(exportData, filename, columns)
     } catch (error) {
       console.error('Ошибка экспорта заявок:', error)
-      throw new Error(handleSupabaseError(error))
+      throw new Error(handleSupabaseError(error).error || 'Ошибка экспорта заявок')
     }
   }
 

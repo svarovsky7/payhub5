@@ -186,9 +186,7 @@ export const QUERY_KEYS = {
   APPROVALS: 'approvals',
   DASHBOARD: 'dashboard',
   ROLES: 'roles',
-  INVOICE_TYPES: 'invoiceTypes',
   MATERIAL_RESPONSIBLE_PERSONS: 'materialResponsiblePersons',
-  PAYMENT_TYPES: 'paymentTypes',
   CURRENCIES: 'currencies',
   PRIORITIES: 'priorities',
 } as const

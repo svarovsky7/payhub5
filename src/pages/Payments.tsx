@@ -35,7 +35,6 @@ interface Payment {
     id: number
     reference?: string // это payment_number в UI
     internal_number?: string // Уникальный внутренний номер платежа
-    payment_type?: string
     invoice_id: number
     invoice?: {
         invoice_number: string
@@ -379,24 +378,6 @@ const PaymentsPage: React.FC<PaymentsPageProps> = ({invoiceId}) => {
                         contractor.name,
                         record.invoice?.project?.name || '—'
                     ]}/>
-                )
-            },
-        },
-        {
-            title: 'Тип платежа',
-            dataIndex: 'payment_type',
-            key: 'payment_type',
-            priority: 4,
-            exportable: true,
-            sorter: (a, b) => (a.payment_type || '').localeCompare(b.payment_type || ''),
-            render: (type: string) => {
-                if (!type) {
-                    return <Tag>Не указан</Tag>
-                }
-                return (
-                    <Tag color={EnumQueryService.getPaymentTypeColor(type)}>
-                        {EnumQueryService.getPaymentTypeLabel(type)}
-                    </Tag>
                 )
             },
         },

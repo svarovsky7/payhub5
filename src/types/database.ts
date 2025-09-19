@@ -93,7 +93,6 @@ export interface Database {
           updated_at: string
           status: string // Dynamic status from database
           type_id: number | null
-          payment_type: 'ADV' | 'RET' | 'DEBT' // Аванс, Возврат удержаний, Погашение долга
           internal_number: string | null
           amount_net: number | null // Amount excluding VAT
           vat_amount: number | null
@@ -111,7 +110,6 @@ export interface Database {
           updated_at?: string
           status?: string
           type_id?: number | null
-          payment_type: 'ADV' | 'RET' | 'DEBT'
           internal_number?: string | null
           amount_net?: number | null // Amount excluding VAT
           vat_amount?: number | null
@@ -126,7 +124,6 @@ export interface Database {
           updated_at?: string
           status?: string
           type_id?: number | null
-          payment_type?: 'ADV' | 'RET' | 'DEBT'
           internal_number?: string | null
           amount_net?: number | null // Amount excluding VAT
           vat_amount?: number | null
@@ -566,7 +563,6 @@ export interface Database {
     }
     Enums: {
       priority_level: 'low' | 'normal' | 'high' | 'urgent'
-      payment_type: 'ADV' | 'RET' | 'DEBT'
     }
     CompositeTypes: {
       [_ in never]: never

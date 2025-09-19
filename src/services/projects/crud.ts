@@ -72,7 +72,7 @@ export class ProjectCrudService {
       console.error('[ProjectCrudService] Error creating project:', error)
       return {
         data: null,
-        error: handleSupabaseError(error)
+        error: handleSupabaseError(error).error
       }
     }
   }
@@ -107,7 +107,7 @@ export class ProjectCrudService {
       console.error('Ошибка получения проекта:', error)
       return {
         data: null,
-        error: handleSupabaseError(error)
+        error: handleSupabaseError(error).error
       }
     }
   }
@@ -166,7 +166,7 @@ export class ProjectCrudService {
       console.error('Ошибка обновления проекта:', error)
       return {
         data: null,
-        error: handleSupabaseError(error)
+        error: handleSupabaseError(error).error
       }
     }
   }
@@ -220,7 +220,7 @@ export class ProjectCrudService {
       console.error('Ошибка удаления проекта:', error)
       return {
         data: null,
-        error: handleSupabaseError(error)
+        error: handleSupabaseError(error).error
       }
     }
   }
@@ -259,7 +259,7 @@ export class ProjectCrudService {
       console.error('Ошибка изменения статуса проекта:', error)
       return {
         data: null,
-        error: handleSupabaseError(error)
+        error: handleSupabaseError(error).error
       }
     }
   }
@@ -314,7 +314,7 @@ export class ProjectCrudService {
       console.error('Ошибка обновления бюджета проекта:', error)
       return {
         data: null,
-        error: handleSupabaseError(error)
+        error: handleSupabaseError(error).error
       }
     }
   }
@@ -346,7 +346,7 @@ export class ProjectCrudService {
       console.error('Ошибка назначения менеджера проекта:', error)
       return {
         data: null,
-        error: handleSupabaseError(error)
+        error: handleSupabaseError(error).error
       }
     }
   }

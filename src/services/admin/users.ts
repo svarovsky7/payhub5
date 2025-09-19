@@ -70,7 +70,7 @@ export class UserManagementService {
             console.error('[UserService] getById exception:', error)
             return {
                 data: null,
-                error: handleSupabaseError(error)
+                error: handleSupabaseError(error).error
             }
         }
     }
@@ -175,7 +175,7 @@ export class UserManagementService {
             console.error('[UserService] getList exception:', error)
             return {
                 data: [],
-                error: handleSupabaseError(error),
+                error: handleSupabaseError(error).error,
                 count: 0,
                 page: pagination.page || 1,
                 limit: pagination.limit || 20,
@@ -251,7 +251,7 @@ export class UserManagementService {
             console.error('Ошибка создания пользователя:', error)
             return {
                 data: null,
-                error: handleSupabaseError(error)
+                error: handleSupabaseError(error).error
             }
         }
     }
@@ -319,7 +319,7 @@ export class UserManagementService {
             console.error('Ошибка обновления пользователя:', error)
             return {
                 data: null,
-                error: handleSupabaseError(error)
+                error: handleSupabaseError(error).error
             }
         }
     }
@@ -378,7 +378,7 @@ export class UserManagementService {
             console.error('[UserService] Error deactivating user:', error)
             return {
                 data: null,
-                error: handleSupabaseError(error)
+                error: handleSupabaseError(error).error
             }
         }
     }
@@ -422,7 +422,7 @@ export class UserManagementService {
             console.error('Ошибка активации пользователя:', error)
             return {
                 data: null,
-                error: handleSupabaseError(error)
+                error: handleSupabaseError(error).error
             }
         }
     }
@@ -466,7 +466,7 @@ export class UserManagementService {
             console.error('Ошибка сброса пароля:', error)
             return {
                 data: null,
-                error: handleSupabaseError(error)
+                error: handleSupabaseError(error).error
             }
         }
     }
@@ -618,7 +618,7 @@ export class UserManagementService {
             await exportToExcel(exportData, filename, columns)
         } catch (error) {
             console.error('Ошибка экспорта пользователей:', error)
-            throw new Error(handleSupabaseError(error))
+            throw new Error(handleSupabaseError(error).error || 'Ошибка экспорта пользователей')
         }
     }
 

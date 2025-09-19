@@ -77,16 +77,6 @@ const deleteFile = async (bucket: string, path: string) => {
   return data
 }
 
-// Утилиты для работе с RLS политиками
-const setRLSContext = async (companyId: string) => {
-  const { error } = await supabase.rpc('set_current_company', {
-    company_id: companyId,
-  })
-
-  if (error && import.meta.env.DEV) {
-    console.warn('Не удалось установить контекст компании:', error)
-  }
-}
 
 // Типы для основных сущностей системы
 export type Invoice = Database['public']['Tables']['invoices']['Row']

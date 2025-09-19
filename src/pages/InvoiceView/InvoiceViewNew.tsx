@@ -1064,7 +1064,6 @@ const handleAddPayment = () => {
     vat_rate: vatRate,
     vat_amount: parseFloat(vatAmount.toFixed(2)),
     amount_net: parseFloat(amountNet.toFixed(2))
-    // payment_type убрали - пользователь должен выбрать сам
   })
 
   setCurrentPaymentAmount(remainingAmount)
@@ -1090,7 +1089,6 @@ const handleCreatePayment = async () => {
       invoice_id: parseInt(id!),
       payment_date: values.payment_date.format('YYYY-MM-DD'),
       payer_id: invoice?.payer_id || 1,
-      payment_type: values.payment_type, // Обязательное поле, без значения по умолчанию
       total_amount: values.total_amount,
       comment: values.comment || '',
       status: 'draft', // Используем статус 'draft' (Черновик) по умолчанию
@@ -1144,7 +1142,6 @@ const handleEditPayment = (payment: any) => {
   const amountNet = payment.total_amount ? payment.total_amount - vatAmount : 0
 
   paymentEditForm.setFieldsValue({
-    payment_type: payment.payment_type || 'DEBT',
     payment_date: payment.payment_date ? dayjs(payment.payment_date) : dayjs(),
     total_amount: payment.total_amount || 0,
     vat_rate: vatRate,
@@ -1764,22 +1761,6 @@ const renderPayments = () => {
           render: (date: string) => dayjs(date).format('DD.MM.YYYY')
         },
         {
-          title: 'Тип платежа',
-          dataIndex: 'payment_type',
-          key: 'payment_type',
-          width: 120,
-          sorter: (a: any, b: any) => (a.payment_type || '').localeCompare(b.payment_type || ''),
-          render: (type: string) => {
-            const typeConfig: Record<string, { color: string, text: string }> = {
-              'ADV': { color: 'blue', text: 'Аванс' },
-              'DEBT': { color: 'green', text: 'Оплата долга' },
-              'RET': { color: 'orange', text: 'Возврат удержаний' }
-            }
-            const config = typeConfig[type] || { color: 'default', text: type }
-            return <Tag color={config.color}>{config.text}</Tag>
-          }
-        },
-        {
           title: 'Сумма',
           dataIndex: 'total_amount',
           key: 'amount',
@@ -2368,11 +2349,6 @@ const renderHistory = () => {
                           const status = payment.status || 'draft'
                           const config = statusConfig[status] || { color: 'default', text: status }
 
-                          const paymentTypeText = payment.payment_type === 'ADV' ? 'Аванс' :
-                                                 payment.payment_type === 'RET' ? 'Возврат' :
-                                                 payment.payment_type === 'DEBT' ? 'Оплата долга' :
-                                                 payment.payment_type
-
                           return (
                             <List.Item style={{ padding: '6px 0', borderBottom: '1px solid #f0f0f0' }}>
                               <div style={{ width: '100%' }}>
@@ -2389,11 +2365,6 @@ const renderHistory = () => {
                                     <Tag color={config.color} style={{ fontSize: 10, margin: 0, padding: '0 4px' }}>
                                       {config.text}
                                     </Tag>
-                                    {paymentTypeText && (
-                                      <Text type="secondary" style={{ fontSize: 10 }}>
-                                        {paymentTypeText}
-                                      </Text>
-                                    )}
                                   </Space>
                                   <Text type="secondary" style={{ fontSize: 10 }}>
                                     {dayjs(payment.payment_date || payment.created_at).format('DD.MM.YY')}
@@ -2585,19 +2556,6 @@ const renderHistory = () => {
                 <DatePicker style={{ width: '100%' }} format="DD.MM.YYYY" />
               </Form.Item>
             </Col>
-            <Col span={12}>
-              <Form.Item
-                name="payment_type"
-                label="Тип платежа"
-                rules={[{ required: true, message: 'Выберите тип платежа' }]}
-              >
-                <Select placeholder="Выберите тип платежа">
-                  <Select.Option value="DEBT">Погашение долга</Select.Option>
-                  <Select.Option value="ADV">Аванс</Select.Option>
-                  <Select.Option value="RET">Возврат удержаний</Select.Option>
-                </Select>
-              </Form.Item>
-            </Col>
           </Row>
 
           <Row gutter={16}>
@@ -2760,19 +2718,6 @@ const renderHistory = () => {
                 rules={[{ required: true, message: 'Выберите дату платежа' }]}
               >
                 <DatePicker style={{ width: '100%' }} format="DD.MM.YYYY" />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item
-                name="payment_type"
-                label="Тип платежа"
-                rules={[{ required: true, message: 'Выберите тип платежа' }]}
-              >
-                <Select placeholder="Выберите тип платежа">
-                  <Select.Option value="DEBT">Погашение долга</Select.Option>
-                  <Select.Option value="ADV">Аванс</Select.Option>
-                  <Select.Option value="RET">Возврат удержаний</Select.Option>
-                </Select>
               </Form.Item>
             </Col>
           </Row>
@@ -3002,65 +2947,6 @@ const renderHistory = () => {
                 </div>
               </div>
 
-              {/* Тип платежа с иконкой */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                {selectedPaymentForApproval.payment_type === 'ADV' && (
-                  <Tag
-                    icon={<RiseOutlined />}
-                    color="blue"
-                    style={{
-                      borderRadius: 6,
-                      padding: '2px 8px',
-                      fontSize: 12,
-                      fontWeight: 500
-                    }}
-                  >
-                    Авансовый платеж
-                  </Tag>
-                )}
-                {selectedPaymentForApproval.payment_type === 'RET' && (
-                  <Tag
-                    icon={<FallOutlined />}
-                    color="orange"
-                    style={{
-                      borderRadius: 6,
-                      padding: '2px 8px',
-                      fontSize: 12,
-                      fontWeight: 500
-                    }}
-                  >
-                    Возврат средств
-                  </Tag>
-                )}
-                {selectedPaymentForApproval.payment_type === 'DEBT' && (
-                  <Tag
-                    icon={<BankOutlined />}
-                    color="green"
-                    style={{
-                      borderRadius: 6,
-                      padding: '2px 8px',
-                      fontSize: 12,
-                      fontWeight: 500
-                    }}
-                  >
-                    Оплата долга
-                  </Tag>
-                )}
-                {!['ADV', 'RET', 'DEBT'].includes(selectedPaymentForApproval.payment_type) && (
-                  <Tag
-                    icon={<SwapOutlined />}
-                    color="default"
-                    style={{
-                      borderRadius: 6,
-                      padding: '2px 8px',
-                      fontSize: 12,
-                      fontWeight: 500
-                    }}
-                  >
-                    {selectedPaymentForApproval.payment_type}
-                  </Tag>
-                )}
-              </div>
             </Card>
           )}
 

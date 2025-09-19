@@ -206,7 +206,7 @@ export class OptimizedPaymentQueryService {
       console.error('Ошибка получения оптимизированного списка платежей:', error)
       return {
         data: [],
-        error: handleSupabaseError(error),
+        error: handleSupabaseError(error).error,
         count: 0,
         page: pagination.page || 1,
         limit: Math.min(pagination.limit || 20, 100),

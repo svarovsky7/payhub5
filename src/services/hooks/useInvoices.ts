@@ -172,11 +172,6 @@ export const useCreateInvoice = (
       
       // Invalidate related queries
       queryClient.invalidateQueries({ queryKey: queryKeys.invoices.all })
-      // Only invalidate company-specific queries if company_id is provided
-      if (variables.company_id) {
-        queryClient.invalidateQueries({ queryKey: queryKeys.invoices.stats(variables.company_id) })
-        queryClient.invalidateQueries({ queryKey: queryKeys.invoices.dashboard(variables.company_id) })
-      }
     },
     onError: (error) => {
       message.error(error.message || 'Ошибка создания заявки')

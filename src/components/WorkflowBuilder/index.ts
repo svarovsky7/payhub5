@@ -23,6 +23,4 @@ export type {
 // Экспорт констант
 export {
   SYSTEM_ROLES,
-  INVOICE_TYPES,
-  PAYMENT_TYPES,
 } from './types'

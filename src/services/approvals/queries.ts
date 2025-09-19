@@ -183,7 +183,8 @@ export class ApprovalQueryService {
           current_stage:workflow_stages!current_stage_id(
             id,
             name,
-            position
+            position,
+            assigned_roles
           )
         `, {count: 'exact'})
                 .eq('status', 'in_progress')
@@ -228,27 +229,25 @@ export class ApprovalQueryService {
                 }
 
                 // Проверяем, является ли пользователь approver на текущем этапе
-                // NOTE: assigned_users и assigned_roles не существуют в таблице workflow_stages
-                // Эта логика временно отключена до добавления этих полей в БД
-                const assignedUsers: string[] = []
-                const assignedRoles: string[] = []
+                const assignedRoles: string[] = workflow.current_stage.assigned_roles || []
 
                 console.log(`[ApprovalQueryService.getMyApprovals] Детали согласования для workflow ${workflow.id}:`, {
                     stageName: workflow.current_stage.name,
                     currentUserId: userId,
                     currentUserRole: userRole,
-                    // NOTE: assigned_users и assigned_roles временно отключены
-                    assignedFieldsDisabled: true
+                    assignedRoles: assignedRoles
                 })
 
-                // TODO: Восстановить проверку после добавления assigned_users и assigned_roles в БД
-                // Временно возвращаем true для всех workflows в статусе in_progress
-                console.log(`[ApprovalQueryService.getMyApprovals] Workflow ${workflow.id} включен - временная логика без проверки назначений`)
-                return true
+                // Проверяем, есть ли роль пользователя в списке назначенных ролей для этапа
+                const isAssigned = assignedRoles.includes(userRole)
 
-                // Эта строка больше не достижима с временной логикой
-                // console.log(`[ApprovalQueryService.getMyApprovals] Workflow ${workflow.id} исключен - пользователь не является согласующим`)
-                // return false
+                if (isAssigned) {
+                    console.log(`[ApprovalQueryService.getMyApprovals] Workflow ${workflow.id} включен - пользователь является согласующим`)
+                    return true
+                } else {
+                    console.log(`[ApprovalQueryService.getMyApprovals] Workflow ${workflow.id} исключен - пользователь не является согласующим`)
+                    return false
+                }
             }) || []
 
             console.log('[ApprovalQueryService.getMyApprovals] Отфильтровано workflows для пользователя:', {
@@ -452,7 +451,7 @@ export class ApprovalQueryService {
             console.error('[ApprovalQueryService.getMyApprovals] Ошибка получения списка согласований:', error)
             return {
                 data: [],
-                error: handleSupabaseError(error),
+                error: handleSupabaseError(error).error,
                 count: 0,
                 page: pagination.page || 1,
                 limit: pagination.limit || 20,
@@ -626,7 +625,7 @@ export class ApprovalQueryService {
             return {success: true}
         } catch (error) {
             console.error('[ApprovalQueryService.approvePayment] Ошибка одобрения платежа:', error)
-            return {success: false, error: handleSupabaseError(error)}
+            return {success: false, error: handleSupabaseError(error).error}
         }
     }
 
@@ -787,7 +786,7 @@ export class ApprovalQueryService {
             return {success: true}
         } catch (error) {
             console.error('[ApprovalQueryService.rejectPayment] Ошибка отклонения платежа:', error)
-            return {success: false, error: handleSupabaseError(error)}
+            return {success: false, error: handleSupabaseError(error).error}
         }
     }
 }

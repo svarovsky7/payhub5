@@ -228,7 +228,7 @@ export class OptimizedApprovalQueryService {
             console.error('[OptimizedApprovalQueryService.getOptimizedMyApprovals] Ошибка получения оптимизированного списка согласований:', error)
             return {
                 data: [],
-                error: handleSupabaseError(error),
+                error: handleSupabaseError(error).error,
                 count: 0,
                 page: pagination.page || 1,
                 limit: Math.min(pagination.limit || 20, 50),
@@ -331,7 +331,7 @@ export class OptimizedApprovalQueryService {
             return {success: true}
         } catch (error) {
             console.error('[OptimizedApprovalQueryService.optimizedApprovePayment] Ошибка одобрения:', error)
-            return {success: false, error: handleSupabaseError(error)}
+            return {success: false, error: handleSupabaseError(error).error}
         }
     }
 
@@ -396,7 +396,7 @@ export class OptimizedApprovalQueryService {
             return {success: true}
         } catch (error) {
             console.error('[OptimizedApprovalQueryService.optimizedRejectPayment] Ошибка отклонения:', error)
-            return {success: false, error: handleSupabaseError(error)}
+            return {success: false, error: handleSupabaseError(error).error}
         }
     }
 

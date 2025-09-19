@@ -369,7 +369,7 @@ export class InvoiceFileStorage {
       console.error('[InvoiceFileStorage.uploadFile] General file upload error:', error)
       return {
         data: null,
-        error: handleSupabaseError(error)
+        error: handleSupabaseError(error).error
       }
     }
   }
@@ -424,7 +424,7 @@ export class InvoiceFileStorage {
       console.error('[InvoiceFileStorage.uploadFiles] Error uploading files:', error)
       return {
         data: null,
-        error: handleSupabaseError(error)
+        error: handleSupabaseError(error).error
       }
     }
   }
@@ -503,7 +503,7 @@ export class InvoiceFileStorage {
       console.error('[InvoiceFileStorage.getInvoiceDocuments] Error getting documents:', error)
       return {
         data: [],
-        error: handleSupabaseError(error)
+        error: handleSupabaseError(error).error
       }
     }
   }
@@ -608,7 +608,7 @@ export class InvoiceFileStorage {
       console.error('[InvoiceFileStorage.reuploadLocalFile] Error:', error)
       return {
         data: null,
-        error: handleSupabaseError(error)
+        error: handleSupabaseError(error).error
       }
     }
   }
@@ -663,7 +663,7 @@ export class InvoiceFileStorage {
       console.error('[InvoiceFileStorage.getFileDownloadUrl] Error:', error)
       return {
         data: null,
-        error: handleSupabaseError(error)
+        error: handleSupabaseError(error).error
       }
     }
   }
@@ -713,7 +713,7 @@ export class InvoiceFileStorage {
       console.error('[InvoiceFileStorage.removeFile] Error removing file:', error)
       return {
         data: null,
-        error: handleSupabaseError(error)
+        error: handleSupabaseError(error).error
       }
     }
   }

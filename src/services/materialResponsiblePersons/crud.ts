@@ -86,7 +86,7 @@ export class MaterialResponsiblePersonCrudService {
       console.error('[MaterialResponsiblePersonCrudService.create] Ошибка создания МОЛ:', error)
       return {
         data: null,
-        error: handleSupabaseError(error)
+        error: handleSupabaseError(error).error
       }
     }
   }
@@ -115,7 +115,7 @@ export class MaterialResponsiblePersonCrudService {
       console.error('[MaterialResponsiblePersonCrudService.getById] Ошибка получения МОЛ:', error)
       return {
         data: null,
-        error: handleSupabaseError(error)
+        error: handleSupabaseError(error).error
       }
     }
   }
@@ -151,7 +151,7 @@ export class MaterialResponsiblePersonCrudService {
       console.error('[MaterialResponsiblePersonCrudService.getList] Ошибка получения списка МОЛ:', error)
       return {
         data: null,
-        error: handleSupabaseError(error)
+        error: handleSupabaseError(error).error
       }
     }
   }
@@ -189,7 +189,7 @@ export class MaterialResponsiblePersonCrudService {
       console.error('[MaterialResponsiblePersonCrudService.update] Ошибка обновления МОЛ:', error)
       return {
         data: null,
-        error: handleSupabaseError(error)
+        error: handleSupabaseError(error).error
       }
     }
   }
@@ -218,7 +218,7 @@ export class MaterialResponsiblePersonCrudService {
       console.error('[MaterialResponsiblePersonCrudService.delete] Ошибка удаления МОЛ:', error)
       return {
         data: null,
-        error: handleSupabaseError(error)
+        error: handleSupabaseError(error).error
       }
     }
   }
@@ -250,7 +250,7 @@ export class MaterialResponsiblePersonCrudService {
       console.error('[MaterialResponsiblePersonCrudService.deactivate] Ошибка деактивации МОЛ:', error)
       return {
         data: null,
-        error: handleSupabaseError(error)
+        error: handleSupabaseError(error).error
       }
     }
   }
@@ -283,7 +283,7 @@ export class MaterialResponsiblePersonCrudService {
       console.error('[MaterialResponsiblePersonCrudService.activate] Ошибка активации МОЛ:', error)
       return {
         data: null,
-        error: handleSupabaseError(error)
+        error: handleSupabaseError(error).error
       }
     }
   }

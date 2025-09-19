@@ -2,13 +2,6 @@
  * Типы для работы с платежами
  */
 
-// Enum для типов платежей
-export enum PaymentType {
-  ADV = 'ADV',   // Аванс
-  RET = 'RET',   // Возврат удержаний
-  DEBT = 'DEBT'  // Погашение долга
-}
-
 // Описания типов платежей для UI (unused - removed)
 // const PaymentTypeLabels: Record<PaymentType, string> = {
 //   [PaymentType.ADV]: 'Аванс',
@@ -30,7 +23,6 @@ interface PaymentWithType {
   payment_date: string
   total_amount: number // Total amount including VAT
   amount_net?: number // Amount excluding VAT
-  payment_type: PaymentType
   payer_id?: string
   type_id?: string
   reference?: string
@@ -48,7 +40,6 @@ interface PaymentInsertWithType {
   payment_date?: string
   total_amount: number // Total amount including VAT
   amount_net?: number // Amount excluding VAT
-  payment_type: PaymentType
   payer_id?: string
   type_id?: string
   reference?: string
@@ -63,7 +54,6 @@ interface PaymentUpdateWithType {
   payment_date?: string
   total_amount?: number // Total amount including VAT
   amount_net?: number // Amount excluding VAT
-  payment_type?: PaymentType
   payer_id?: string
   reference?: string
   comment?: string

@@ -61,7 +61,7 @@ export class InvoiceCrudOperations {
       console.error('[InvoiceCrudOperations.create] Error:', error)
       return {
         data: null,
-        error: handleSupabaseError(error)
+        error: handleSupabaseError(error).error
       }
     }
   }
@@ -91,7 +91,7 @@ export class InvoiceCrudOperations {
       console.error('[InvoiceCrudOperations.getById] Error:', error)
       return {
         data: null,
-        error: handleSupabaseError(error)
+        error: handleSupabaseError(error).error
       }
     }
   }
@@ -252,7 +252,7 @@ export class InvoiceCrudOperations {
       console.error('[InvoiceCrudOperations.update] Error:', error)
       return {
         data: null,
-        error: handleSupabaseError(error)
+        error: handleSupabaseError(error).error
       }
     }
   }
@@ -304,7 +304,7 @@ export class InvoiceCrudOperations {
       console.error('[InvoiceCrudOperations.delete] Error:', error)
       return {
         data: null,
-        error: handleSupabaseError(error)
+        error: handleSupabaseError(error).error
       }
     }
   }
@@ -356,7 +356,7 @@ export class InvoiceCrudOperations {
       console.error('[InvoiceCrudOperations.clone] Error:', error)
       return {
         data: null,
-        error: handleSupabaseError(error)
+        error: handleSupabaseError(error).error
       }
     }
   }

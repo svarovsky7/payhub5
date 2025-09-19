@@ -125,7 +125,7 @@ export class InvoiceWorkflowService {
       console.error('Ошибка отправки заявки:', error)
       return {
         data: null,
-        error: handleSupabaseError(error)
+        error: handleSupabaseError(error).error
       }
     }
   }
@@ -206,7 +206,7 @@ export class InvoiceWorkflowService {
       console.error('Ошибка согласования заявки:', error)
       return {
         data: null,
-        error: handleSupabaseError(error)
+        error: handleSupabaseError(error).error
       }
     }
   }
@@ -266,7 +266,7 @@ export class InvoiceWorkflowService {
       console.error('Ошибка отклонения заявки:', error)
       return {
         data: null,
-        error: handleSupabaseError(error)
+        error: handleSupabaseError(error).error
       }
     }
   }
@@ -326,7 +326,7 @@ export class InvoiceWorkflowService {
       console.error('Ошибка возврата заявки:', error)
       return {
         data: null,
-        error: handleSupabaseError(error)
+        error: handleSupabaseError(error).error
       }
     }
   }
@@ -402,7 +402,7 @@ export class InvoiceWorkflowService {
       console.error('Ошибка отмены заявки:', error)
       return {
         data: null,
-        error: handleSupabaseError(error)
+        error: handleSupabaseError(error).error
       }
     }
   }
@@ -498,7 +498,7 @@ export class InvoiceWorkflowService {
 
       return { success: true }
     } catch (error) {
-      return { success: false, error: handleSupabaseError(error) }
+      return { success: false, error: handleSupabaseError(error).error }
     }
   }
 

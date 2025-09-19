@@ -42,7 +42,6 @@ export interface InvoiceHistoryEntry {
   invoice_number?: string
   invoice_internal_number?: string
   payment_internal_number?: string
-  payment_type?: string
   document_name?: string
   user_email?: string
   user_full_name?: string
@@ -524,8 +523,7 @@ export class InvoiceHistoryService {
             'RET': 'Возврат',
             'DEBT': 'Оплата'
           }
-          const paymentType = event.metadata?.payment_type ?
-            typeMap[event.metadata.payment_type] || event.metadata.payment_type : 'Оплата'
+          const paymentType = 'Оплата'
           description = `${paymentType} ${this.formatCurrency(event.amount_to, 'RUB')}`
         }
         break
