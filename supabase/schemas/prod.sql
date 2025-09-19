@@ -1,5 +1,5 @@
 -- Database Schema SQL Export
--- Generated: 2025-09-16T23:49:50.415413
+-- Generated: 2025-09-18T22:22:24.841562
 -- Database: postgres
 -- Host: 31.128.51.210
 
@@ -536,19 +536,18 @@ CREATE TABLE IF NOT EXISTS public.payment_workflows (
 );
 
 -- Table: public.payments
--- Description: Payment records - simplified without payment method tracking
+-- Description: Платежи по счетам
 CREATE TABLE IF NOT EXISTS public.payments (
     id integer(32) NOT NULL DEFAULT nextval('payments_id_seq'::regclass),
     invoice_id integer(32) NOT NULL,
     payment_date date NOT NULL,
     payer_id integer(32) NOT NULL,
     comment text,
-    created_by uuid NOT NULL,
+    created_by uuid DEFAULT auth.uid(),
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone DEFAULT now(),
     status character varying(50) NOT NULL DEFAULT 'pending'::character varying,
     type_id integer(32),
-    payment_type USER-DEFINED NOT NULL,
     internal_number character varying(80),
     vat_amount numeric(15,2),
     vat_rate numeric(5,2) DEFAULT 20,
@@ -559,15 +558,22 @@ CREATE TABLE IF NOT EXISTS public.payments (
     CONSTRAINT payments_pkey PRIMARY KEY (id),
     CONSTRAINT payments_type_id_fkey FOREIGN KEY (type_id) REFERENCES None.None(None)
 );
-COMMENT ON TABLE public.payments IS 'Payment records - simplified without payment method tracking';
-COMMENT ON COLUMN public.payments.status IS 'Статус платежа (check constraint удален, разрешены любые значения из таблицы statuses)';
-COMMENT ON COLUMN public.payments.type_id IS 'Invoice type inherited from the associated invoice';
-COMMENT ON COLUMN public.payments.payment_type IS 'Тип платежа: ADV - аванс, RET - возврат удержаний, DEBT - погашение долга';
-COMMENT ON COLUMN public.payments.internal_number IS 'Внутренний номер платежа (автоматически генерируется). Формат: {номер счета}/PAY-NN-TYPE';
+COMMENT ON TABLE public.payments IS 'Платежи по счетам';
+COMMENT ON COLUMN public.payments.id IS 'Уникальный идентификатор платежа';
+COMMENT ON COLUMN public.payments.invoice_id IS 'ID связанного счета';
+COMMENT ON COLUMN public.payments.payment_date IS 'Дата платежа';
+COMMENT ON COLUMN public.payments.payer_id IS 'ID плательщика (contractor)';
+COMMENT ON COLUMN public.payments.comment IS 'Комментарий к платежу';
+COMMENT ON COLUMN public.payments.created_by IS 'ID пользователя, создавшего платеж';
+COMMENT ON COLUMN public.payments.created_at IS 'Дата и время создания платежа';
+COMMENT ON COLUMN public.payments.updated_at IS 'Дата и время последнего обновления';
+COMMENT ON COLUMN public.payments.status IS 'Статус платежа';
+COMMENT ON COLUMN public.payments.type_id IS 'Тип счета, унаследованный от связанного счета';
+COMMENT ON COLUMN public.payments.internal_number IS 'Внутренний номер платежа (автоматически генерируется)';
 COMMENT ON COLUMN public.payments.vat_amount IS 'Сумма НДС';
-COMMENT ON COLUMN public.payments.vat_rate IS 'Ставка НДС в процентах (0, 10, 20)';
-COMMENT ON COLUMN public.payments.total_amount IS 'Total payment amount including VAT';
-COMMENT ON COLUMN public.payments.amount_net IS 'Payment amount excluding VAT';
+COMMENT ON COLUMN public.payments.vat_rate IS 'Ставка НДС в процентах';
+COMMENT ON COLUMN public.payments.total_amount IS 'Общая сумма платежа с НДС';
+COMMENT ON COLUMN public.payments.amount_net IS 'Сумма платежа без НДС';
 
 -- Table: public.projects
 -- Description: Project records - simplified without company isolation
@@ -960,9 +966,6 @@ CREATE TYPE auth.factor_type AS ENUM ('totp', 'webauthn', 'phone');
 
 CREATE TYPE auth.one_time_token_type AS ENUM ('confirmation_token', 'reauthentication_token', 'recovery_token', 'email_change_token_new', 'email_change_token_current', 'phone_change_token');
 
-CREATE TYPE public.payment_type AS ENUM ('ADV', 'RET', 'DEBT');
-COMMENT ON TYPE public.payment_type IS 'Типы платежей: ADV - аванс, RET - возврат удержаний, DEBT - погашение долга';
-
 CREATE TYPE public.priority_level AS ENUM ('low', 'normal', 'high', 'urgent');
 COMMENT ON TYPE public.priority_level IS 'Priority levels for invoices';
 
@@ -976,37 +979,6 @@ CREATE TYPE storage.buckettype AS ENUM ('STANDARD', 'ANALYTICS');
 -- ============================================
 -- VIEWS
 -- ============================================
-
--- View: public.v_payment_summary
-CREATE OR REPLACE VIEW public.v_payment_summary AS
- SELECT p.id,
-    p.invoice_id,
-    p.internal_number AS payment_number,
-    p.total_amount,
-    p.status,
-    p.payment_date,
-    p.comment AS description,
-    p.payment_type,
-    i.invoice_number,
-    i.invoice_date,
-    i.internal_number AS invoice_internal_number,
-    s.name AS supplier_name,
-    s.inn AS supplier_inn,
-    pyr.name AS payer_name,
-    pyr.inn AS payer_inn,
-    pr.name AS project_name,
-        CASE
-            WHEN ((p.status)::text = ANY ((ARRAY['completed'::character varying, 'paid'::character varying])::text[])) THEN p.total_amount
-            WHEN ((p.status)::text = ANY ((ARRAY['processing'::character varying, 'approved'::character varying, 'scheduled'::character varying])::text[])) THEN (p.total_amount * 0.5)
-            ELSE (0)::numeric
-        END AS effective_paid_amount,
-    p.created_at,
-    p.updated_at
-   FROM ((((payments p
-     LEFT JOIN invoices i ON ((i.id = p.invoice_id)))
-     LEFT JOIN contractors s ON ((s.id = i.supplier_id)))
-     LEFT JOIN contractors pyr ON ((pyr.id = i.payer_id)))
-     LEFT JOIN projects pr ON ((pr.id = i.project_id)));
 
 -- View: vault.decrypted_secrets
 CREATE OR REPLACE VIEW vault.decrypted_secrets AS
@@ -1200,19 +1172,19 @@ AS '$libdir/pgcrypto', $function$pg_random_uuid$function$
 
 
 -- Function: extensions.gen_salt
-CREATE OR REPLACE FUNCTION extensions.gen_salt(text, integer)
- RETURNS text
- LANGUAGE c
- PARALLEL SAFE STRICT
-AS '$libdir/pgcrypto', $function$pg_gen_salt_rounds$function$
-
-
--- Function: extensions.gen_salt
 CREATE OR REPLACE FUNCTION extensions.gen_salt(text)
  RETURNS text
  LANGUAGE c
  PARALLEL SAFE STRICT
 AS '$libdir/pgcrypto', $function$pg_gen_salt$function$
+
+
+-- Function: extensions.gen_salt
+CREATE OR REPLACE FUNCTION extensions.gen_salt(text, integer)
+ RETURNS text
+ LANGUAGE c
+ PARALLEL SAFE STRICT
+AS '$libdir/pgcrypto', $function$pg_gen_salt_rounds$function$
 
 
 -- Function: extensions.grant_pg_cron_access
@@ -1415,6 +1387,14 @@ AS '$libdir/pgcrypto', $function$pgp_pub_decrypt_text$function$
 
 
 -- Function: extensions.pgp_pub_decrypt_bytea
+CREATE OR REPLACE FUNCTION extensions.pgp_pub_decrypt_bytea(bytea, bytea)
+ RETURNS bytea
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/pgcrypto', $function$pgp_pub_decrypt_bytea$function$
+
+
+-- Function: extensions.pgp_pub_decrypt_bytea
 CREATE OR REPLACE FUNCTION extensions.pgp_pub_decrypt_bytea(bytea, bytea, text, text)
  RETURNS bytea
  LANGUAGE c
@@ -1430,16 +1410,8 @@ CREATE OR REPLACE FUNCTION extensions.pgp_pub_decrypt_bytea(bytea, bytea, text)
 AS '$libdir/pgcrypto', $function$pgp_pub_decrypt_bytea$function$
 
 
--- Function: extensions.pgp_pub_decrypt_bytea
-CREATE OR REPLACE FUNCTION extensions.pgp_pub_decrypt_bytea(bytea, bytea)
- RETURNS bytea
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/pgcrypto', $function$pgp_pub_decrypt_bytea$function$
-
-
 -- Function: extensions.pgp_pub_encrypt
-CREATE OR REPLACE FUNCTION extensions.pgp_pub_encrypt(text, bytea)
+CREATE OR REPLACE FUNCTION extensions.pgp_pub_encrypt(text, bytea, text)
  RETURNS bytea
  LANGUAGE c
  PARALLEL SAFE STRICT
@@ -1447,7 +1419,7 @@ AS '$libdir/pgcrypto', $function$pgp_pub_encrypt_text$function$
 
 
 -- Function: extensions.pgp_pub_encrypt
-CREATE OR REPLACE FUNCTION extensions.pgp_pub_encrypt(text, bytea, text)
+CREATE OR REPLACE FUNCTION extensions.pgp_pub_encrypt(text, bytea)
  RETURNS bytea
  LANGUAGE c
  PARALLEL SAFE STRICT
@@ -1471,7 +1443,7 @@ AS '$libdir/pgcrypto', $function$pgp_pub_encrypt_bytea$function$
 
 
 -- Function: extensions.pgp_sym_decrypt
-CREATE OR REPLACE FUNCTION extensions.pgp_sym_decrypt(bytea, text)
+CREATE OR REPLACE FUNCTION extensions.pgp_sym_decrypt(bytea, text, text)
  RETURNS text
  LANGUAGE c
  IMMUTABLE PARALLEL SAFE STRICT
@@ -1479,7 +1451,7 @@ AS '$libdir/pgcrypto', $function$pgp_sym_decrypt_text$function$
 
 
 -- Function: extensions.pgp_sym_decrypt
-CREATE OR REPLACE FUNCTION extensions.pgp_sym_decrypt(bytea, text, text)
+CREATE OR REPLACE FUNCTION extensions.pgp_sym_decrypt(bytea, text)
  RETURNS text
  LANGUAGE c
  IMMUTABLE PARALLEL SAFE STRICT
@@ -1519,7 +1491,7 @@ AS '$libdir/pgcrypto', $function$pgp_sym_encrypt_text$function$
 
 
 -- Function: extensions.pgp_sym_encrypt_bytea
-CREATE OR REPLACE FUNCTION extensions.pgp_sym_encrypt_bytea(bytea, text, text)
+CREATE OR REPLACE FUNCTION extensions.pgp_sym_encrypt_bytea(bytea, text)
  RETURNS bytea
  LANGUAGE c
  PARALLEL SAFE STRICT
@@ -1527,7 +1499,7 @@ AS '$libdir/pgcrypto', $function$pgp_sym_encrypt_bytea$function$
 
 
 -- Function: extensions.pgp_sym_encrypt_bytea
-CREATE OR REPLACE FUNCTION extensions.pgp_sym_encrypt_bytea(bytea, text)
+CREATE OR REPLACE FUNCTION extensions.pgp_sym_encrypt_bytea(bytea, text, text)
  RETURNS bytea
  LANGUAGE c
  PARALLEL SAFE STRICT
@@ -1907,65 +1879,6 @@ END;
 $function$
 
 
--- Function: public.auto_generate_payment_number
-CREATE OR REPLACE FUNCTION public.auto_generate_payment_number()
- RETURNS trigger
- LANGUAGE plpgsql
-AS $function$
-DECLARE
-    v_invoice_number VARCHAR(100);
-    v_payment_count INTEGER;
-    v_payment_type_suffix VARCHAR(10);
-    v_invoice_id INTEGER;
-BEGIN
-    -- Если internal_number уже заполнен, не генерируем новый
-    IF NEW.internal_number IS NOT NULL AND NEW.internal_number != '' THEN
-        RETURN NEW;
-    END IF;
-
-    -- Определяем invoice_id
-    IF NEW.invoice_id IS NOT NULL THEN
-        v_invoice_id := NEW.invoice_id;
-    ELSE
-        RAISE EXCEPTION 'invoice_id не может быть NULL';
-    END IF;
-
-    -- Получаем номер счета
-    SELECT internal_number INTO v_invoice_number
-    FROM public.invoices
-    WHERE id = v_invoice_id;
-
-    IF v_invoice_number IS NULL THEN
-        RAISE EXCEPTION 'Не найден счет с id = %', v_invoice_id;
-    END IF;
-
-    -- Определяем суффикс типа платежа
-    v_payment_type_suffix := CASE NEW.payment_type
-        WHEN 'ADV' THEN '-ADV'
-        WHEN 'DEBT' THEN '-DEBT'
-        WHEN 'RET' THEN '-RET'
-        ELSE ''
-    END;
-
-    -- Считаем количество существующих платежей для этого счета с таким же типом
-    SELECT COUNT(*) + 1 INTO v_payment_count
-    FROM public.payments
-    WHERE invoice_id = v_invoice_id
-    AND payment_type = NEW.payment_type
-    AND id != COALESCE(NEW.id, -1);
-
-    -- Генерируем номер платежа
-    NEW.internal_number := format('%s/PAY-%02d%s',
-        v_invoice_number,
-        v_payment_count,
-        v_payment_type_suffix
-    );
-
-    RETURN NEW;
-END;
-$function$
-
-
 -- Function: public.calculate_payment_vat
 CREATE OR REPLACE FUNCTION public.calculate_payment_vat()
  RETURNS trigger
@@ -2019,69 +1932,78 @@ $function$
 
 
 -- Function: public.cascade_delete_invoice
--- Description: Каскадное удаление счета со всеми связанными данными: платежи, документы, история, workflow состояния
-CREATE OR REPLACE FUNCTION public.cascade_delete_invoice(p_invoice_id uuid)
+CREATE OR REPLACE FUNCTION public.cascade_delete_invoice(p_invoice_id integer)
  RETURNS jsonb
  LANGUAGE plpgsql
  SECURITY DEFINER
 AS $function$
 DECLARE
-    v_deleted_payments integer := 0;
-    v_deleted_documents integer := 0;
+    v_cleared_history integer := 0;
     v_deleted_history integer := 0;
-    v_deleted_workflow integer := 0;
-    v_deleted_approvals integer := 0;
-    v_invoice_ref text;
+    v_deleted_documents integer := 0;
+    v_deleted_workflow_progress integer := 0;
+    v_deleted_workflows integer := 0;
+    v_deleted_payments integer := 0;
+    v_deleted_invoice integer := 0;
+    v_invoice_number text;
 BEGIN
-    -- Получаем reference счета для логирования
-    SELECT reference INTO v_invoice_ref
+    SELECT invoice_number INTO v_invoice_number
     FROM public.invoices
     WHERE id = p_invoice_id;
 
-    IF v_invoice_ref IS NULL THEN
-        RAISE EXCEPTION 'Счет с ID % не найден', p_invoice_id;
+    IF v_invoice_number IS NULL THEN
+        RAISE EXCEPTION 'Invoice with id % not found', p_invoice_id;
     END IF;
 
-    -- Удаляем платежи по счету
-    DELETE FROM public.payments
+    UPDATE public.invoice_history
+    SET payment_id = NULL
     WHERE invoice_id = p_invoice_id;
-    GET DIAGNOSTICS v_deleted_payments = ROW_COUNT;
+    GET DIAGNOSTICS v_cleared_history = ROW_COUNT;
 
-    -- Удаляем документы/вложения счета
-    DELETE FROM public.documents
-    WHERE invoice_id = p_invoice_id;
-    GET DIAGNOSTICS v_deleted_documents = ROW_COUNT;
-
-    -- Удаляем историю изменений счета
     DELETE FROM public.invoice_history
     WHERE invoice_id = p_invoice_id;
     GET DIAGNOSTICS v_deleted_history = ROW_COUNT;
 
-    -- Удаляем записи workflow состояния
-    DELETE FROM public.invoice_workflow_state
+    DELETE FROM public.invoice_documents
     WHERE invoice_id = p_invoice_id;
-    GET DIAGNOSTICS v_deleted_workflow = ROW_COUNT;
+    GET DIAGNOSTICS v_deleted_documents = ROW_COUNT;
 
-    -- Удаляем записи об одобрениях
-    DELETE FROM public.invoice_approvals
+    DELETE FROM public.workflow_approval_progress
+    WHERE workflow_id IN (
+        SELECT workflow_id
+        FROM public.payment_workflows
+        WHERE invoice_id = p_invoice_id
+    );
+    GET DIAGNOSTICS v_deleted_workflow_progress = ROW_COUNT;
+
+    DELETE FROM public.payment_workflows
     WHERE invoice_id = p_invoice_id;
-    GET DIAGNOSTICS v_deleted_approvals = ROW_COUNT;
+    GET DIAGNOSTICS v_deleted_workflows = ROW_COUNT;
 
-    -- Удаляем сам счет
+    DELETE FROM public.payments
+    WHERE invoice_id = p_invoice_id;
+    GET DIAGNOSTICS v_deleted_payments = ROW_COUNT;
+
     DELETE FROM public.invoices
     WHERE id = p_invoice_id;
+    GET DIAGNOSTICS v_deleted_invoice = ROW_COUNT;
 
-    -- Возвращаем результат
+    IF v_deleted_invoice = 0 THEN
+        RAISE EXCEPTION 'Invoice with id % could not be deleted', p_invoice_id;
+    END IF;
+
     RETURN jsonb_build_object(
         'success', true,
         'invoice_id', p_invoice_id,
-        'invoice_ref', v_invoice_ref,
+        'invoice_number', v_invoice_number,
+        'cleared_history_links', v_cleared_history,
         'deleted', jsonb_build_object(
-            'payments', v_deleted_payments,
-            'documents', v_deleted_documents,
             'history', v_deleted_history,
-            'workflow_states', v_deleted_workflow,
-            'approvals', v_deleted_approvals
+            'documents', v_deleted_documents,
+            'workflow_progress', v_deleted_workflow_progress,
+            'workflows', v_deleted_workflows,
+            'payments', v_deleted_payments,
+            'invoice', v_deleted_invoice
         ),
         'timestamp', now()
     );
@@ -3181,68 +3103,55 @@ $function$
 CREATE OR REPLACE FUNCTION public.track_payment_changes()
  RETURNS trigger
  LANGUAGE plpgsql
- SECURITY DEFINER
 AS $function$
 DECLARE
-    v_user_id UUID;
-    v_user_name VARCHAR(255);
-    v_user_role VARCHAR(100);
-    v_invoice_id INTEGER;
-    v_has_currency_column BOOLEAN;
+    v_user_id uuid;
+    v_user_email varchar(255);
+    v_user_role varchar(50);
 BEGIN
-    -- Получаем информацию о текущем пользователе
+    -- Получаем текущего пользователя
     v_user_id := auth.uid();
 
     IF v_user_id IS NOT NULL THEN
-        SELECT u.full_name, r.name
-        INTO v_user_name, v_user_role
-        FROM public.users u
-        LEFT JOIN public.roles r ON u.role_id = r.id
-        WHERE u.id = v_user_id;
+        SELECT email INTO v_user_email
+        FROM auth.users
+        WHERE id = v_user_id;
+
+        SELECT role INTO v_user_role
+        FROM public.user_profiles
+        WHERE id = v_user_id;
     END IF;
 
-    -- Проверяем существование колонки currency в invoice_history один раз
-    SELECT EXISTS (
-        SELECT 1 FROM information_schema.columns
-        WHERE table_schema = 'public'
-        AND table_name = 'invoice_history'
-        AND column_name = 'currency'
-    ) INTO v_has_currency_column;
-
     IF TG_OP = 'DELETE' THEN
-        v_invoice_id := OLD.invoice_id;
-
-        IF v_has_currency_column THEN
+        -- При удалении платежа
+        IF v_user_id IS NOT NULL THEN
             INSERT INTO public.invoice_history (
                 invoice_id,
-                payment_id,
                 event_type,
-                action,
+                event_data,
                 user_id,
-                user_name,
+                user_email,
                 user_role,
-                status_from,
-                amount_from,
-                currency,  -- Всегда RUB
-                old_values,
+                status,
+                amount,
+                currency,
+                old_data,
                 description,
                 metadata
             ) VALUES (
-                v_invoice_id,
-                OLD.id,
-                'PAYMENT_DELETED',
-                'Платеж удален',
+                OLD.invoice_id,
+                'payment_deleted',
+                to_jsonb(OLD),
                 v_user_id,
-                COALESCE(v_user_name, 'Система'),
+                v_user_email,
                 v_user_role,
                 OLD.status,
                 OLD.total_amount,
-                'RUB',  -- Жёстко закодированная валюта
+                'RUB',
                 to_jsonb(OLD),
-                'Удален платеж №' || COALESCE(OLD.internal_number, 'без номера'),
+                'Платеж удален',
                 jsonb_build_object(
                     'payment_id', OLD.id,
-                    'payment_type', OLD.payment_type,
                     'internal_number', OLD.internal_number,
                     'deleted_at', NOW()
                 )
@@ -3250,88 +3159,57 @@ BEGIN
         ELSE
             INSERT INTO public.invoice_history (
                 invoice_id,
-                payment_id,
                 event_type,
-                action,
-                user_id,
-                user_name,
-                user_role,
-                status_from,
-                amount_from,
-                old_values,
+                event_data,
+                status,
+                amount,
                 description,
                 metadata
             ) VALUES (
-                v_invoice_id,
-                OLD.id,
-                'PAYMENT_DELETED',
-                'Платеж удален',
-                v_user_id,
-                COALESCE(v_user_name, 'Система'),
-                v_user_role,
+                OLD.invoice_id,
+                'payment_deleted',
+                to_jsonb(OLD),
                 OLD.status,
                 OLD.total_amount,
-                to_jsonb(OLD),
-                'Удален платеж №' || COALESCE(OLD.internal_number, 'без номера'),
+                'Платеж удален',
                 jsonb_build_object(
                     'payment_id', OLD.id,
-                    'payment_type', OLD.payment_type,
                     'internal_number', OLD.internal_number,
                     'deleted_at', NOW()
                 )
             );
         END IF;
-
-        -- Обновляем paid_amount в счете
-        UPDATE public.invoices
-        SET
-            paid_amount = GREATEST(0, paid_amount - OLD.total_amount),
-            updated_at = NOW()
-        WHERE id = v_invoice_id;
-
-        RETURN OLD;
 
     ELSIF TG_OP = 'INSERT' THEN
-        v_invoice_id := NEW.invoice_id;
-
-        IF v_has_currency_column THEN
+        -- При создании платежа
+        IF v_user_id IS NOT NULL THEN
             INSERT INTO public.invoice_history (
                 invoice_id,
-                payment_id,
                 event_type,
-                action,
+                event_data,
                 user_id,
-                user_name,
+                user_email,
                 user_role,
-                status_to,
-                amount_to,
-                currency,  -- Всегда RUB
-                new_values,
+                status,
+                amount,
+                currency,
+                new_data,
                 description,
                 metadata
             ) VALUES (
-                v_invoice_id,
-                NEW.id,
-                'PAYMENT_CREATED',
-                'Создан платеж',
+                NEW.invoice_id,
+                'payment_created',
+                to_jsonb(NEW),
                 v_user_id,
-                COALESCE(v_user_name, 'Система'),
+                v_user_email,
                 v_user_role,
                 NEW.status,
                 NEW.total_amount,
-                'RUB',  -- Жёстко закодированная валюта
+                'RUB',
                 to_jsonb(NEW),
-                'Создан платеж ' ||
-                CASE NEW.payment_type
-                    WHEN 'ADV' THEN 'Аванс'
-                    WHEN 'RET' THEN 'Возврат удержаний'
-                    WHEN 'DEBT' THEN 'Погашение долга'
-                    ELSE NEW.payment_type
-                END ||
-                ' на сумму ' || NEW.total_amount || ' RUB',
+                'Создан платеж на сумму ' || NEW.total_amount || ' RUB',
                 jsonb_build_object(
                     'payment_id', NEW.id,
-                    'payment_type', NEW.payment_type,
                     'internal_number', NEW.internal_number,
                     'payer_id', NEW.payer_id
                 )
@@ -3339,176 +3217,121 @@ BEGIN
         ELSE
             INSERT INTO public.invoice_history (
                 invoice_id,
-                payment_id,
                 event_type,
-                action,
-                user_id,
-                user_name,
-                user_role,
-                status_to,
-                amount_to,
-                new_values,
+                event_data,
+                status,
+                amount,
+                new_data,
                 description,
                 metadata
             ) VALUES (
-                v_invoice_id,
-                NEW.id,
-                'PAYMENT_CREATED',
-                'Создан платеж',
-                v_user_id,
-                COALESCE(v_user_name, 'Система'),
-                v_user_role,
+                NEW.invoice_id,
+                'payment_created',
+                to_jsonb(NEW),
                 NEW.status,
                 NEW.total_amount,
                 to_jsonb(NEW),
-                'Создан платеж ' ||
-                CASE NEW.payment_type
-                    WHEN 'ADV' THEN 'Аванс'
-                    WHEN 'RET' THEN 'Возврат удержаний'
-                    WHEN 'DEBT' THEN 'Погашение долга'
-                    ELSE NEW.payment_type
-                END ||
-                ' на сумму ' || NEW.total_amount || ' RUB',
+                'Создан платеж на сумму ' || NEW.total_amount || ' RUB',
                 jsonb_build_object(
                     'payment_id', NEW.id,
-                    'payment_type', NEW.payment_type,
                     'internal_number', NEW.internal_number,
                     'payer_id', NEW.payer_id
                 )
             );
-        END IF;
-
-        -- Обновляем paid_amount в счете при создании платежа в статусе paid
-        IF NEW.status = 'paid' THEN
-            UPDATE public.invoices
-            SET
-                paid_amount = paid_amount + NEW.total_amount,
-                updated_at = NOW()
-            WHERE id = v_invoice_id;
         END IF;
 
     ELSIF TG_OP = 'UPDATE' THEN
-        v_invoice_id := NEW.invoice_id;
+        -- При обновлении платежа
 
         -- Проверяем изменение статуса
         IF OLD.status IS DISTINCT FROM NEW.status THEN
-            IF v_has_currency_column THEN
+            IF v_user_id IS NOT NULL THEN
                 INSERT INTO public.invoice_history (
                     invoice_id,
-                    payment_id,
                     event_type,
-                    action,
+                    event_data,
                     user_id,
-                    user_name,
+                    user_email,
                     user_role,
-                    status_from,
-                    status_to,
-                    amount_to,
-                    currency,  -- Всегда RUB
+                    old_status,
+                    new_status,
+                    amount,
+                    currency,
                     description,
                     metadata
                 ) VALUES (
-                    v_invoice_id,
-                    NEW.id,
-                    'PAYMENT_STATUS_CHANGED',
-                    'Изменен статус платежа',
+                    NEW.invoice_id,
+                    'payment_status_changed',
+                    to_jsonb(NEW),
                     v_user_id,
-                    COALESCE(v_user_name, 'Система'),
+                    v_user_email,
                     v_user_role,
                     OLD.status,
                     NEW.status,
                     NEW.total_amount,
-                    'RUB',  -- Жёстко закодированная валюта
+                    'RUB',
                     'Статус платежа изменен с "' || COALESCE(OLD.status, 'нет') || '" на "' || NEW.status || '"',
                     jsonb_build_object(
                         'payment_id', NEW.id,
-                        'payment_type', NEW.payment_type,
                         'internal_number', NEW.internal_number
                     )
                 );
             ELSE
                 INSERT INTO public.invoice_history (
                     invoice_id,
-                    payment_id,
                     event_type,
-                    action,
-                    user_id,
-                    user_name,
-                    user_role,
-                    status_from,
-                    status_to,
-                    amount_to,
+                    event_data,
+                    old_status,
+                    new_status,
+                    amount,
                     description,
                     metadata
                 ) VALUES (
-                    v_invoice_id,
-                    NEW.id,
-                    'PAYMENT_STATUS_CHANGED',
-                    'Изменен статус платежа',
-                    v_user_id,
-                    COALESCE(v_user_name, 'Система'),
-                    v_user_role,
+                    NEW.invoice_id,
+                    'payment_status_changed',
+                    to_jsonb(NEW),
                     OLD.status,
                     NEW.status,
                     NEW.total_amount,
                     'Статус платежа изменен с "' || COALESCE(OLD.status, 'нет') || '" на "' || NEW.status || '"',
                     jsonb_build_object(
                         'payment_id', NEW.id,
-                        'payment_type', NEW.payment_type,
                         'internal_number', NEW.internal_number
                     )
                 );
-            END IF;
-
-            -- Обновляем paid_amount в счете при изменении статуса
-            IF OLD.status != 'paid' AND NEW.status = 'paid' THEN
-                -- Платеж стал оплаченным
-                UPDATE public.invoices
-                SET
-                    paid_amount = paid_amount + NEW.total_amount,
-                    updated_at = NOW()
-                WHERE id = v_invoice_id;
-            ELSIF OLD.status = 'paid' AND NEW.status != 'paid' THEN
-                -- Платеж перестал быть оплаченным
-                UPDATE public.invoices
-                SET
-                    paid_amount = GREATEST(0, paid_amount - NEW.total_amount),
-                    updated_at = NOW()
-                WHERE id = v_invoice_id;
             END IF;
         END IF;
 
         -- Проверяем изменение суммы
         IF OLD.total_amount IS DISTINCT FROM NEW.total_amount THEN
-            IF v_has_currency_column THEN
+            IF v_user_id IS NOT NULL THEN
                 INSERT INTO public.invoice_history (
                     invoice_id,
-                    payment_id,
                     event_type,
-                    action,
+                    event_data,
                     user_id,
-                    user_name,
+                    user_email,
                     user_role,
-                    amount_from,
-                    amount_to,
-                    currency,  -- Всегда RUB
+                    status,
+                    old_amount,
+                    amount,
+                    currency,
                     description,
                     metadata
                 ) VALUES (
-                    v_invoice_id,
-                    NEW.id,
-                    'PAYMENT_AMOUNT_CHANGED',
-                    'Изменена сумма платежа',
+                    NEW.invoice_id,
+                    'payment_amount_changed',
+                    to_jsonb(NEW),
                     v_user_id,
-                    COALESCE(v_user_name, 'Система'),
+                    v_user_email,
                     v_user_role,
+                    NEW.status,
                     OLD.total_amount,
                     NEW.total_amount,
-                    'RUB',  -- Жёстко закодированная валюта
+                    'RUB',
                     'Сумма платежа изменена с ' || OLD.total_amount || ' на ' || NEW.total_amount || ' RUB',
                     jsonb_build_object(
                         'payment_id', NEW.id,
-                        'payment_type', NEW.payment_type,
                         'internal_number', NEW.internal_number,
                         'difference', NEW.total_amount - OLD.total_amount
                     )
@@ -3516,54 +3339,32 @@ BEGIN
             ELSE
                 INSERT INTO public.invoice_history (
                     invoice_id,
-                    payment_id,
                     event_type,
-                    action,
-                    user_id,
-                    user_name,
-                    user_role,
-                    amount_from,
-                    amount_to,
+                    event_data,
+                    status,
+                    old_amount,
+                    amount,
                     description,
                     metadata
                 ) VALUES (
-                    v_invoice_id,
-                    NEW.id,
-                    'PAYMENT_AMOUNT_CHANGED',
-                    'Изменена сумма платежа',
-                    v_user_id,
-                    COALESCE(v_user_name, 'Система'),
-                    v_user_role,
+                    NEW.invoice_id,
+                    'payment_amount_changed',
+                    to_jsonb(NEW),
+                    NEW.status,
                     OLD.total_amount,
                     NEW.total_amount,
                     'Сумма платежа изменена с ' || OLD.total_amount || ' на ' || NEW.total_amount || ' RUB',
                     jsonb_build_object(
                         'payment_id', NEW.id,
-                        'payment_type', NEW.payment_type,
                         'internal_number', NEW.internal_number,
                         'difference', NEW.total_amount - OLD.total_amount
                     )
                 );
             END IF;
-
-            -- Если платеж в статусе paid, корректируем paid_amount в счете
-            IF NEW.status = 'paid' THEN
-                UPDATE public.invoices
-                SET
-                    paid_amount = GREATEST(0, paid_amount - OLD.total_amount + NEW.total_amount),
-                    updated_at = NOW()
-                WHERE id = v_invoice_id;
-            END IF;
         END IF;
     END IF;
 
-    -- Для INSERT и UPDATE возвращаем NEW
-    IF TG_OP != 'DELETE' THEN
-        RETURN NEW;
-    END IF;
-
-    -- Для DELETE возвращаем OLD (уже обработано выше)
-    RETURN NULL;
+    RETURN NEW;
 END;
 $function$
 
@@ -5561,9 +5362,6 @@ CREATE INDEX idx_payments_payer_id ON public.payments USING btree (payer_id);
 
 -- Index on public.payments
 CREATE INDEX idx_payments_payment_date ON public.payments USING btree (payment_date);
-
--- Index on public.payments
-CREATE INDEX idx_payments_payment_type ON public.payments USING btree (payment_type);
 
 -- Index on public.payments
 CREATE INDEX idx_payments_status ON public.payments USING btree (status);

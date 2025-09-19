@@ -145,7 +145,17 @@ export const useCreateInvoice = (
     mutationKey: [mutationKeys.createInvoice],
     mutationFn: async (invoiceData: InvoiceInsert) => {
       console.log('[useCreateInvoice] Создание счета:', invoiceData);
-      const result = await InvoiceCrudService.create(invoiceData)
+      console.log('[useCreateInvoice] Ключи данных:', Object.keys(invoiceData));
+      console.log('[useCreateInvoice] Проверка currency:', 'currency' in invoiceData);
+
+      // Ensure we don't send currency field to the database
+      const cleanInvoiceData = { ...invoiceData };
+      if ('currency' in cleanInvoiceData) {
+        console.warn('[useCreateInvoice] Removing unexpected currency field from invoice data');
+        delete (cleanInvoiceData as any).currency;
+      }
+
+      const result = await InvoiceCrudService.create(cleanInvoiceData)
       if (result.error) {
         console.error('[useCreateInvoice] Ошибка создания:', result.error);
         // Передаем полную информацию об ошибке

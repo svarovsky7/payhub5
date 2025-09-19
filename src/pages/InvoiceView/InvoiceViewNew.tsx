@@ -564,7 +564,7 @@ export const InvoiceViewNew: React.FC = () => {
       render: (amount: number, record: any) => (
         <Text strong>
           {new Intl.NumberFormat('ru-RU', {
-            style: 
+            style: 'currency',
             currency: 'RUB'
           }).format(amount)}
         </Text>
@@ -1788,7 +1788,7 @@ const renderPayments = () => {
           render: (amount: number) => (
             <Text strong>
               {new Intl.NumberFormat('ru-RU', {
-                style: 
+                style: 'currency',
                 currency: 'RUB'
               }).format(amount || 0)}
             </Text>

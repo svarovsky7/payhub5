@@ -12,6 +12,7 @@ import {
 import {
     CloseCircleOutlined,
     DeleteOutlined,
+    ExclamationCircleOutlined,
     ExportOutlined,
     EyeOutlined,
     PlusOutlined,

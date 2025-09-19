@@ -1,2 +1,2 @@
 // Re-export from InvoiceView folder
-export { default } from './InvoiceView';
+export { default } from './InvoiceView/InvoiceViewNew';
