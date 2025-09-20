@@ -170,7 +170,7 @@ export const InvoicesPage: React.FC<InvoicesPageProps> = ({companyId = '1'}) => 
             const documentsCount = documents?.length || 0
 
             // Формируем предупреждение о том, что будет удалено
-            let warningContent = [
+            const warningContent = [
                 `Счет №${record.invoice_number} будет удален безвозвратно.`,
                 ''
             ]

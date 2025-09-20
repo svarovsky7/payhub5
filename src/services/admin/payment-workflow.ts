@@ -16,7 +16,7 @@ interface PaymentWorkflowInstance {
 }
 
 
-export class PaymentWorkflowService {
+class PaymentWorkflowService {
     /**
      * Получить подходящий workflow для платежа по типу счета
      */

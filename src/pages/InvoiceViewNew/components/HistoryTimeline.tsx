@@ -1,12 +1,12 @@
 import React from 'react'
-import { Timeline, Card, Tag, Typography, Empty, Spin } from 'antd'
+import { Card, Empty, Spin, Tag, Timeline, Typography } from 'antd'
 import {
-  ClockCircleOutlined,
   CheckCircleOutlined,
-  SyncOutlined,
-  UserOutlined,
+  ClockCircleOutlined,
+  DollarOutlined,
   FileTextOutlined,
-  DollarOutlined
+  SyncOutlined,
+  UserOutlined
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 
@@ -76,7 +76,7 @@ export const HistoryTimeline: React.FC<HistoryTimelineProps> = ({ history, loadi
   }
 
   const renderFieldChanges = (changes: any) => {
-    if (!changes || typeof changes !== 'object') return null
+    if (!changes || typeof changes !== 'object') {return null}
 
     const fieldNames: Record<string, string> = {
       invoice_number: 'Номер счета',
@@ -96,7 +96,7 @@ export const HistoryTimeline: React.FC<HistoryTimelineProps> = ({ history, loadi
     }
 
     return Object.entries(changes).map(([field, values]: [string, any]) => {
-      if (field === 'id' || !values) return null
+      if (field === 'id' || !values) {return null}
 
       const fieldName = fieldNames[field] || field
       const oldValue = values.old_value || '-'

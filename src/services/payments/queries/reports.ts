@@ -2,7 +2,6 @@
  * Report generation for payments
  */
 
-import { handleSupabaseError, supabase } from '../../supabase'
 import type { PaymentWithRelations } from '../crud'
 import type { PaymentFilters, PaymentReportData } from './types'
 import { getPaymentsList } from './list'
@@ -237,7 +236,7 @@ export async function getPaymentTrends(
 
 // Helper functions
 function formatDate(date: string | Date): string {
-  if (!date) return ''
+  if (!date) {return ''}
   const d = new Date(date)
   return d.toLocaleDateString('ru-RU')
 }

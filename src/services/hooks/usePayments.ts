@@ -49,40 +49,7 @@ export const usePaymentsList = (invoiceId?: number, filters?: any, pagination?: 
 //   });
 // };
 
-// Подтверждение платежа
-export const useConfirmPayment = () => {
-  const queryClient = useQueryClient();
-  
-  return useMutation({
-    mutationFn: PaymentCrudService.confirmPayment,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.payments.all });
-      queryClient.invalidateQueries({ queryKey: queryKeys.invoices.all });
-      message.success('Платеж подтвержден');
-    },
-    onError: (error: any) => {
-      message.error(error.message || 'Ошибка подтверждения платежа');
-    },
-  });
-};
 
-// Отмена платежа
-export const useCancelPayment = () => {
-  const queryClient = useQueryClient();
-  
-  return useMutation({
-    mutationFn: ({ id, reason }: { id: number; reason: string }) => 
-      PaymentCrudService.cancelPayment(id, reason),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.payments.all });
-      queryClient.invalidateQueries({ queryKey: queryKeys.invoices.all });
-      message.success('Платеж отменен');
-    },
-    onError: (error: any) => {
-      message.error(error.message || 'Ошибка отмены платежа');
-    },
-  });
-};
 
 // Удаление платежа
 export const useDeletePayment = () => {

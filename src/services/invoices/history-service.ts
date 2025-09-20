@@ -3,7 +3,7 @@
  * Использует новую таблицу invoice_history для получения всех событий
  */
 
-import { supabase, handleSupabaseError, type ApiResponse } from '../supabase'
+import { type ApiResponse, handleSupabaseError, supabase } from '../supabase'
 
 export interface InvoiceHistoryEntry {
   id: number
@@ -299,7 +299,7 @@ export class InvoiceHistoryService {
    * Форматирование суммы с валютой
    */
   static formatCurrency(amount: number | null, _currency?: string | null): string {
-    if (!amount) return ''
+    if (!amount) {return ''}
 
     const formatted = amount.toLocaleString('ru-RU', {
       minimumFractionDigits: 0,
@@ -313,7 +313,7 @@ export class InvoiceHistoryService {
    * Форматирование размера файла
    */
   private static formatFileSize(bytes: number): string {
-    if (!bytes) return '0 Б'
+    if (!bytes) {return '0 Б'}
     const k = 1024
     const sizes = ['Б', 'КБ', 'МБ', 'ГБ']
     const i = Math.floor(Math.log(bytes) / Math.log(k))
@@ -455,8 +455,8 @@ export class InvoiceHistoryService {
               // Для описания показываем сокращенную версию если слишком длинное
               let oldDesc = oldValue || 'пусто'
               let newDesc = newValue || 'пусто'
-              if (oldDesc.length > 30) oldDesc = oldDesc.substring(0, 27) + '...'
-              if (newDesc.length > 30) newDesc = newDesc.substring(0, 27) + '...'
+              if (oldDesc.length > 30) {oldDesc = oldDesc.substring(0, 27) + '...'}
+              if (newDesc.length > 30) {newDesc = newDesc.substring(0, 27) + '...'}
               changes.push(`${fieldName}: ${oldDesc} → ${newDesc}`)
             } else {
               // Для остальных полей показываем как есть

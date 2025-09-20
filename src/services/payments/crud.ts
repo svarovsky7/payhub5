@@ -6,7 +6,6 @@ import {
   type ApiResponse,
   handleSupabaseError,
   type Payment,
-  type PaymentInsert,
   type PaymentUpdate,
   supabase
 } from '../supabase'

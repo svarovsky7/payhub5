@@ -6,17 +6,6 @@ import { useQuery } from '@tanstack/react-query'
 import { EnumQueryService } from '../enums/queries'
 import { queryKeys } from './queryKeys'
 
-/**
- * Hook for fetching payment type options
- */
-export const usePaymentTypes = () => {
-  return useQuery({
-    queryKey: queryKeys.enums.paymentTypes(),
-    queryFn: () => EnumQueryService.getPaymentTypeOptions(),
-    staleTime: 1000 * 60 * 60, // 1 hour - enums rarely change
-    gcTime: 1000 * 60 * 60 * 24, // 24 hours
-  })
-}
 
 /**
  * Hook for fetching currency options

@@ -11,12 +11,9 @@ import {
 } from 'antd'
 import { 
   ArrowRightOutlined, 
-  CheckCircleOutlined, 
   ClockCircleOutlined,
-  CloseCircleOutlined,
   DeleteOutlined,
   EditOutlined,
-  EyeOutlined,
   PlusOutlined,
   UserOutlined
 } from '@ant-design/icons'

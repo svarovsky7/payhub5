@@ -16,23 +16,6 @@
 //   [PaymentType.DEBT]: 'orange'
 // }
 
-// Расширенный интерфейс для платежа с типом
-export interface PaymentWithType {
-  id: string
-  invoice_id: string
-  payment_date: string
-  total_amount: number // Total amount including VAT
-  amount_net?: number // Amount excluding VAT
-  payer_id?: string
-  payment_type_id?: string
-  reference?: string
-  comment?: string
-  status: string // Dynamic status from database
-  created_by?: string
-  created_at: string
-  updated_at: string
-  attachments?: string[]
-}
 
 // Интерфейс для создания платежа
 export interface PaymentInsertWithType {
@@ -49,14 +32,3 @@ export interface PaymentInsertWithType {
   attachments?: string[]
 }
 
-// Интерфейс для обновления платежа
-export interface PaymentUpdateWithType {
-  payment_date?: string
-  total_amount?: number // Total amount including VAT
-  amount_net?: number // Amount excluding VAT
-  payer_id?: string
-  reference?: string
-  comment?: string
-  status?: string // Dynamic status from database
-  attachments?: string[]
-}

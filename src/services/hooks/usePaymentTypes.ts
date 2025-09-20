@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { paymentTypesQueries } from '@/services/paymentTypes/queries'
 import { queryKeys } from './queryKeys'
 import { message } from 'antd'
@@ -17,14 +17,6 @@ export const usePaymentTypes = (includeInactive = false) => {
   })
 }
 
-// Query to get a single payment type
-export const usePaymentType = (id: string | undefined) => {
-  return useQuery({
-    queryKey: queryKeys.paymentTypes.detail(id!),
-    queryFn: () => paymentTypesQueries.getById(id!),
-    enabled: !!id,
-  })
-}
 
 // Mutation to create a payment type
 export const useCreatePaymentType = () => {

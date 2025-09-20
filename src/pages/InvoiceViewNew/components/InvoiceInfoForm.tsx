@@ -1,5 +1,5 @@
 import React from 'react'
-import { Form, Input, DatePicker, Select, InputNumber, Card, Row, Col, Typography } from 'antd'
+import { Card, Col, DatePicker, Form, Input, InputNumber, Row, Select, Typography } from 'antd'
 import type { FormInstance } from 'antd'
 import dayjs from 'dayjs'
 

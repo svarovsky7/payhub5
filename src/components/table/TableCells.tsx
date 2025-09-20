@@ -1,6 +1,5 @@
 import React from 'react'
 import { 
-  Avatar, 
   Button, 
   Space, 
   Tag, 
@@ -11,10 +10,7 @@ import {
   CheckCircleOutlined,
   ClockCircleOutlined,
   CloseCircleOutlined,
-  ExclamationCircleOutlined,
-  MailOutlined,
-  PhoneOutlined,
-  UserOutlined
+  ExclamationCircleOutlined
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { formatCurrency } from '../../utils/format'
@@ -107,73 +103,6 @@ export const StatusCell: React.FC<StatusCellProps> = ({
   )
 }
 
-// User Cell Component
-interface UserCellProps {
-  user: {
-    name: string
-    email?: string
-    phone?: string
-    position?: string
-    avatar?: string
-  }
-  showContact?: boolean
-  showPosition?: boolean
-}
-
-export const UserCell: React.FC<UserCellProps> = ({
-  user,
-  showContact = false,
-  showPosition = false
-}) => {
-  // Добавляем проверку на существование user и user.name
-  if (!user?.name) {
-    console.log('[UserCell] User or user.name is undefined:', user)
-    return <Text type="secondary">—</Text>
-  }
-
-  // Безопасное получение инициалов
-  const getInitials = () => {
-    if (!user.name) {return ''}
-    const names = user.name.split(' ').filter(Boolean)
-    return names.map(n => n.charAt(0).toUpperCase()).join('')
-  }
-
-  return (
-    <Space direction="vertical" size={2}>
-      <Space>
-        <Avatar 
-          size="small" 
-          src={user.avatar}
-          icon={!user.avatar && <UserOutlined />}
-        >
-          {!user.avatar && getInitials()}
-        </Avatar>
-        <Text strong>{user.name}</Text>
-      </Space>
-      
-      {showPosition && user.position && (
-        <Text type="secondary" style={{ fontSize: 12 }}>
-          {user.position}
-        </Text>
-      )}
-      
-      {showContact && (
-        <Space size={8}>
-          {user.phone && (
-            <Tooltip title={user.phone}>
-              <PhoneOutlined style={{ color: '#1890ff', cursor: 'pointer' }} />
-            </Tooltip>
-          )}
-          {user.email && (
-            <Tooltip title={user.email}>
-              <MailOutlined style={{ color: '#1890ff', cursor: 'pointer' }} />
-            </Tooltip>
-          )}
-        </Space>
-      )}
-    </Space>
-  )
-}
 
 // Date Cell Component
 interface DateCellProps {

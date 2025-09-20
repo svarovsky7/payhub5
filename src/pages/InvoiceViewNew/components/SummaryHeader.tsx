@@ -3,10 +3,10 @@ import { useNavigate } from 'react-router-dom'
 import { Breadcrumb, Button, Space, Tag, Typography } from 'antd'
 import {
   ArrowLeftOutlined,
-  HomeOutlined,
-  SaveOutlined,
   CloseOutlined,
-  EditOutlined
+  EditOutlined,
+  HomeOutlined,
+  SaveOutlined
 } from '@ant-design/icons'
 
 const { Title } = Typography

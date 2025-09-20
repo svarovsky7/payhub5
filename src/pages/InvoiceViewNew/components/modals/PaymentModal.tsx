@@ -1,5 +1,5 @@
 import React from 'react'
-import { Modal, Form, Input, DatePicker, Select, InputNumber, Row, Col, Typography } from 'antd'
+import { Col, DatePicker, Form, Input, InputNumber, Modal, Row, Select, Typography } from 'antd'
 import { CreditCardOutlined } from '@ant-design/icons'
 import type { FormInstance } from 'antd'
 import dayjs from 'dayjs'

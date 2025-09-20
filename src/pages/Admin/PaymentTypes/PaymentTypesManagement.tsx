@@ -1,30 +1,29 @@
 import React, { useState } from 'react'
 import {
-  Table,
   Button,
-  Space,
-  Modal,
+  Card,
   Form,
   Input,
-  Switch,
   InputNumber,
+  Modal,
   Popconfirm,
+  Space,
+  Switch,
+  Table,
   Tag,
-  Card,
   Typography,
 } from 'antd'
 import {
-  PlusOutlined,
-  EditOutlined,
   DeleteOutlined,
-  MenuOutlined,
+  EditOutlined,
+  PlusOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import {
-  usePaymentTypes,
   useCreatePaymentType,
-  useUpdatePaymentType,
   useDeletePaymentType,
+  usePaymentTypes,
+  useUpdatePaymentType,
   useUpdatePaymentTypesOrder,
 } from '@/services/hooks/usePaymentTypes'
 import type { Database } from '@/types/database'

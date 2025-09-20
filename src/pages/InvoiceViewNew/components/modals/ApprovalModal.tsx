@@ -1,14 +1,14 @@
 import React from 'react'
-import { Modal, Select, Card, Space, Typography, Spin, Title as AntTitle } from 'antd'
+import { Title as AntTitle, Card, Modal, Select, Space, Spin, Typography } from 'antd'
 import {
-  RocketOutlined,
-  SendOutlined,
-  CreditCardOutlined,
-  TeamOutlined,
   ClockCircleOutlined,
+  CreditCardOutlined,
   ExclamationCircleOutlined,
   InfoCircleOutlined,
-  SafetyCertificateOutlined
+  RocketOutlined,
+  SafetyCertificateOutlined,
+  SendOutlined,
+  TeamOutlined
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { formatCurrency } from '@/utils/format'

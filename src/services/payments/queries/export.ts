@@ -2,9 +2,9 @@
  * Export operations for payments
  */
 
-import { exportToExcel, handleSupabaseError, supabase } from '../../supabase'
+import { exportToExcel } from '../../supabase'
 import type { PaymentWithRelations } from '../crud'
-import type { PaymentFilters, PaymentExportOptions } from './types'
+import type { PaymentExportOptions, PaymentFilters } from './types'
 import { getPaymentsList } from './list'
 import { getPaymentStats } from './stats'
 
@@ -149,13 +149,13 @@ export async function exportPaymentsWithStats(
 
 // Helper functions
 function formatDate(date: string | Date): string {
-  if (!date) return ''
+  if (!date) {return ''}
   const d = new Date(date)
   return d.toLocaleDateString('ru-RU')
 }
 
 function formatDateTime(date: string | Date): string {
-  if (!date) return ''
+  if (!date) {return ''}
   const d = new Date(date)
   return d.toLocaleString('ru-RU')
 }
@@ -183,7 +183,7 @@ function getStatusLabel(status: string): string {
 }
 
 function exportToCSV(data: any[]): void {
-  if (!data || data.length === 0) return
+  if (!data || data.length === 0) {return}
 
   const headers = Object.keys(data[0])
   const csvContent = [

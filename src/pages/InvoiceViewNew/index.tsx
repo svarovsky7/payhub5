@@ -3,8 +3,8 @@
  * Разбита на модульные компоненты и хуки
  */
 
-import React, { useCallback, useState, useEffect } from 'react'
-import { Tabs, Button, Space, message, Modal, Form, Spin } from 'antd'
+import React, { useCallback, useEffect, useState } from 'react'
+import { Button, message, Modal, Spin, Tabs } from 'antd'
 import { PlusOutlined } from '@ant-design/icons'
 import { useAuthStore } from '@/models/auth'
 import { useInvoiceView } from './hooks/useInvoiceView'
@@ -115,7 +115,7 @@ export const InvoiceViewNew: React.FC = () => {
 
   // Load documents
   const loadDocuments = useCallback(async () => {
-    if (!invoice?.id) return
+    if (!invoice?.id) {return}
 
     setLoadingDocuments(true)
     try {
@@ -137,7 +137,7 @@ export const InvoiceViewNew: React.FC = () => {
 
   // Document handlers
   const handleUploadDocument = async (file: any) => {
-    if (!invoice?.id) return
+    if (!invoice?.id) {return}
 
     setUploadingFile(true)
     try {

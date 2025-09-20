@@ -1,7 +1,7 @@
 import { supabase } from '@/services/supabase'
 import type { StateCreator } from 'zustand'
-import type { AuthState, AuthActions, AuthStore } from './types'
-import type { UserProfile, AuthUser } from '@/services/supabase'
+import type { AuthActions, AuthStore } from './types'
+import type { UserProfile } from '@/services/supabase'
 
 export const createAuthActions: StateCreator<
   AuthStore,
@@ -102,7 +102,7 @@ export const createAuthActions: StateCreator<
         password
       })
 
-      if (error) throw error
+      if (error) {throw error}
 
       if (data.user) {
         // Load user profile
@@ -139,7 +139,7 @@ export const createAuthActions: StateCreator<
         }
       })
 
-      if (error) throw error
+      if (error) {throw error}
 
       if (data.user) {
         await get().loadUserProfile(data.user.id)
@@ -165,7 +165,7 @@ export const createAuthActions: StateCreator<
 
     try {
       const { error } = await supabase.auth.signOut()
-      if (error) throw error
+      if (error) {throw error}
 
       get().reset()
     } catch (error) {
@@ -189,7 +189,7 @@ export const createAuthActions: StateCreator<
 
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email)
-      if (error) throw error
+      if (error) {throw error}
     } catch (error) {
       console.error('[Auth] Reset password error:', error)
       set((state) => {
@@ -223,7 +223,7 @@ export const createAuthActions: StateCreator<
         .select()
         .single()
 
-      if (error) throw error
+      if (error) {throw error}
 
       set((state) => {
         state.profile = data

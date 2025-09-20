@@ -1,12 +1,12 @@
 import React from 'react'
-import { Card, Col, Row, Statistic, Typography, Divider } from 'antd'
+import { Card, Col, Divider, Row, Statistic, Typography } from 'antd'
 import {
-  DollarOutlined,
-  RiseOutlined,
-  FallOutlined,
   BankOutlined,
+  ClockCircleOutlined,
   CreditCardOutlined,
-  ClockCircleOutlined
+  DollarOutlined,
+  FallOutlined,
+  RiseOutlined
 } from '@ant-design/icons'
 import type { FinancialSummary } from '../types'
 
@@ -37,7 +37,7 @@ export const FinanceStats: React.FC<FinanceStatsProps> = ({ summary, currency = 
   }
 
   const getBalanceColor = () => {
-    if (summary.balance > 0) return '#faad14'
+    if (summary.balance > 0) {return '#faad14'}
     return '#52c41a'
   }
 

@@ -1,4 +1,4 @@
-import type { Payment, FilterParams, PaginationParams } from '../../supabase'
+import type { FilterParams, Payment } from '../../supabase'
 import type { PaymentWithRelations } from '../crud'
 
 export interface PaymentFilters extends FilterParams {

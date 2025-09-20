@@ -1,16 +1,16 @@
 import React from 'react'
-import { Card, Upload, List, Button, Space, Typography, Spin, message, Tooltip } from 'antd'
+import { Button, Card, List, message, Space, Spin, Tooltip, Typography, Upload } from 'antd'
 import {
-  UploadOutlined,
-  DownloadOutlined,
   DeleteOutlined,
+  DownloadOutlined,
   EyeOutlined,
-  FileOutlined,
-  FilePdfOutlined,
-  FileWordOutlined,
   FileExcelOutlined,
   FileImageOutlined,
-  FileTextOutlined
+  FileOutlined,
+  FilePdfOutlined,
+  FileTextOutlined,
+  FileWordOutlined,
+  UploadOutlined
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 
@@ -59,7 +59,7 @@ export const AttachmentSection: React.FC<AttachmentSectionProps> = ({
   }
 
   const formatFileSize = (bytes: number): string => {
-    if (bytes === 0) return '0 Bytes'
+    if (bytes === 0) {return '0 Bytes'}
     const k = 1024
     const sizes = ['Bytes', 'KB', 'MB', 'GB']
     const i = Math.floor(Math.log(bytes) / Math.log(k))

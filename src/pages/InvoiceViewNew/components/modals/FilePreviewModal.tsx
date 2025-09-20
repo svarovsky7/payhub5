@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react'
-import { Modal, Button, Space, Spin, Typography, message } from 'antd'
-import { FileOutlined, DownloadOutlined } from '@ant-design/icons'
+import React, { useEffect, useState } from 'react'
+import { Button, Modal, Space, Spin, Typography } from 'antd'
+import { DownloadOutlined, FileOutlined } from '@ant-design/icons'
 
 const { Text } = Typography
 
