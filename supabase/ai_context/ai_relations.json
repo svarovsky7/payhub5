@@ -1,0 +1,207 @@
+[
+  {
+    "from": "public.attachments.created_by",
+    "to": "public.users.id",
+    "description": "Attachment metadata links to the authoring user"
+  },
+  {
+    "from": "public.contractors.type_id",
+    "to": "public.contractor_types.id",
+    "description": "Contractor is categorized by contractor_types"
+  },
+  {
+    "from": "public.contractors.created_by",
+    "to": "public.users.id",
+    "description": "Audit trail to the user who created the contractor"
+  },
+  {
+    "from": "public.invoice_documents.attachment_id",
+    "to": "public.attachments.id",
+    "description": "Links to stored attachment metadata"
+  },
+  {
+    "from": "public.invoice_documents.invoice_id",
+    "to": "public.invoices.id",
+    "description": "Document row belongs to invoice"
+  },
+  {
+    "from": "public.invoice_history.attachment_id",
+    "to": "public.attachments.id",
+    "description": "Optional link to attachment file"
+  },
+  {
+    "from": "public.invoice_history.document_id",
+    "to": "public.invoice_documents.id",
+    "description": "Optional link to related document"
+  },
+  {
+    "from": "public.invoice_history.payment_id",
+    "to": "public.payments.id",
+    "description": "Optional link to payment that produced the entry"
+  },
+  {
+    "from": "public.invoice_history.user_id",
+    "to": "public.users.id",
+    "description": "User who caused the history event"
+  },
+  {
+    "from": "public.invoice_history.invoice_id",
+    "to": "public.invoices.id",
+    "description": "History rows reference the invoice"
+  },
+  {
+    "from": "public.invoices.material_responsible_person_id",
+    "to": "public.material_responsible_persons.id",
+    "description": "Assigned material responsible person"
+  },
+  {
+    "from": "public.invoices.payer_id",
+    "to": "public.contractors.id",
+    "description": "Paying contractor"
+  },
+  {
+    "from": "public.invoices.project_id",
+    "to": "public.projects.id",
+    "description": "Invoice belongs to project"
+  },
+  {
+    "from": "public.invoices.supplier_id",
+    "to": "public.contractors.id",
+    "description": "Supplier contractor"
+  },
+  {
+    "from": "public.invoices.type_id",
+    "to": "public.invoice_types.id",
+    "description": "Invoice typed by invoice_types directory"
+  },
+  {
+    "from": "public.invoices.created_by",
+    "to": "public.users.id",
+    "description": "User who created the invoice"
+  },
+  {
+    "from": "public.material_responsible_persons.created_by",
+    "to": "public.users.id",
+    "description": "User who added the material responsible person"
+  },
+  {
+    "from": "public.payment_types.created_by",
+    "to": "public.users.id",
+    "description": "User who added the payment type"
+  },
+  {
+    "from": "public.payment_types.updated_by",
+    "to": "public.users.id",
+    "description": "User who last updated the payment type"
+  },
+  {
+    "from": "public.payment_workflows.invoice_id",
+    "to": "public.invoices.id",
+    "description": "Payment workflow keeps invoice context"
+  },
+  {
+    "from": "public.payment_workflows.payment_id",
+    "to": "public.payments.id",
+    "description": "Workflow instance tracks a payment"
+  },
+  {
+    "from": "public.payment_workflows.workflow_id",
+    "to": "public.workflows.id",
+    "description": "Workflow definition used for the payment"
+  },
+  {
+    "from": "public.payment_workflows.current_stage_id",
+    "to": "public.workflow_stages.id",
+    "description": "Current workflow stage"
+  },
+  {
+    "from": "public.payment_workflows.contractor_id",
+    "to": "public.contractors.id",
+    "description": "Target contractor"
+  },
+  {
+    "from": "public.payment_workflows.project_id",
+    "to": "public.projects.id",
+    "description": "Project in which payment occurs"
+  },
+  {
+    "from": "public.payment_workflows.started_by",
+    "to": "public.users.id",
+    "description": "User who launched the workflow"
+  },
+  {
+    "from": "public.payment_workflows.completed_by",
+    "to": "public.users.id",
+    "description": "User who marked workflow complete"
+  },
+  {
+    "from": "public.payment_workflows.cancelled_by",
+    "to": "public.users.id",
+    "description": "User who cancelled workflow"
+  },
+  {
+    "from": "public.payments.created_by",
+    "to": "public.users.id",
+    "description": "User who created payment"
+  },
+  {
+    "from": "public.payments.invoice_id",
+    "to": "public.invoices.id",
+    "description": "Payment settles invoice"
+  },
+  {
+    "from": "public.payments.payer_id",
+    "to": "public.contractors.id",
+    "description": "Payer contractor"
+  },
+  {
+    "from": "public.payments.payment_type_id",
+    "to": "public.payment_types.id",
+    "description": "Payment classified by payment_types"
+  },
+  {
+    "from": "public.themes.created_by",
+    "to": "public.users.id",
+    "description": "User who created the theme"
+  },
+  {
+    "from": "public.themes.parent_theme_id",
+    "to": "public.themes.id",
+    "description": "Theme clones another theme"
+  },
+  {
+    "from": "public.themes.updated_by",
+    "to": "public.users.id",
+    "description": "User who last updated the theme"
+  },
+  {
+    "from": "public.themes.user_id",
+    "to": "public.users.id",
+    "description": "Theme owner"
+  },
+  {
+    "from": "public.users.role_id",
+    "to": "public.roles.id",
+    "description": "Assigned application role"
+  },
+  {
+    "from": "public.workflow_approval_progress.stage_id",
+    "to": "public.workflow_stages.id",
+    "description": "Stage for which progress was recorded"
+  },
+  {
+    "from": "public.workflow_approval_progress.workflow_id",
+    "to": "public.payment_workflows.id",
+    "description": "Progress row references payment workflow"
+  },
+  {
+    "from": "public.workflow_approval_progress.user_id",
+    "to": "public.users.id",
+    "description": "Approver handling this stage"
+  },
+  {
+    "from": "public.workflow_stages.workflow_id",
+    "to": "public.workflows.id",
+    "description": "Stage belongs to workflow"
+  }
+]

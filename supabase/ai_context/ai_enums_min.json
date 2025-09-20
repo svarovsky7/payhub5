@@ -1,0 +1,11 @@
+{
+  "public.priority_level": {
+    "values": [
+      "low",
+      "normal",
+      "high",
+      "urgent"
+    ],
+    "comment": "Priority levels for invoices"
+  }
+}

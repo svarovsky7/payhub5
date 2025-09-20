@@ -1,0 +1,197 @@
+{
+  "public.contractors": [
+    {
+      "name": "update_contractors_updated_at",
+      "timing": "BEFORE",
+      "events": [
+        "UPDATE"
+      ],
+      "level": "ROW",
+      "function": "universal_update_updated_at()"
+    }
+  ],
+  "public.invoice_documents": [
+    {
+      "name": "track_document_changes_trigger",
+      "timing": "AFTER",
+      "events": [
+        "INSERT",
+        "DELETE"
+      ],
+      "level": "ROW",
+      "function": "track_document_changes()"
+    }
+  ],
+  "public.invoices": [
+    {
+      "name": "invoice_history_trigger",
+      "timing": "AFTER",
+      "events": [
+        "INSERT",
+        "DELETE",
+        "UPDATE"
+      ],
+      "level": "ROW",
+      "function": "track_invoice_changes()"
+    },
+    {
+      "name": "trigger_recalc_invoice_amounts",
+      "timing": "BEFORE",
+      "events": [
+        "INSERT",
+        "UPDATE"
+      ],
+      "level": "ROW",
+      "function": "fn_recalc_invoice_amounts()"
+    },
+    {
+      "name": "update_invoices_updated_at",
+      "timing": "BEFORE",
+      "events": [
+        "UPDATE"
+      ],
+      "level": "ROW",
+      "function": "universal_update_updated_at()"
+    }
+  ],
+  "public.payment_types": [
+    {
+      "name": "payment_types_updated_at_trigger",
+      "timing": "BEFORE",
+      "events": [
+        "UPDATE"
+      ],
+      "level": "ROW",
+      "function": "universal_update_updated_at()"
+    }
+  ],
+  "public.payments": [
+    {
+      "name": "calculate_payment_vat_trigger",
+      "timing": "BEFORE",
+      "events": [
+        "INSERT",
+        "UPDATE"
+      ],
+      "level": "ROW",
+      "function": "calculate_payment_vat()"
+    },
+    {
+      "name": "payment_history_trigger",
+      "timing": "AFTER",
+      "events": [
+        "INSERT",
+        "DELETE",
+        "UPDATE"
+      ],
+      "level": "ROW",
+      "function": "track_payment_history()"
+    },
+    {
+      "name": "trg_sync_invoice_payment",
+      "timing": "AFTER",
+      "events": [
+        "INSERT",
+        "DELETE",
+        "UPDATE"
+      ],
+      "level": "ROW",
+      "function": "fn_sync_invoice_payment()"
+    },
+    {
+      "name": "update_payments_updated_at",
+      "timing": "BEFORE",
+      "events": [
+        "UPDATE"
+      ],
+      "level": "ROW",
+      "function": "universal_update_updated_at()"
+    }
+  ],
+  "public.projects": [
+    {
+      "name": "update_projects_updated_at",
+      "timing": "BEFORE",
+      "events": [
+        "UPDATE"
+      ],
+      "level": "ROW",
+      "function": "universal_update_updated_at()"
+    }
+  ],
+  "public.roles": [
+    {
+      "name": "update_roles_updated_at",
+      "timing": "BEFORE",
+      "events": [
+        "UPDATE"
+      ],
+      "level": "ROW",
+      "function": "universal_update_updated_at()"
+    }
+  ],
+  "public.statuses": [
+    {
+      "name": "update_statuses_updated_at",
+      "timing": "BEFORE",
+      "events": [
+        "UPDATE"
+      ],
+      "level": "ROW",
+      "function": "universal_update_updated_at()"
+    }
+  ],
+  "public.themes": [
+    {
+      "name": "update_themes_updated_at",
+      "timing": "BEFORE",
+      "events": [
+        "UPDATE"
+      ],
+      "level": "ROW",
+      "function": "universal_update_updated_at()"
+    }
+  ],
+  "public.users": [
+    {
+      "name": "set_user_defaults_trigger",
+      "timing": "BEFORE",
+      "events": [
+        "INSERT"
+      ],
+      "level": "ROW",
+      "function": "set_default_user_role()"
+    },
+    {
+      "name": "update_users_updated_at",
+      "timing": "BEFORE",
+      "events": [
+        "UPDATE"
+      ],
+      "level": "ROW",
+      "function": "universal_update_updated_at()"
+    }
+  ],
+  "public.workflow_stages": [
+    {
+      "name": "update_workflow_stages_updated_at",
+      "timing": "BEFORE",
+      "events": [
+        "UPDATE"
+      ],
+      "level": "ROW",
+      "function": "universal_update_updated_at()"
+    }
+  ],
+  "public.workflows": [
+    {
+      "name": "update_workflows_updated_at",
+      "timing": "BEFORE",
+      "events": [
+        "UPDATE"
+      ],
+      "level": "ROW",
+      "function": "universal_update_updated_at()"
+    }
+  ]
+}

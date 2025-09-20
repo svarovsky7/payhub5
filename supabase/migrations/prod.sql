@@ -1,5 +1,5 @@
 -- Database Schema Export
--- Generated: 2025-09-20T18:23:14.309684
+-- Generated: 2025-09-20T19:04:15.132156
 -- Database: postgres
 -- Host: 31.128.51.210
 
@@ -986,6 +986,46 @@ COMMENT ON TABLE vault.secrets IS 'Table with encrypted `secret` column for stor
 -- VIEWS
 -- ============================================
 
+CREATE OR REPLACE VIEW public.invoice_history_view AS
+ SELECT ih.id,
+    ih.invoice_id,
+    ih.user_id,
+    ih.action,
+    ih.old_values AS old_data,
+    ih.new_values AS new_data,
+    ih.changed_fields,
+    ih.event_date,
+    u.email AS user_email,
+    (u.raw_user_meta_data ->> 'full_name'::text) AS user_name,
+        CASE
+            WHEN ((ih.action)::text ~~ 'PAYMENT_%'::text) THEN ((ih.new_values ->> 'payment_id'::text))::integer
+            ELSE NULL::integer
+        END AS related_payment_id,
+        CASE
+            WHEN ((ih.action)::text ~~ 'PAYMENT_%'::text) THEN (ih.action)::text
+            ELSE ('INVOICE_'::text || (ih.action)::text)
+        END AS action_type
+   FROM (invoice_history ih
+     LEFT JOIN auth.users u ON ((ih.user_id = u.id)))
+  ORDER BY ih.event_date DESC;
+
+CREATE OR REPLACE VIEW public.payment_history_view AS
+ SELECT ih.id,
+    ih.invoice_id,
+    ((ih.new_values ->> 'payment_id'::text))::integer AS payment_id,
+    ih.user_id,
+    ih.action,
+    (ih.old_values -> 'payment_data'::text) AS old_payment_data,
+    (ih.new_values -> 'payment_data'::text) AS new_payment_data,
+    ih.changed_fields,
+    ih.event_date,
+    u.email AS user_email,
+    (u.raw_user_meta_data ->> 'full_name'::text) AS user_name
+   FROM (invoice_history ih
+     LEFT JOIN auth.users u ON ((ih.user_id = u.id)))
+  WHERE ((ih.action)::text ~~ 'PAYMENT_%'::text)
+  ORDER BY ih.event_date DESC;
+
 CREATE OR REPLACE VIEW vault.decrypted_secrets AS
  SELECT s.id,
     s.name,
@@ -1076,7 +1116,7 @@ $function$
 
 ;
 
-CREATE OR REPLACE FUNCTION extensions.armor(bytea)
+CREATE OR REPLACE FUNCTION extensions.armor(bytea, text[], text[])
  RETURNS text
  LANGUAGE c
  IMMUTABLE PARALLEL SAFE STRICT
@@ -1084,7 +1124,7 @@ AS '$libdir/pgcrypto', $function$pg_armor$function$
 
 ;
 
-CREATE OR REPLACE FUNCTION extensions.armor(bytea, text[], text[])
+CREATE OR REPLACE FUNCTION extensions.armor(bytea)
  RETURNS text
  LANGUAGE c
  IMMUTABLE PARALLEL SAFE STRICT
@@ -1124,7 +1164,7 @@ AS '$libdir/pgcrypto', $function$pg_decrypt_iv$function$
 
 ;
 
-CREATE OR REPLACE FUNCTION extensions.digest(bytea, text)
+CREATE OR REPLACE FUNCTION extensions.digest(text, text)
  RETURNS bytea
  LANGUAGE c
  IMMUTABLE PARALLEL SAFE STRICT
@@ -1132,7 +1172,7 @@ AS '$libdir/pgcrypto', $function$pg_digest$function$
 
 ;
 
-CREATE OR REPLACE FUNCTION extensions.digest(text, text)
+CREATE OR REPLACE FUNCTION extensions.digest(bytea, text)
  RETURNS bytea
  LANGUAGE c
  IMMUTABLE PARALLEL SAFE STRICT
@@ -1172,19 +1212,19 @@ AS '$libdir/pgcrypto', $function$pg_random_uuid$function$
 
 ;
 
-CREATE OR REPLACE FUNCTION extensions.gen_salt(text)
- RETURNS text
- LANGUAGE c
- PARALLEL SAFE STRICT
-AS '$libdir/pgcrypto', $function$pg_gen_salt$function$
-
-;
-
 CREATE OR REPLACE FUNCTION extensions.gen_salt(text, integer)
  RETURNS text
  LANGUAGE c
  PARALLEL SAFE STRICT
 AS '$libdir/pgcrypto', $function$pg_gen_salt_rounds$function$
+
+;
+
+CREATE OR REPLACE FUNCTION extensions.gen_salt(text)
+ RETURNS text
+ LANGUAGE c
+ PARALLEL SAFE STRICT
+AS '$libdir/pgcrypto', $function$pg_gen_salt$function$
 
 ;
 
@@ -1328,7 +1368,7 @@ $function$
 
 ;
 
-CREATE OR REPLACE FUNCTION extensions.hmac(text, text, text)
+CREATE OR REPLACE FUNCTION extensions.hmac(bytea, bytea, text)
  RETURNS bytea
  LANGUAGE c
  IMMUTABLE PARALLEL SAFE STRICT
@@ -1336,7 +1376,7 @@ AS '$libdir/pgcrypto', $function$pg_hmac$function$
 
 ;
 
-CREATE OR REPLACE FUNCTION extensions.hmac(bytea, bytea, text)
+CREATE OR REPLACE FUNCTION extensions.hmac(text, text, text)
  RETURNS bytea
  LANGUAGE c
  IMMUTABLE PARALLEL SAFE STRICT
@@ -1384,7 +1424,7 @@ AS '$libdir/pgcrypto', $function$pgp_pub_decrypt_text$function$
 
 ;
 
-CREATE OR REPLACE FUNCTION extensions.pgp_pub_decrypt_bytea(bytea, bytea)
+CREATE OR REPLACE FUNCTION extensions.pgp_pub_decrypt_bytea(bytea, bytea, text)
  RETURNS bytea
  LANGUAGE c
  IMMUTABLE PARALLEL SAFE STRICT
@@ -1400,7 +1440,7 @@ AS '$libdir/pgcrypto', $function$pgp_pub_decrypt_bytea$function$
 
 ;
 
-CREATE OR REPLACE FUNCTION extensions.pgp_pub_decrypt_bytea(bytea, bytea, text)
+CREATE OR REPLACE FUNCTION extensions.pgp_pub_decrypt_bytea(bytea, bytea)
  RETURNS bytea
  LANGUAGE c
  IMMUTABLE PARALLEL SAFE STRICT
@@ -1472,14 +1512,6 @@ AS '$libdir/pgcrypto', $function$pgp_sym_decrypt_bytea$function$
 
 ;
 
-CREATE OR REPLACE FUNCTION extensions.pgp_sym_encrypt(text, text)
- RETURNS bytea
- LANGUAGE c
- PARALLEL SAFE STRICT
-AS '$libdir/pgcrypto', $function$pgp_sym_encrypt_text$function$
-
-;
-
 CREATE OR REPLACE FUNCTION extensions.pgp_sym_encrypt(text, text, text)
  RETURNS bytea
  LANGUAGE c
@@ -1488,7 +1520,15 @@ AS '$libdir/pgcrypto', $function$pgp_sym_encrypt_text$function$
 
 ;
 
-CREATE OR REPLACE FUNCTION extensions.pgp_sym_encrypt_bytea(bytea, text)
+CREATE OR REPLACE FUNCTION extensions.pgp_sym_encrypt(text, text)
+ RETURNS bytea
+ LANGUAGE c
+ PARALLEL SAFE STRICT
+AS '$libdir/pgcrypto', $function$pgp_sym_encrypt_text$function$
+
+;
+
+CREATE OR REPLACE FUNCTION extensions.pgp_sym_encrypt_bytea(bytea, text, text)
  RETURNS bytea
  LANGUAGE c
  PARALLEL SAFE STRICT
@@ -1496,7 +1536,7 @@ AS '$libdir/pgcrypto', $function$pgp_sym_encrypt_bytea$function$
 
 ;
 
-CREATE OR REPLACE FUNCTION extensions.pgp_sym_encrypt_bytea(bytea, text, text)
+CREATE OR REPLACE FUNCTION extensions.pgp_sym_encrypt_bytea(bytea, text)
  RETURNS bytea
  LANGUAGE c
  PARALLEL SAFE STRICT
@@ -1933,82 +1973,65 @@ CREATE OR REPLACE FUNCTION public.cascade_delete_invoice(p_invoice_id integer)
  SECURITY DEFINER
 AS $function$
 DECLARE
-    v_result jsonb;
-    v_deleted_payments integer := 0;
-    v_deleted_documents integer := 0;
-    v_deleted_workflows integer := 0;
-    v_deleted_history integer := 0;
-    v_deleted_approval_progress integer := 0;
-    v_error text;
+    v_deleted boolean := false;
 BEGIN
-    -- Начинаем транзакцию
-    BEGIN
-        -- 1. Удаляем записи прогресса согласования
-        DELETE FROM public.workflow_approval_progress
-        WHERE payment_workflow_id IN (
-            SELECT id FROM public.payment_workflows
-            WHERE invoice_id = p_invoice_id
-        );
-        GET DIAGNOSTICS v_deleted_approval_progress = ROW_COUNT;
+    -- Отключаем триггеры на время удаления
+    SET LOCAL session_replication_role = 'replica';
 
-        -- 2. Удаляем workflow платежей
-        DELETE FROM public.payment_workflows
-        WHERE invoice_id = p_invoice_id;
-        GET DIAGNOSTICS v_deleted_workflows = ROW_COUNT;
+    -- Удаляем связанные записи
+    DELETE FROM public.workflow_approval_progress
+    WHERE workflow_id IN (
+        SELECT id FROM public.payment_workflows
+        WHERE invoice_id = p_invoice_id
+    );
 
-        -- 3. Удаляем платежи
-        DELETE FROM public.payments
-        WHERE invoice_id = p_invoice_id;
-        GET DIAGNOSTICS v_deleted_payments = ROW_COUNT;
+    DELETE FROM public.payment_workflows
+    WHERE invoice_id = p_invoice_id;
 
-        -- 4. Удаляем документы счета
-        DELETE FROM public.invoice_documents
-        WHERE invoice_id = p_invoice_id;
-        GET DIAGNOSTICS v_deleted_documents = ROW_COUNT;
+    DELETE FROM public.payments
+    WHERE invoice_id = p_invoice_id;
 
-        -- 5. Удаляем историю счета
-        DELETE FROM public.invoice_history
-        WHERE invoice_id = p_invoice_id;
-        GET DIAGNOSTICS v_deleted_history = ROW_COUNT;
+    DELETE FROM public.invoice_documents
+    WHERE invoice_id = p_invoice_id;
 
-        -- 6. Удаляем сам счет
-        DELETE FROM public.invoices
-        WHERE id = p_invoice_id;
+    DELETE FROM public.invoice_history
+    WHERE invoice_id = p_invoice_id;
 
-        -- Формируем результат
-        v_result := jsonb_build_object(
+    DELETE FROM public.invoices
+    WHERE id = p_invoice_id;
+
+    -- Проверяем, был ли удален счет
+    GET DIAGNOSTICS v_deleted = ROW_COUNT;
+
+    -- Включаем триггеры обратно
+    SET LOCAL session_replication_role = 'origin';
+
+    -- Возвращаем результат
+    IF v_deleted THEN
+        RETURN jsonb_build_object(
             'success', true,
             'invoice_id', p_invoice_id,
-            'deleted_payments', v_deleted_payments,
-            'deleted_documents', v_deleted_documents,
-            'deleted_workflows', v_deleted_workflows,
-            'deleted_history', v_deleted_history,
-            'deleted_approval_progress', v_deleted_approval_progress,
             'timestamp', now()
         );
-
-        -- Логируем успешное удаление
-        RAISE NOTICE 'Счет % успешно удален вместе со связанными записями', p_invoice_id;
-
-        RETURN v_result;
-
-    EXCEPTION WHEN OTHERS THEN
-        -- В случае ошибки откатываем транзакцию
-        v_error := SQLERRM;
-
-        -- Формируем результат с ошибкой
-        v_result := jsonb_build_object(
+    ELSE
+        RETURN jsonb_build_object(
             'success', false,
             'invoice_id', p_invoice_id,
-            'error', v_error,
+            'error', 'Invoice not found',
             'timestamp', now()
         );
+    END IF;
 
-        -- Логируем ошибку
-        RAISE WARNING 'Ошибка при удалении счета %: %', p_invoice_id, v_error;
+EXCEPTION WHEN OTHERS THEN
+    -- Включаем триггеры обратно в случае ошибки
+    SET LOCAL session_replication_role = 'origin';
 
-        RETURN v_result;
-    END;
+    RETURN jsonb_build_object(
+        'success', false,
+        'invoice_id', p_invoice_id,
+        'error', SQLERRM,
+        'timestamp', now()
+    );
 END;
 $function$
 
@@ -3166,132 +3189,92 @@ $function$
 CREATE OR REPLACE FUNCTION public.track_payment_history()
  RETURNS trigger
  LANGUAGE plpgsql
+ SECURITY DEFINER
 AS $function$
-DECLARE
-    v_user_id UUID;
-    v_user_name VARCHAR(255);
-    v_user_role VARCHAR(100);
-    v_invoice_id INTEGER;
 BEGIN
-    -- Получаем информацию о текущем пользователе
-    v_user_id := auth.uid();
-
-    IF v_user_id IS NOT NULL THEN
-        SELECT full_name INTO v_user_name FROM public.users WHERE id = v_user_id;
-        SELECT r.code INTO v_user_role
-        FROM public.user_profiles up
-        JOIN public.roles r ON up.role_id = r.id
-        WHERE up.user_id = v_user_id;
-    END IF;
-
-    -- Определяем invoice_id
-    IF TG_OP = 'DELETE' THEN
-        v_invoice_id := OLD.invoice_id;
-    ELSE
-        v_invoice_id := NEW.invoice_id;
-    END IF;
-
     IF TG_OP = 'INSERT' THEN
-        -- Создание платежа
         INSERT INTO public.invoice_history (
             invoice_id,
             event_type,
             event_date,
-            user_id,
-            user_name,
-            user_role,
-            event_description,
-            field_changes,
+            action,
+            description,
             payment_id,
-            payment_status,
-            payment_amount
+            status_to,
+            amount_to,
+            new_values,
+            user_id
         ) VALUES (
-            v_invoice_id,
-            'payment_created',
-            NOW(),
-            v_user_id,
-            v_user_name,
-            v_user_role,
-            format('Создан платеж на сумму %s руб.', NEW.total_amount),
-            jsonb_build_object(
-                'payment_id', NEW.id,
-                'amount', NEW.total_amount,
-                'status', NEW.status,
-                'payment_type', NEW.payment_type
-            ),
+            NEW.invoice_id,
+            'PAYMENT_CREATED',
+            now(),
+            'Платеж создан',
+            'Создан новый платеж на сумму ' || NEW.total_amount,
             NEW.id,
             NEW.status,
-            NEW.total_amount
+            NEW.total_amount,
+            to_jsonb(NEW),
+            auth.uid()
         );
-
+        RETURN NEW;
     ELSIF TG_OP = 'UPDATE' THEN
-        -- Обновление платежа
-        IF OLD.status IS DISTINCT FROM NEW.status THEN
-            INSERT INTO public.invoice_history (
-                invoice_id,
-                event_type,
-                event_date,
-                user_id,
-                user_name,
-                user_role,
-                event_description,
-                field_changes,
-                payment_id,
-                payment_status,
-                payment_amount
-            ) VALUES (
-                v_invoice_id,
-                'payment_status_changed',
-                NOW(),
-                v_user_id,
-                v_user_name,
-                v_user_role,
-                format('Статус платежа изменен: %s → %s', OLD.status, NEW.status),
-                jsonb_build_object(
-                    'old_status', OLD.status,
-                    'new_status', NEW.status,
-                    'amount', NEW.total_amount
-                ),
-                NEW.id,
-                NEW.status,
-                NEW.total_amount
-            );
-        END IF;
-
-    ELSIF TG_OP = 'DELETE' THEN
-        -- Удаление платежа
         INSERT INTO public.invoice_history (
             invoice_id,
             event_type,
             event_date,
-            user_id,
-            user_name,
-            user_role,
-            event_description,
-            field_changes,
+            action,
+            description,
             payment_id,
-            payment_status,
-            payment_amount
+            status_from,
+            status_to,
+            amount_from,
+            amount_to,
+            old_values,
+            new_values,
+            user_id
         ) VALUES (
-            v_invoice_id,
-            'payment_deleted',
-            NOW(),
-            v_user_id,
-            v_user_name,
-            v_user_role,
-            format('Удален платеж на сумму %s руб.', OLD.total_amount),
-            jsonb_build_object(
-                'payment_id', OLD.id,
-                'amount', OLD.total_amount,
-                'status', OLD.status
-            ),
+            NEW.invoice_id,
+            'PAYMENT_UPDATED',
+            now(),
+            'Платеж обновлен',
+            'Обновлен платеж #' || NEW.id,
+            NEW.id,
+            OLD.status,
+            NEW.status,
+            OLD.total_amount,
+            NEW.total_amount,
+            to_jsonb(OLD),
+            to_jsonb(NEW),
+            auth.uid()
+        );
+        RETURN NEW;
+    ELSIF TG_OP = 'DELETE' THEN
+        INSERT INTO public.invoice_history (
+            invoice_id,
+            event_type,
+            event_date,
+            action,
+            description,
+            payment_id,
+            status_from,
+            amount_from,
+            old_values,
+            user_id
+        ) VALUES (
+            OLD.invoice_id,
+            'PAYMENT_DELETED',
+            now(),
+            'Платеж удален',
+            'Удален платеж #' || OLD.id,
             OLD.id,
             OLD.status,
-            OLD.total_amount
+            OLD.total_amount,
+            to_jsonb(OLD),
+            auth.uid()
         );
+        RETURN OLD;
     END IF;
-
-    RETURN NEW;
+    RETURN NULL;
 END;
 $function$
 

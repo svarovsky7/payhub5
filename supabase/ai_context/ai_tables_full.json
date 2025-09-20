@@ -1,0 +1,3192 @@
+{
+  "public.attachments": {
+    "summary": "File attachments storage metadata",
+    "columns": [
+      {
+        "name": "id",
+        "type": "integer",
+        "nullable": false,
+        "default": "nextval",
+        "pk": true,
+        "fk": null,
+        "comment": null
+      },
+      {
+        "name": "original_name",
+        "type": "varchar(255)",
+        "nullable": false,
+        "default": null,
+        "pk": false,
+        "fk": null,
+        "comment": null
+      },
+      {
+        "name": "storage_path",
+        "type": "varchar(500)",
+        "nullable": false,
+        "default": null,
+        "pk": false,
+        "fk": null,
+        "comment": null
+      },
+      {
+        "name": "size_bytes",
+        "type": "integer",
+        "nullable": false,
+        "default": null,
+        "pk": false,
+        "fk": null,
+        "comment": null
+      },
+      {
+        "name": "mime_type",
+        "type": "varchar(100)",
+        "nullable": false,
+        "default": null,
+        "pk": false,
+        "fk": null,
+        "comment": null
+      },
+      {
+        "name": "created_by",
+        "type": "uuid",
+        "nullable": false,
+        "default": null,
+        "pk": false,
+        "fk": "public.users.id",
+        "comment": null
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "nullable": true,
+        "default": "now()",
+        "pk": false,
+        "fk": null,
+        "comment": null
+      }
+    ],
+    "primaryKey": [
+      "id"
+    ],
+    "foreignKeys": [
+      {
+        "column": "created_by",
+        "references": "public.users.id"
+      }
+    ],
+    "unique": [],
+    "checks": [
+      "2200_18667_1_not_null",
+      "2200_18667_2_not_null",
+      "2200_18667_3_not_null",
+      "2200_18667_4_not_null",
+      "2200_18667_5_not_null",
+      "2200_18667_6_not_null",
+      "attachments_size_bytes_check"
+    ],
+    "indexes": [
+      {
+        "name": "idx_attachments_created_by",
+        "unique": false,
+        "columns": [
+          "created_by"
+        ]
+      },
+      {
+        "name": "idx_attachments_mime_type",
+        "unique": false,
+        "columns": [
+          "mime_type"
+        ]
+      }
+    ]
+  },
+  "public.contractor_types": {
+    "summary": "Types of contractors (suppliers, clients, etc.)",
+    "columns": [
+      {
+        "name": "id",
+        "type": "integer",
+        "nullable": false,
+        "default": "nextval",
+        "pk": true,
+        "fk": null,
+        "comment": null
+      },
+      {
+        "name": "code",
+        "type": "varchar(50)",
+        "nullable": false,
+        "default": null,
+        "pk": false,
+        "fk": null,
+        "comment": null
+      },
+      {
+        "name": "name",
+        "type": "varchar(100)",
+        "nullable": false,
+        "default": null,
+        "pk": false,
+        "fk": null,
+        "comment": null
+      },
+      {
+        "name": "description",
+        "type": "text",
+        "nullable": true,
+        "default": null,
+        "pk": false,
+        "fk": null,
+        "comment": null
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "nullable": true,
+        "default": "now()",
+        "pk": false,
+        "fk": null,
+        "comment": null
+      }
+    ],
+    "primaryKey": [
+      "id"
+    ],
+    "foreignKeys": [],
+    "unique": [
+      {
+        "name": "contractor_types_code_key",
+        "column": "code"
+      }
+    ],
+    "checks": [
+      "2200_18365_1_not_null",
+      "2200_18365_2_not_null",
+      "2200_18365_3_not_null"
+    ],
+    "indexes": [
+      {
+        "name": "contractor_types_code_key",
+        "unique": false,
+        "columns": [
+          "code"
+        ]
+      }
+    ]
+  },
+  "public.contractors": {
+    "summary": "Contractors (suppliers and payers) information",
+    "columns": [
+      {
+        "name": "id",
+        "type": "integer",
+        "nullable": false,
+        "default": "nextval",
+        "pk": true,
+        "fk": null,
+        "comment": null
+      },
+      {
+        "name": "name",
+        "type": "varchar(255)",
+        "nullable": false,
+        "default": null,
+        "pk": false,
+        "fk": null,
+        "comment": null
+      },
+      {
+        "name": "inn",
+        "type": "varchar(12)",
+        "nullable": true,
+        "default": null,
+        "pk": false,
+        "fk": null,
+        "comment": null
+      },
+      {
+        "name": "type_id",
+        "type": "integer",
+        "nullable": true,
+        "default": null,
+        "pk": false,
+        "fk": "public.contractor_types.id",
+        "comment": null
+      },
+      {
+        "name": "is_active",
+        "type": "boolean",
+        "nullable": true,
+        "default": "true",
+        "pk": false,
+        "fk": null,
+        "comment": null
+      },
+      {
+        "name": "created_by",
+        "type": "uuid",
+        "nullable": true,
+        "default": null,
+        "pk": false,
+        "fk": "public.users.id",
+        "comment": null
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "nullable": true,
+        "default": "now()",
+        "pk": false,
+        "fk": null,
+        "comment": null
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamptz",
+        "nullable": true,
+        "default": "now()",
+        "pk": false,
+        "fk": null,
+        "comment": null
+      },
+      {
+        "name": "contractor_search",
+        "type": "tsvector",
+        "nullable": true,
+        "default": null,
+        "pk": false,
+        "fk": null,
+        "comment": null
+      },
+      {
+        "name": "supplier_code",
+        "type": "varchar(10)",
+        "nullable": true,
+        "default": null,
+        "pk": false,
+        "fk": null,
+        "comment": "Уникальный код поставщика (3 буквы + 4 цифры ИНН)"
+      }
+    ],
+    "primaryKey": [
+      "id"
+    ],
+    "foreignKeys": [
+      {
+        "column": "created_by",
+        "references": "public.users.id"
+      },
+      {
+        "column": "type_id",
+        "references": "public.contractor_types.id"
+      }
+    ],
+    "unique": [],
+    "checks": [
+      "2200_18377_1_not_null",
+      "2200_18377_2_not_null"
+    ],
+    "indexes": [
+      {
+        "name": "idx_contractors_active_name",
+        "unique": false,
+        "columns": [
+          "name) WHERE (is_active = true"
+        ]
+      },
+      {
+        "name": "idx_contractors_created_by",
+        "unique": false,
+        "columns": [
+          "created_by"
+        ]
+      },
+      {
+        "name": "idx_contractors_inn",
+        "unique": false,
+        "columns": [
+          "inn"
+        ]
+      },
+      {
+        "name": "idx_contractors_inn_unique",
+        "unique": false,
+        "columns": [
+          "inn) WHERE (inn IS NOT NULL"
+        ]
+      },
+      {
+        "name": "idx_contractors_is_active",
+        "unique": false,
+        "columns": [
+          "is_active"
+        ]
+      },
+      {
+        "name": "idx_contractors_name_active",
+        "unique": false,
+        "columns": [
+          "name",
+          "is_active) WHERE (is_active = true"
+        ]
+      },
+      {
+        "name": "idx_contractors_search_vector",
+        "unique": false,
+        "columns": [
+          "contractor_search"
+        ]
+      },
+      {
+        "name": "idx_contractors_supplier_code",
+        "unique": false,
+        "columns": [
+          "supplier_code"
+        ]
+      },
+      {
+        "name": "idx_contractors_type_id",
+        "unique": false,
+        "columns": [
+          "type_id"
+        ]
+      }
+    ]
+  },
+  "public.invoice_documents": {
+    "summary": "Таблица связи документов со счетами. РАЗРЕШЕНО множество документов на один счет!",
+    "columns": [
+      {
+        "name": "id",
+        "type": "integer",
+        "nullable": false,
+        "default": "nextval",
+        "pk": true,
+        "fk": null,
+        "comment": null
+      },
+      {
+        "name": "invoice_id",
+        "type": "integer",
+        "nullable": true,
+        "default": null,
+        "pk": false,
+        "fk": "public.invoices.id",
+        "comment": null
+      },
+      {
+        "name": "attachment_id",
+        "type": "integer",
+        "nullable": true,
+        "default": null,
+        "pk": false,
+        "fk": "public.attachments.id",
+        "comment": null
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "nullable": true,
+        "default": "now()",
+        "pk": false,
+        "fk": null,
+        "comment": null
+      }
+    ],
+    "primaryKey": [
+      "id"
+    ],
+    "foreignKeys": [
+      {
+        "column": "attachment_id",
+        "references": "public.attachments.id"
+      },
+      {
+        "column": "invoice_id",
+        "references": "public.invoices.id"
+      }
+    ],
+    "unique": [],
+    "checks": [
+      "2200_18683_1_not_null"
+    ],
+    "indexes": [
+      {
+        "name": "idx_invoice_documents_attachment_id",
+        "unique": false,
+        "columns": [
+          "attachment_id"
+        ]
+      },
+      {
+        "name": "idx_invoice_documents_invoice_id",
+        "unique": false,
+        "columns": [
+          "invoice_id"
+        ]
+      },
+      {
+        "name": "invoice_documents_composite_key",
+        "unique": false,
+        "columns": [
+          "invoice_id",
+          "attachment_id"
+        ]
+      }
+    ]
+  },
+  "public.invoice_history": {
+    "summary": "История всех изменений счетов, платежей и связанных документов",
+    "columns": [
+      {
+        "name": "id",
+        "type": "bigint",
+        "nullable": false,
+        "default": "nextval",
+        "pk": true,
+        "fk": null,
+        "comment": null
+      },
+      {
+        "name": "invoice_id",
+        "type": "integer",
+        "nullable": true,
+        "default": null,
+        "pk": false,
+        "fk": "public.invoices.id",
+        "comment": null
+      },
+      {
+        "name": "event_type",
+        "type": "varchar(50)",
+        "nullable": false,
+        "default": null,
+        "pk": false,
+        "fk": null,
+        "comment": "Тип события: INVOICE_CREATED, INVOICE_UPDATED, STATUS_CHANGED, PAYMENT_CREATED, etc."
+      },
+      {
+        "name": "event_date",
+        "type": "timestamptz",
+        "nullable": false,
+        "default": "now()",
+        "pk": false,
+        "fk": null,
+        "comment": null
+      },
+      {
+        "name": "action",
+        "type": "varchar(100)",
+        "nullable": false,
+        "default": null,
+        "pk": false,
+        "fk": null,
+        "comment": "Человекочитаемое описание действия"
+      },
+      {
+        "name": "description",
+        "type": "text",
+        "nullable": true,
+        "default": null,
+        "pk": false,
+        "fk": null,
+        "comment": null
+      },
+      {
+        "name": "payment_id",
+        "type": "integer",
+        "nullable": true,
+        "default": null,
+        "pk": false,
+        "fk": "public.payments.id",
+        "comment": null
+      },
+      {
+        "name": "document_id",
+        "type": "integer",
+        "nullable": true,
+        "default": null,
+        "pk": false,
+        "fk": "public.invoice_documents.id",
+        "comment": null
+      },
+      {
+        "name": "attachment_id",
+        "type": "integer",
+        "nullable": true,
+        "default": null,
+        "pk": false,
+        "fk": "public.attachments.id",
+        "comment": null
+      },
+      {
+        "name": "status_from",
+        "type": "varchar(50)",
+        "nullable": true,
+        "default": null,
+        "pk": false,
+        "fk": null,
+        "comment": null
+      },
+      {
+        "name": "status_to",
+        "type": "varchar(50)",
+        "nullable": true,
+        "default": null,
+        "pk": false,
+        "fk": null,
+        "comment": null
+      },
+      {
+        "name": "amount_from",
+        "type": "numeric(15,2)",
+        "nullable": true,
+        "default": null,
+        "pk": false,
+        "fk": null,
+        "comment": null
+      },
+      {
+        "name": "amount_to",
+        "type": "numeric(15,2)",
+        "nullable": true,
+        "default": null,
+        "pk": false,
+        "fk": null,
+        "comment": null
+      },
+      {
+        "name": "changed_fields",
+        "type": "jsonb",
+        "nullable": true,
+        "default": null,
+        "pk": false,
+        "fk": null,
+        "comment": "JSON объект с полями, которые были изменены"
+      },
+      {
+        "name": "old_values",
+        "type": "jsonb",
+        "nullable": true,
+        "default": null,
+        "pk": false,
+        "fk": null,
+        "comment": "Старые значения измененных полей"
+      },
+      {
+        "name": "new_values",
+        "type": "jsonb",
+        "nullable": true,
+        "default": null,
+        "pk": false,
+        "fk": null,
+        "comment": "Новые значения измененных полей"
+      },
+      {
+        "name": "user_id",
+        "type": "uuid",
+        "nullable": true,
+        "default": null,
+        "pk": false,
+        "fk": "public.users.id",
+        "comment": null
+      },
+      {
+        "name": "user_name",
+        "type": "varchar(255)",
+        "nullable": true,
+        "default": null,
+        "pk": false,
+        "fk": null,
+        "comment": null
+      },
+      {
+        "name": "user_role",
+        "type": "varchar(100)",
+        "nullable": true,
+        "default": null,
+        "pk": false,
+        "fk": null,
+        "comment": null
+      },
+      {
+        "name": "metadata",
+        "type": "jsonb",
+        "nullable": true,
+        "default": null,
+        "pk": false,
+        "fk": null,
+        "comment": "Дополнительные данные события в формате JSON"
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "nullable": true,
+        "default": "now()",
+        "pk": false,
+        "fk": null,
+        "comment": null
+      },
+      {
+        "name": "currency",
+        "type": "varchar(10)",
+        "nullable": true,
+        "default": "'RUB' varying",
+        "pk": false,
+        "fk": null,
+        "comment": null
+      }
+    ],
+    "primaryKey": [
+      "id"
+    ],
+    "foreignKeys": [
+      {
+        "column": "attachment_id",
+        "references": "public.attachments.id"
+      },
+      {
+        "column": "document_id",
+        "references": "public.invoice_documents.id"
+      },
+      {
+        "column": "invoice_id",
+        "references": "public.invoices.id"
+      },
+      {
+        "column": "payment_id",
+        "references": "public.payments.id"
+      },
+      {
+        "column": "user_id",
+        "references": "public.users.id"
+      }
+    ],
+    "unique": [],
+    "checks": [
+      "2200_25745_1_not_null",
+      "2200_25745_3_not_null",
+      "2200_25745_4_not_null",
+      "2200_25745_5_not_null"
+    ],
+    "indexes": [
+      {
+        "name": "idx_invoice_history_created_at",
+        "unique": false,
+        "columns": [
+          "created_at DESC"
+        ]
+      },
+      {
+        "name": "idx_invoice_history_event_date",
+        "unique": false,
+        "columns": [
+          "event_date DESC"
+        ]
+      },
+      {
+        "name": "idx_invoice_history_event_type",
+        "unique": false,
+        "columns": [
+          "event_type"
+        ]
+      },
+      {
+        "name": "idx_invoice_history_invoice_id",
+        "unique": false,
+        "columns": [
+          "invoice_id"
+        ]
+      },
+      {
+        "name": "idx_invoice_history_payment_id",
+        "unique": false,
+        "columns": [
+          "payment_id) WHERE (payment_id IS NOT NULL"
+        ]
+      },
+      {
+        "name": "idx_invoice_history_user_id",
+        "unique": false,
+        "columns": [
+          "user_id) WHERE (user_id IS NOT NULL"
+        ]
+      }
+    ]
+  },
+  "public.invoice_types": {
+    "summary": "Types of invoices (goods, works, rent, utilities)",
+    "columns": [
+      {
+        "name": "id",
+        "type": "integer",
+        "nullable": false,
+        "default": "nextval",
+        "pk": true,
+        "fk": null,
+        "comment": null
+      },
+      {
+        "name": "code",
+        "type": "varchar(50)",
+        "nullable": false,
+        "default": null,
+        "pk": false,
+        "fk": null,
+        "comment": null
+      },
+      {
+        "name": "name",
+        "type": "varchar(100)",
+        "nullable": false,
+        "default": null,
+        "pk": false,
+        "fk": null,
+        "comment": null
+      },
+      {
+        "name": "description",
+        "type": "text",
+        "nullable": true,
+        "default": null,
+        "pk": false,
+        "fk": null,
+        "comment": null
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "nullable": true,
+        "default": "now()",
+        "pk": false,
+        "fk": null,
+        "comment": null
+      }
+    ],
+    "primaryKey": [
+      "id"
+    ],
+    "foreignKeys": [],
+    "unique": [
+      {
+        "name": "invoice_types_code_key",
+        "column": "code"
+      }
+    ],
+    "checks": [
+      "2200_18397_1_not_null",
+      "2200_18397_2_not_null",
+      "2200_18397_3_not_null"
+    ],
+    "indexes": [
+      {
+        "name": "invoice_types_code_key",
+        "unique": false,
+        "columns": [
+          "code"
+        ]
+      }
+    ]
+  },
+  "public.invoices": {
+    "summary": "Invoices table - estimated_delivery_date field removed, delivery calculations now done in application layer",
+    "columns": [
+      {
+        "name": "id",
+        "type": "integer",
+        "nullable": false,
+        "default": "nextval",
+        "pk": true,
+        "fk": null,
+        "comment": null
+      },
+      {
+        "name": "invoice_number",
+        "type": "varchar(100)",
+        "nullable": false,
+        "default": null,
+        "pk": false,
+        "fk": null,
+        "comment": null
+      },
+      {
+        "name": "invoice_date",
+        "type": "date",
+        "nullable": false,
+        "default": null,
+        "pk": false,
+        "fk": null,
+        "comment": null
+      },
+      {
+        "name": "project_id",
+        "type": "integer",
+        "nullable": true,
+        "default": null,
+        "pk": false,
+        "fk": "public.projects.id",
+        "comment": null
+      },
+      {
+        "name": "type_id",
+        "type": "integer",
+        "nullable": false,
+        "default": null,
+        "pk": false,
+        "fk": "public.invoice_types.id",
+        "comment": null
+      },
+      {
+        "name": "supplier_id",
+        "type": "integer",
+        "nullable": false,
+        "default": null,
+        "pk": false,
+        "fk": "public.contractors.id",
+        "comment": null
+      },
+      {
+        "name": "payer_id",
+        "type": "integer",
+        "nullable": false,
+        "default": null,
+        "pk": false,
+        "fk": "public.contractors.id",
+        "comment": null
+      },
+      {
+        "name": "amount_net",
+        "type": "numeric(15,2)",
+        "nullable": false,
+        "default": null,
+        "pk": false,
+        "fk": null,
+        "comment": "Invoice amount excluding VAT"
+      },
+      {
+        "name": "vat_rate",
+        "type": "numeric(5,2)",
+        "nullable": false,
+        "default": null,
+        "pk": false,
+        "fk": null,
+        "comment": "VAT rate as percentage (0, 5, 7, 10, or 20)"
+      },
+      {
+        "name": "vat_amount",
+        "type": "numeric(15,2)",
+        "nullable": false,
+        "default": "0",
+        "pk": false,
+        "fk": null,
+        "comment": "Calculated VAT amount"
+      },
+      {
+        "name": "total_amount",
+        "type": "numeric(15,2)",
+        "nullable": false,
+        "default": "0",
+        "pk": false,
+        "fk": null,
+        "comment": "Total amount including VAT"
+      },
+      {
+        "name": "paid_amount",
+        "type": "numeric(15,2)",
+        "nullable": false,
+        "default": "0",
+        "pk": false,
+        "fk": null,
+        "comment": "Total amount paid so far"
+      },
+      {
+        "name": "description",
+        "type": "text",
+        "nullable": true,
+        "default": null,
+        "pk": false,
+        "fk": null,
+        "comment": null
+      },
+      {
+        "name": "priority",
+        "type": "priority_level",
+        "nullable": false,
+        "default": "'normal'",
+        "pk": false,
+        "fk": null,
+        "comment": null
+      },
+      {
+        "name": "created_by",
+        "type": "uuid",
+        "nullable": false,
+        "default": null,
+        "pk": false,
+        "fk": "public.users.id",
+        "comment": null
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "nullable": true,
+        "default": "now()",
+        "pk": false,
+        "fk": null,
+        "comment": null
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamptz",
+        "nullable": true,
+        "default": "now()",
+        "pk": false,
+        "fk": null,
+        "comment": null
+      },
+      {
+        "name": "status",
+        "type": "varchar(50)",
+        "nullable": false,
+        "default": "'draft' varying",
+        "pk": false,
+        "fk": null,
+        "comment": "Invoice status (migrated from enum to VARCHAR)"
+      },
+      {
+        "name": "delivery_days",
+        "type": "integer",
+        "nullable": true,
+        "default": null,
+        "pk": false,
+        "fk": null,
+        "comment": "Количество дней до поставки после оплаты (календарные или рабочие в зависимости от delivery_days_type)"
+      },
+      {
+        "name": "material_responsible_person_id",
+        "type": "integer",
+        "nullable": true,
+        "default": null,
+        "pk": false,
+        "fk": "public.material_responsible_persons.id",
+        "comment": "МОЛ на которого придет материал"
+      },
+      {
+        "name": "internal_number",
+        "type": "varchar(50)",
+        "nullable": true,
+        "default": null,
+        "pk": false,
+        "fk": null,
+        "comment": "Внутренний номер счета (автоматически генерируется). Формат: ORG-PROJ-VEND-TYPE-YYMM-SEQ"
+      },
+      {
+        "name": "delivery_days_type",
+        "type": "varchar(20)",
+        "nullable": true,
+        "default": "'calendar' varying",
+        "pk": false,
+        "fk": null,
+        "comment": "Тип дней для доставки: calendar - календарные, working - рабочие"
+      },
+      {
+        "name": "paid_at",
+        "type": "timestamptz",
+        "nullable": true,
+        "default": null,
+        "pk": false,
+        "fk": null,
+        "comment": "Timestamp when the invoice was fully paid"
+      }
+    ],
+    "primaryKey": [
+      "id"
+    ],
+    "foreignKeys": [
+      {
+        "column": "created_by",
+        "references": "public.users.id"
+      },
+      {
+        "column": "material_responsible_person_id",
+        "references": "public.material_responsible_persons.id"
+      },
+      {
+        "column": "payer_id",
+        "references": "public.contractors.id"
+      },
+      {
+        "column": "project_id",
+        "references": "public.projects.id"
+      },
+      {
+        "column": "supplier_id",
+        "references": "public.contractors.id"
+      },
+      {
+        "column": "type_id",
+        "references": "public.invoice_types.id"
+      }
+    ],
+    "unique": [],
+    "checks": [
+      "2200_18603_10_not_null",
+      "2200_18603_11_not_null",
+      "2200_18603_12_not_null",
+      "2200_18603_13_not_null",
+      "2200_18603_15_not_null",
+      "2200_18603_1_not_null",
+      "2200_18603_20_not_null",
+      "2200_18603_29_not_null",
+      "2200_18603_2_not_null",
+      "2200_18603_3_not_null",
+      "2200_18603_5_not_null",
+      "2200_18603_6_not_null",
+      "2200_18603_7_not_null",
+      "2200_18603_9_not_null",
+      "check_amounts",
+      "check_delivery_days_type",
+      "check_invoice_status",
+      "invoices_amount_net_check",
+      "invoices_paid_amount_check",
+      "invoices_vat_rate_check"
+    ],
+    "indexes": [
+      {
+        "name": "idx_invoices_created_at",
+        "unique": false,
+        "columns": [
+          "created_at DESC"
+        ]
+      },
+      {
+        "name": "idx_invoices_created_by",
+        "unique": false,
+        "columns": [
+          "created_by"
+        ]
+      },
+      {
+        "name": "idx_invoices_internal_number",
+        "unique": false,
+        "columns": [
+          "internal_number"
+        ]
+      },
+      {
+        "name": "idx_invoices_internal_number_pattern",
+        "unique": false,
+        "columns": [
+          "internal_number) WHERE (internal_number IS NOT NULL"
+        ]
+      },
+      {
+        "name": "idx_invoices_invoice_date",
+        "unique": false,
+        "columns": [
+          "invoice_date"
+        ]
+      },
+      {
+        "name": "idx_invoices_invoice_number",
+        "unique": false,
+        "columns": [
+          "invoice_number"
+        ]
+      },
+      {
+        "name": "idx_invoices_material_responsible_person_id",
+        "unique": false,
+        "columns": [
+          "material_responsible_person_id"
+        ]
+      },
+      {
+        "name": "idx_invoices_payer_id",
+        "unique": false,
+        "columns": [
+          "payer_id"
+        ]
+      },
+      {
+        "name": "idx_invoices_payer_status",
+        "unique": false,
+        "columns": [
+          "payer_id",
+          "status) WHERE (payer_id IS NOT NULL"
+        ]
+      },
+      {
+        "name": "idx_invoices_priority",
+        "unique": false,
+        "columns": [
+          "priority"
+        ]
+      },
+      {
+        "name": "idx_invoices_project_id",
+        "unique": false,
+        "columns": [
+          "project_id"
+        ]
+      },
+      {
+        "name": "idx_invoices_project_status",
+        "unique": false,
+        "columns": [
+          "project_id",
+          "status) WHERE (project_id IS NOT NULL"
+        ]
+      },
+      {
+        "name": "idx_invoices_status",
+        "unique": false,
+        "columns": [
+          "status"
+        ]
+      },
+      {
+        "name": "idx_invoices_supplier_id",
+        "unique": false,
+        "columns": [
+          "supplier_id"
+        ]
+      },
+      {
+        "name": "idx_invoices_supplier_status",
+        "unique": false,
+        "columns": [
+          "supplier_id",
+          "status) WHERE (supplier_id IS NOT NULL"
+        ]
+      },
+      {
+        "name": "idx_invoices_total_amount",
+        "unique": false,
+        "columns": [
+          "total_amount) WHERE (total_amount IS NOT NULL"
+        ]
+      },
+      {
+        "name": "idx_invoices_type_id",
+        "unique": false,
+        "columns": [
+          "type_id"
+        ]
+      }
+    ]
+  },
+  "public.material_responsible_persons": {
+    "summary": "Материально ответственные лица (МОЛ) - сотрудники, на которых приходят материалы",
+    "columns": [
+      {
+        "name": "id",
+        "type": "integer",
+        "nullable": false,
+        "default": "nextval",
+        "pk": true,
+        "fk": null,
+        "comment": null
+      },
+      {
+        "name": "full_name",
+        "type": "varchar(255)",
+        "nullable": false,
+        "default": null,
+        "pk": false,
+        "fk": null,
+        "comment": "ФИО сотрудника"
+      },
+      {
+        "name": "phone",
+        "type": "varchar(50)",
+        "nullable": true,
+        "default": null,
+        "pk": false,
+        "fk": null,
+        "comment": "Телефон сотрудника"
+      },
+      {
+        "name": "position",
+        "type": "varchar(255)",
+        "nullable": true,
+        "default": null,
+        "pk": false,
+        "fk": null,
+        "comment": "Должность сотрудника"
+      },
+      {
+        "name": "email",
+        "type": "varchar(255)",
+        "nullable": true,
+        "default": null,
+        "pk": false,
+        "fk": null,
+        "comment": "Email сотрудника"
+      },
+      {
+        "name": "is_active",
+        "type": "boolean",
+        "nullable": true,
+        "default": "true",
+        "pk": false,
+        "fk": null,
+        "comment": "Активен ли МОЛ (доступен для выбора)"
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "nullable": true,
+        "default": "CURRENT_TIMESTAMP",
+        "pk": false,
+        "fk": null,
+        "comment": "Дата и время создания записи"
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamptz",
+        "nullable": true,
+        "default": "CURRENT_TIMESTAMP",
+        "pk": false,
+        "fk": null,
+        "comment": "Дата и время последнего обновления"
+      },
+      {
+        "name": "created_by",
+        "type": "uuid",
+        "nullable": true,
+        "default": null,
+        "pk": false,
+        "fk": "public.users.id",
+        "comment": "ID пользователя, создавшего запись"
+      }
+    ],
+    "primaryKey": [
+      "id"
+    ],
+    "foreignKeys": [
+      {
+        "column": "created_by",
+        "references": "public.users.id"
+      }
+    ],
+    "unique": [],
+    "checks": [
+      "2200_22329_1_not_null",
+      "2200_22329_2_not_null"
+    ],
+    "indexes": [
+      {
+        "name": "idx_mrp_full_name",
+        "unique": false,
+        "columns": [
+          "full_name"
+        ]
+      },
+      {
+        "name": "idx_mrp_is_active",
+        "unique": false,
+        "columns": [
+          "is_active"
+        ]
+      }
+    ]
+  },
+  "public.payment_types": {
+    "summary": "Справочник типов платежей",
+    "columns": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "nullable": false,
+        "default": "gen_random_uuid()",
+        "pk": true,
+        "fk": null,
+        "comment": "Уникальный идентификатор"
+      },
+      {
+        "name": "name",
+        "type": "varchar(100)",
+        "nullable": false,
+        "default": null,
+        "pk": false,
+        "fk": null,
+        "comment": "Название типа платежа"
+      },
+      {
+        "name": "code",
+        "type": "varchar(50)",
+        "nullable": false,
+        "default": null,
+        "pk": false,
+        "fk": null,
+        "comment": "Код типа платежа для системного использования"
+      },
+      {
+        "name": "description",
+        "type": "text",
+        "nullable": true,
+        "default": null,
+        "pk": false,
+        "fk": null,
+        "comment": "Описание типа платежа"
+      },
+      {
+        "name": "is_active",
+        "type": "boolean",
+        "nullable": false,
+        "default": "true",
+        "pk": false,
+        "fk": null,
+        "comment": "Активен ли тип платежа"
+      },
+      {
+        "name": "display_order",
+        "type": "integer",
+        "nullable": true,
+        "default": "0",
+        "pk": false,
+        "fk": null,
+        "comment": "Порядок отображения"
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "nullable": false,
+        "default": "now()",
+        "pk": false,
+        "fk": null,
+        "comment": "Дата создания"
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamptz",
+        "nullable": false,
+        "default": "now()",
+        "pk": false,
+        "fk": null,
+        "comment": "Дата последнего обновления"
+      },
+      {
+        "name": "created_by",
+        "type": "uuid",
+        "nullable": true,
+        "default": null,
+        "pk": false,
+        "fk": "public.users.id",
+        "comment": "Кто создал запись"
+      },
+      {
+        "name": "updated_by",
+        "type": "uuid",
+        "nullable": true,
+        "default": null,
+        "pk": false,
+        "fk": "public.users.id",
+        "comment": "Кто последний обновил запись"
+      }
+    ],
+    "primaryKey": [
+      "id"
+    ],
+    "foreignKeys": [
+      {
+        "column": "created_by",
+        "references": "public.users.id"
+      },
+      {
+        "column": "updated_by",
+        "references": "public.users.id"
+      }
+    ],
+    "unique": [
+      {
+        "name": "payment_types_code_key",
+        "column": "code"
+      },
+      {
+        "name": "payment_types_name_key",
+        "column": "name"
+      }
+    ],
+    "checks": [
+      "2200_35702_1_not_null",
+      "2200_35702_2_not_null",
+      "2200_35702_3_not_null",
+      "2200_35702_5_not_null",
+      "2200_35702_7_not_null",
+      "2200_35702_8_not_null"
+    ],
+    "indexes": [
+      {
+        "name": "idx_payment_types_code",
+        "unique": false,
+        "columns": [
+          "code"
+        ]
+      },
+      {
+        "name": "idx_payment_types_display_order",
+        "unique": false,
+        "columns": [
+          "display_order"
+        ]
+      },
+      {
+        "name": "idx_payment_types_is_active",
+        "unique": false,
+        "columns": [
+          "is_active"
+        ]
+      },
+      {
+        "name": "payment_types_code_key",
+        "unique": false,
+        "columns": [
+          "code"
+        ]
+      },
+      {
+        "name": "payment_types_name_key",
+        "unique": false,
+        "columns": [
+          "name"
+        ]
+      }
+    ]
+  },
+  "public.payment_workflows": {
+    "summary": "Table payment_workflows",
+    "columns": [
+      {
+        "name": "id",
+        "type": "integer",
+        "nullable": false,
+        "default": "nextval",
+        "pk": true,
+        "fk": null,
+        "comment": null
+      },
+      {
+        "name": "payment_id",
+        "type": "integer",
+        "nullable": false,
+        "default": null,
+        "pk": false,
+        "fk": "public.payments.id",
+        "comment": null
+      },
+      {
+        "name": "invoice_id",
+        "type": "integer",
+        "nullable": true,
+        "default": null,
+        "pk": false,
+        "fk": "public.invoices.id",
+        "comment": null
+      },
+      {
+        "name": "workflow_id",
+        "type": "integer",
+        "nullable": false,
+        "default": null,
+        "pk": false,
+        "fk": "public.workflows.id",
+        "comment": null
+      },
+      {
+        "name": "current_stage_id",
+        "type": "integer",
+        "nullable": true,
+        "default": null,
+        "pk": false,
+        "fk": "public.workflow_stages.id",
+        "comment": null
+      },
+      {
+        "name": "current_stage_position",
+        "type": "integer",
+        "nullable": true,
+        "default": "1",
+        "pk": false,
+        "fk": null,
+        "comment": null
+      },
+      {
+        "name": "status",
+        "type": "varchar(50)",
+        "nullable": true,
+        "default": "'pending' varying",
+        "pk": false,
+        "fk": null,
+        "comment": null
+      },
+      {
+        "name": "amount",
+        "type": "numeric(15,2)",
+        "nullable": false,
+        "default": null,
+        "pk": false,
+        "fk": null,
+        "comment": null
+      },
+      {
+        "name": "description",
+        "type": "text",
+        "nullable": true,
+        "default": null,
+        "pk": false,
+        "fk": null,
+        "comment": null
+      },
+      {
+        "name": "contractor_id",
+        "type": "integer",
+        "nullable": true,
+        "default": null,
+        "pk": false,
+        "fk": "public.contractors.id",
+        "comment": null
+      },
+      {
+        "name": "project_id",
+        "type": "integer",
+        "nullable": true,
+        "default": null,
+        "pk": false,
+        "fk": "public.projects.id",
+        "comment": null
+      },
+      {
+        "name": "payment_date",
+        "type": "date",
+        "nullable": true,
+        "default": null,
+        "pk": false,
+        "fk": null,
+        "comment": null
+      },
+      {
+        "name": "stages_total",
+        "type": "integer",
+        "nullable": false,
+        "default": "0",
+        "pk": false,
+        "fk": null,
+        "comment": null
+      },
+      {
+        "name": "stages_completed",
+        "type": "integer",
+        "nullable": true,
+        "default": "0",
+        "pk": false,
+        "fk": null,
+        "comment": null
+      },
+      {
+        "name": "approval_progress",
+        "type": "jsonb",
+        "nullable": true,
+        "default": null,
+        "pk": false,
+        "fk": null,
+        "comment": null
+      },
+      {
+        "name": "started_at",
+        "type": "timestamptz",
+        "nullable": true,
+        "default": "CURRENT_TIMESTAMP",
+        "pk": false,
+        "fk": null,
+        "comment": null
+      },
+      {
+        "name": "started_by",
+        "type": "uuid",
+        "nullable": true,
+        "default": null,
+        "pk": false,
+        "fk": "public.users.id",
+        "comment": null
+      },
+      {
+        "name": "completed_at",
+        "type": "timestamptz",
+        "nullable": true,
+        "default": null,
+        "pk": false,
+        "fk": null,
+        "comment": null
+      },
+      {
+        "name": "completed_by",
+        "type": "uuid",
+        "nullable": true,
+        "default": null,
+        "pk": false,
+        "fk": "public.users.id",
+        "comment": null
+      },
+      {
+        "name": "cancelled_at",
+        "type": "timestamptz",
+        "nullable": true,
+        "default": null,
+        "pk": false,
+        "fk": null,
+        "comment": null
+      },
+      {
+        "name": "cancelled_by",
+        "type": "uuid",
+        "nullable": true,
+        "default": null,
+        "pk": false,
+        "fk": "public.users.id",
+        "comment": null
+      },
+      {
+        "name": "cancelled_reason",
+        "type": "text",
+        "nullable": true,
+        "default": null,
+        "pk": false,
+        "fk": null,
+        "comment": null
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "nullable": true,
+        "default": "CURRENT_TIMESTAMP",
+        "pk": false,
+        "fk": null,
+        "comment": null
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamptz",
+        "nullable": true,
+        "default": "CURRENT_TIMESTAMP",
+        "pk": false,
+        "fk": null,
+        "comment": null
+      }
+    ],
+    "primaryKey": [
+      "id"
+    ],
+    "foreignKeys": [
+      {
+        "column": "cancelled_by",
+        "references": "public.users.id"
+      },
+      {
+        "column": "completed_by",
+        "references": "public.users.id"
+      },
+      {
+        "column": "contractor_id",
+        "references": "public.contractors.id"
+      },
+      {
+        "column": "current_stage_id",
+        "references": "public.workflow_stages.id"
+      },
+      {
+        "column": "invoice_id",
+        "references": "public.invoices.id"
+      },
+      {
+        "column": "payment_id",
+        "references": "public.payments.id"
+      },
+      {
+        "column": "project_id",
+        "references": "public.projects.id"
+      },
+      {
+        "column": "started_by",
+        "references": "public.users.id"
+      },
+      {
+        "column": "workflow_id",
+        "references": "public.workflows.id"
+      }
+    ],
+    "unique": [
+      {
+        "name": "payment_workflows_payment_id_key",
+        "column": "payment_id"
+      }
+    ],
+    "checks": [
+      "2200_33848_13_not_null",
+      "2200_33848_1_not_null",
+      "2200_33848_2_not_null",
+      "2200_33848_4_not_null",
+      "2200_33848_8_not_null"
+    ],
+    "indexes": [
+      {
+        "name": "idx_payment_workflows_invoice_id",
+        "unique": false,
+        "columns": [
+          "invoice_id"
+        ]
+      },
+      {
+        "name": "idx_payment_workflows_payment_id",
+        "unique": false,
+        "columns": [
+          "payment_id"
+        ]
+      },
+      {
+        "name": "idx_payment_workflows_payment_invoice",
+        "unique": false,
+        "columns": [
+          "payment_id",
+          "invoice_id"
+        ]
+      },
+      {
+        "name": "idx_payment_workflows_status",
+        "unique": false,
+        "columns": [
+          "status"
+        ]
+      },
+      {
+        "name": "idx_payment_workflows_workflow_id",
+        "unique": false,
+        "columns": [
+          "workflow_id"
+        ]
+      },
+      {
+        "name": "payment_workflows_payment_id_key",
+        "unique": false,
+        "columns": [
+          "payment_id"
+        ]
+      }
+    ]
+  },
+  "public.payments": {
+    "summary": "Платежи по счетам",
+    "columns": [
+      {
+        "name": "id",
+        "type": "integer",
+        "nullable": false,
+        "default": "nextval",
+        "pk": true,
+        "fk": null,
+        "comment": "Уникальный идентификатор платежа"
+      },
+      {
+        "name": "invoice_id",
+        "type": "integer",
+        "nullable": false,
+        "default": null,
+        "pk": false,
+        "fk": "public.invoices.id",
+        "comment": "ID связанного счета"
+      },
+      {
+        "name": "payment_date",
+        "type": "date",
+        "nullable": false,
+        "default": null,
+        "pk": false,
+        "fk": null,
+        "comment": "Дата платежа"
+      },
+      {
+        "name": "payer_id",
+        "type": "integer",
+        "nullable": false,
+        "default": null,
+        "pk": false,
+        "fk": "public.contractors.id",
+        "comment": "ID плательщика (contractor)"
+      },
+      {
+        "name": "comment",
+        "type": "text",
+        "nullable": true,
+        "default": null,
+        "pk": false,
+        "fk": null,
+        "comment": "Комментарий к платежу"
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "nullable": true,
+        "default": "now()",
+        "pk": false,
+        "fk": null,
+        "comment": "Дата и время создания платежа"
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamptz",
+        "nullable": true,
+        "default": "now()",
+        "pk": false,
+        "fk": null,
+        "comment": "Дата и время последнего обновления"
+      },
+      {
+        "name": "status",
+        "type": "varchar(50)",
+        "nullable": false,
+        "default": "'pending' varying",
+        "pk": false,
+        "fk": null,
+        "comment": "Статус платежа"
+      },
+      {
+        "name": "type_id",
+        "type": "integer",
+        "nullable": true,
+        "default": null,
+        "pk": false,
+        "fk": null,
+        "comment": "Тип счета, унаследованный от связанного счета"
+      },
+      {
+        "name": "internal_number",
+        "type": "varchar(80)",
+        "nullable": true,
+        "default": null,
+        "pk": false,
+        "fk": null,
+        "comment": "Внутренний номер платежа (автоматически генерируется)"
+      },
+      {
+        "name": "vat_amount",
+        "type": "numeric(15,2)",
+        "nullable": true,
+        "default": null,
+        "pk": false,
+        "fk": null,
+        "comment": "Сумма НДС"
+      },
+      {
+        "name": "vat_rate",
+        "type": "numeric(5,2)",
+        "nullable": true,
+        "default": "20",
+        "pk": false,
+        "fk": null,
+        "comment": "Ставка НДС в процентах"
+      },
+      {
+        "name": "total_amount",
+        "type": "numeric(15,2)",
+        "nullable": false,
+        "default": null,
+        "pk": false,
+        "fk": null,
+        "comment": "Общая сумма платежа с НДС"
+      },
+      {
+        "name": "amount_net",
+        "type": "numeric(15,2)",
+        "nullable": true,
+        "default": null,
+        "pk": false,
+        "fk": null,
+        "comment": "Сумма платежа без НДС"
+      },
+      {
+        "name": "created_by",
+        "type": "uuid",
+        "nullable": true,
+        "default": null,
+        "pk": false,
+        "fk": "public.users.id",
+        "comment": "UUID пользователя, создавшего платеж"
+      },
+      {
+        "name": "payment_type_id",
+        "type": "uuid",
+        "nullable": true,
+        "default": null,
+        "pk": false,
+        "fk": "public.payment_types.id",
+        "comment": null
+      }
+    ],
+    "primaryKey": [
+      "id"
+    ],
+    "foreignKeys": [
+      {
+        "column": "created_by",
+        "references": "public.users.id"
+      },
+      {
+        "column": "invoice_id",
+        "references": "public.invoices.id"
+      },
+      {
+        "column": "payer_id",
+        "references": "public.contractors.id"
+      },
+      {
+        "column": "payment_type_id",
+        "references": "public.payment_types.id"
+      }
+    ],
+    "unique": [],
+    "checks": [
+      "2200_18728_14_not_null",
+      "2200_18728_1_not_null",
+      "2200_18728_22_not_null",
+      "2200_18728_2_not_null",
+      "2200_18728_3_not_null",
+      "2200_18728_5_not_null"
+    ],
+    "indexes": [
+      {
+        "name": "idx_payments_created_at",
+        "unique": false,
+        "columns": [
+          "created_at DESC"
+        ]
+      },
+      {
+        "name": "idx_payments_created_by",
+        "unique": false,
+        "columns": [
+          "created_by"
+        ]
+      },
+      {
+        "name": "idx_payments_internal_number",
+        "unique": false,
+        "columns": [
+          "internal_number"
+        ]
+      },
+      {
+        "name": "idx_payments_internal_number_pattern",
+        "unique": false,
+        "columns": [
+          "internal_number) WHERE (internal_number IS NOT NULL"
+        ]
+      },
+      {
+        "name": "idx_payments_invoice_id",
+        "unique": false,
+        "columns": [
+          "invoice_id"
+        ]
+      },
+      {
+        "name": "idx_payments_invoice_id_status",
+        "unique": false,
+        "columns": [
+          "invoice_id",
+          "status"
+        ]
+      },
+      {
+        "name": "idx_payments_payer_id",
+        "unique": false,
+        "columns": [
+          "payer_id"
+        ]
+      },
+      {
+        "name": "idx_payments_payment_date",
+        "unique": false,
+        "columns": [
+          "payment_date"
+        ]
+      },
+      {
+        "name": "idx_payments_payment_type_id",
+        "unique": false,
+        "columns": [
+          "payment_type_id"
+        ]
+      },
+      {
+        "name": "idx_payments_status",
+        "unique": false,
+        "columns": [
+          "status"
+        ]
+      },
+      {
+        "name": "idx_payments_status_invoice",
+        "unique": false,
+        "columns": [
+          "status",
+          "invoice_id"
+        ]
+      },
+      {
+        "name": "idx_payments_status_invoice_id",
+        "unique": false,
+        "columns": [
+          "status",
+          "invoice_id"
+        ]
+      },
+      {
+        "name": "idx_payments_total_amount",
+        "unique": false,
+        "columns": [
+          "total_amount"
+        ]
+      },
+      {
+        "name": "idx_payments_type_id",
+        "unique": false,
+        "columns": [
+          "type_id"
+        ]
+      },
+      {
+        "name": "idx_payments_vat_rate",
+        "unique": false,
+        "columns": [
+          "vat_rate"
+        ]
+      }
+    ]
+  },
+  "public.projects": {
+    "summary": "Project records - simplified without company isolation",
+    "columns": [
+      {
+        "name": "id",
+        "type": "integer",
+        "nullable": false,
+        "default": "nextval",
+        "pk": true,
+        "fk": null,
+        "comment": null
+      },
+      {
+        "name": "name",
+        "type": "varchar(255)",
+        "nullable": false,
+        "default": null,
+        "pk": false,
+        "fk": null,
+        "comment": null
+      },
+      {
+        "name": "address",
+        "type": "text",
+        "nullable": true,
+        "default": null,
+        "pk": false,
+        "fk": null,
+        "comment": null
+      },
+      {
+        "name": "is_active",
+        "type": "boolean",
+        "nullable": true,
+        "default": "true",
+        "pk": false,
+        "fk": null,
+        "comment": null
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "nullable": true,
+        "default": "now()",
+        "pk": false,
+        "fk": null,
+        "comment": null
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamptz",
+        "nullable": true,
+        "default": "now()",
+        "pk": false,
+        "fk": null,
+        "comment": null
+      },
+      {
+        "name": "project_code",
+        "type": "varchar(4)",
+        "nullable": true,
+        "default": null,
+        "pk": false,
+        "fk": null,
+        "comment": "Уникальный код проекта (3-4 латинские буквы)"
+      }
+    ],
+    "primaryKey": [
+      "id"
+    ],
+    "foreignKeys": [],
+    "unique": [],
+    "checks": [
+      "2200_18353_1_not_null",
+      "2200_18353_2_not_null"
+    ],
+    "indexes": [
+      {
+        "name": "idx_projects_active_name",
+        "unique": false,
+        "columns": [
+          "name) WHERE (is_active = true"
+        ]
+      },
+      {
+        "name": "idx_projects_is_active",
+        "unique": false,
+        "columns": [
+          "is_active"
+        ]
+      },
+      {
+        "name": "idx_projects_project_code",
+        "unique": false,
+        "columns": [
+          "project_code"
+        ]
+      }
+    ]
+  },
+  "public.roles": {
+    "summary": "User roles - simplified without permissions, hierarchy, or company isolation",
+    "columns": [
+      {
+        "name": "id",
+        "type": "integer",
+        "nullable": false,
+        "default": "nextval",
+        "pk": true,
+        "fk": null,
+        "comment": null
+      },
+      {
+        "name": "code",
+        "type": "varchar(50)",
+        "nullable": false,
+        "default": null,
+        "pk": false,
+        "fk": null,
+        "comment": "Unique role identifier code"
+      },
+      {
+        "name": "name",
+        "type": "varchar(100)",
+        "nullable": false,
+        "default": null,
+        "pk": false,
+        "fk": null,
+        "comment": "Display name of the role"
+      },
+      {
+        "name": "description",
+        "type": "text",
+        "nullable": true,
+        "default": null,
+        "pk": false,
+        "fk": null,
+        "comment": "Optional role description"
+      },
+      {
+        "name": "is_active",
+        "type": "boolean",
+        "nullable": true,
+        "default": "true",
+        "pk": false,
+        "fk": null,
+        "comment": "Whether the role is active"
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "nullable": true,
+        "default": "now()",
+        "pk": false,
+        "fk": null,
+        "comment": null
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamptz",
+        "nullable": true,
+        "default": "now()",
+        "pk": false,
+        "fk": null,
+        "comment": null
+      },
+      {
+        "name": "view_own_project_only",
+        "type": "boolean",
+        "nullable": true,
+        "default": "false",
+        "pk": false,
+        "fk": null,
+        "comment": "If true, users with this role can only see projects specified in their project_ids field"
+      }
+    ],
+    "primaryKey": [
+      "id"
+    ],
+    "foreignKeys": [],
+    "unique": [
+      {
+        "name": "roles_code_key",
+        "column": "code"
+      }
+    ],
+    "checks": [
+      "2200_20873_1_not_null",
+      "2200_20873_2_not_null",
+      "2200_20873_3_not_null"
+    ],
+    "indexes": [
+      {
+        "name": "idx_roles_active",
+        "unique": false,
+        "columns": [
+          "is_active"
+        ]
+      },
+      {
+        "name": "idx_roles_code",
+        "unique": false,
+        "columns": [
+          "code"
+        ]
+      },
+      {
+        "name": "idx_roles_view_own_project_only",
+        "unique": false,
+        "columns": [
+          "view_own_project_only"
+        ]
+      },
+      {
+        "name": "roles_code_key",
+        "unique": false,
+        "columns": [
+          "code"
+        ]
+      }
+    ]
+  },
+  "public.statuses": {
+    "summary": "Справочник статусов для счетов и платежей",
+    "columns": [
+      {
+        "name": "id",
+        "type": "bigint",
+        "nullable": false,
+        "default": "nextval",
+        "pk": true,
+        "fk": null,
+        "comment": null
+      },
+      {
+        "name": "entity_type",
+        "type": "text",
+        "nullable": false,
+        "default": null,
+        "pk": false,
+        "fk": null,
+        "comment": "Тип сущности: invoice или payment"
+      },
+      {
+        "name": "code",
+        "type": "text",
+        "nullable": false,
+        "default": null,
+        "pk": false,
+        "fk": null,
+        "comment": "Уникальный код статуса в рамках типа сущности"
+      },
+      {
+        "name": "name",
+        "type": "text",
+        "nullable": false,
+        "default": null,
+        "pk": false,
+        "fk": null,
+        "comment": "Отображаемое название статуса"
+      },
+      {
+        "name": "description",
+        "type": "text",
+        "nullable": true,
+        "default": null,
+        "pk": false,
+        "fk": null,
+        "comment": null
+      },
+      {
+        "name": "color",
+        "type": "text",
+        "nullable": true,
+        "default": "'default'",
+        "pk": false,
+        "fk": null,
+        "comment": "Цвет для отображения в UI (Ant Design tag colors)"
+      },
+      {
+        "name": "is_final",
+        "type": "boolean",
+        "nullable": false,
+        "default": "false",
+        "pk": false,
+        "fk": null,
+        "comment": "Финальный статус (не может быть изменен)"
+      },
+      {
+        "name": "is_active",
+        "type": "boolean",
+        "nullable": false,
+        "default": "true",
+        "pk": false,
+        "fk": null,
+        "comment": "Активен ли статус для использования"
+      },
+      {
+        "name": "order_index",
+        "type": "integer",
+        "nullable": false,
+        "default": "0",
+        "pk": false,
+        "fk": null,
+        "comment": "Порядок сортировки в списках"
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "nullable": false,
+        "default": "now()",
+        "pk": false,
+        "fk": null,
+        "comment": null
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamptz",
+        "nullable": false,
+        "default": "now()",
+        "pk": false,
+        "fk": null,
+        "comment": null
+      }
+    ],
+    "primaryKey": [
+      "id"
+    ],
+    "foreignKeys": [],
+    "unique": [],
+    "checks": [
+      "2200_20176_10_not_null",
+      "2200_20176_11_not_null",
+      "2200_20176_1_not_null",
+      "2200_20176_2_not_null",
+      "2200_20176_3_not_null",
+      "2200_20176_4_not_null",
+      "2200_20176_7_not_null",
+      "2200_20176_8_not_null",
+      "2200_20176_9_not_null",
+      "statuses_entity_type_check"
+    ],
+    "indexes": [
+      {
+        "name": "statuses_active_idx",
+        "unique": false,
+        "columns": [
+          "is_active) WHERE (is_active = true"
+        ]
+      },
+      {
+        "name": "statuses_entity_code_ux",
+        "unique": false,
+        "columns": [
+          "entity_type",
+          "code"
+        ]
+      },
+      {
+        "name": "statuses_entity_idx",
+        "unique": false,
+        "columns": [
+          "entity_type"
+        ]
+      },
+      {
+        "name": "statuses_order_idx",
+        "unique": false,
+        "columns": [
+          "order_index"
+        ]
+      }
+    ]
+  },
+  "public.themes": {
+    "summary": "Theme configurations for PayHub application",
+    "columns": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "nullable": false,
+        "default": "gen_random_uuid()",
+        "pk": true,
+        "fk": null,
+        "comment": "Primary key for theme"
+      },
+      {
+        "name": "name",
+        "type": "varchar(100)",
+        "nullable": false,
+        "default": null,
+        "pk": false,
+        "fk": null,
+        "comment": "Human readable name for the theme"
+      },
+      {
+        "name": "description",
+        "type": "text",
+        "nullable": true,
+        "default": null,
+        "pk": false,
+        "fk": null,
+        "comment": "Optional description of the theme"
+      },
+      {
+        "name": "config",
+        "type": "jsonb",
+        "nullable": false,
+        "default": null,
+        "pk": false,
+        "fk": null,
+        "comment": "JSON configuration for theme colors, typography, layout etc."
+      },
+      {
+        "name": "is_default",
+        "type": "boolean",
+        "nullable": true,
+        "default": "false",
+        "pk": false,
+        "fk": null,
+        "comment": "Whether this is the default theme for the user or globally"
+      },
+      {
+        "name": "is_active",
+        "type": "boolean",
+        "nullable": true,
+        "default": "true",
+        "pk": false,
+        "fk": null,
+        "comment": "Whether this theme is active (soft delete flag)"
+      },
+      {
+        "name": "is_global",
+        "type": "boolean",
+        "nullable": true,
+        "default": "false",
+        "pk": false,
+        "fk": null,
+        "comment": "Whether this theme is available to all users"
+      },
+      {
+        "name": "user_id",
+        "type": "uuid",
+        "nullable": true,
+        "default": null,
+        "pk": false,
+        "fk": "public.users.id",
+        "comment": "User who owns this theme (NULL for system themes)"
+      },
+      {
+        "name": "shared_with_roles",
+        "type": "integer[]",
+        "nullable": true,
+        "default": null,
+        "pk": false,
+        "fk": null,
+        "comment": "Array of role IDs that can use this theme"
+      },
+      {
+        "name": "version",
+        "type": "integer",
+        "nullable": true,
+        "default": "1",
+        "pk": false,
+        "fk": null,
+        "comment": "Version number for theme (for future versioning support)"
+      },
+      {
+        "name": "parent_theme_id",
+        "type": "uuid",
+        "nullable": true,
+        "default": null,
+        "pk": false,
+        "fk": "public.themes.id",
+        "comment": "Parent theme if this is derived from another theme"
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "nullable": true,
+        "default": "now()",
+        "pk": false,
+        "fk": null,
+        "comment": null
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamptz",
+        "nullable": true,
+        "default": "now()",
+        "pk": false,
+        "fk": null,
+        "comment": null
+      },
+      {
+        "name": "created_by",
+        "type": "uuid",
+        "nullable": true,
+        "default": null,
+        "pk": false,
+        "fk": "public.users.id",
+        "comment": null
+      },
+      {
+        "name": "updated_by",
+        "type": "uuid",
+        "nullable": true,
+        "default": null,
+        "pk": false,
+        "fk": "public.users.id",
+        "comment": null
+      }
+    ],
+    "primaryKey": [
+      "id"
+    ],
+    "foreignKeys": [
+      {
+        "column": "created_by",
+        "references": "public.users.id"
+      },
+      {
+        "column": "parent_theme_id",
+        "references": "public.themes.id"
+      },
+      {
+        "column": "updated_by",
+        "references": "public.users.id"
+      },
+      {
+        "column": "user_id",
+        "references": "public.users.id"
+      }
+    ],
+    "unique": [],
+    "checks": [
+      "2200_21320_1_not_null",
+      "2200_21320_2_not_null",
+      "2200_21320_4_not_null",
+      "themes_config_not_empty",
+      "themes_name_length",
+      "themes_version_positive"
+    ],
+    "indexes": [
+      {
+        "name": "idx_themes_created_at",
+        "unique": false,
+        "columns": [
+          "created_at"
+        ]
+      },
+      {
+        "name": "idx_themes_is_active",
+        "unique": false,
+        "columns": [
+          "is_active"
+        ]
+      },
+      {
+        "name": "idx_themes_is_default",
+        "unique": false,
+        "columns": [
+          "is_default) WHERE (is_default = true"
+        ]
+      },
+      {
+        "name": "idx_themes_is_global",
+        "unique": false,
+        "columns": [
+          "is_global) WHERE (is_global = true"
+        ]
+      },
+      {
+        "name": "idx_themes_name",
+        "unique": false,
+        "columns": [
+          "name"
+        ]
+      },
+      {
+        "name": "idx_themes_unique_default_per_user",
+        "unique": false,
+        "columns": [
+          "user_id) WHERE ((is_default = true) AND (is_active = true) AND (is_global = false)"
+        ]
+      },
+      {
+        "name": "idx_themes_unique_global_default",
+        "unique": false,
+        "columns": [
+          "is_global) WHERE ((is_global = true) AND (is_default = true) AND (is_active = true)"
+        ]
+      },
+      {
+        "name": "idx_themes_user_id",
+        "unique": false,
+        "columns": [
+          "user_id"
+        ]
+      }
+    ]
+  },
+  "public.users": {
+    "summary": "Auth: Stores user login data within a secure schema.",
+    "columns": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "nullable": false,
+        "default": null,
+        "pk": true,
+        "fk": null,
+        "comment": null
+      },
+      {
+        "name": "email",
+        "type": "varchar(255)",
+        "nullable": false,
+        "default": null,
+        "pk": false,
+        "fk": null,
+        "comment": null
+      },
+      {
+        "name": "full_name",
+        "type": "varchar(255)",
+        "nullable": false,
+        "default": null,
+        "pk": false,
+        "fk": null,
+        "comment": null
+      },
+      {
+        "name": "is_active",
+        "type": "boolean",
+        "nullable": true,
+        "default": "true",
+        "pk": false,
+        "fk": null,
+        "comment": null
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "nullable": true,
+        "default": "now()",
+        "pk": false,
+        "fk": null,
+        "comment": null
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamptz",
+        "nullable": true,
+        "default": "now()",
+        "pk": false,
+        "fk": null,
+        "comment": null
+      },
+      {
+        "name": "role_id",
+        "type": "integer",
+        "nullable": true,
+        "default": null,
+        "pk": false,
+        "fk": "public.roles.id",
+        "comment": null
+      },
+      {
+        "name": "project_ids",
+        "type": "integer[]",
+        "nullable": true,
+        "default": null,
+        "pk": false,
+        "fk": null,
+        "comment": null
+      }
+    ],
+    "primaryKey": [
+      "id"
+    ],
+    "foreignKeys": [
+      {
+        "column": "role_id",
+        "references": "public.roles.id"
+      }
+    ],
+    "unique": [
+      {
+        "name": "users_email_key",
+        "column": "email"
+      }
+    ],
+    "checks": [
+      "2200_19405_1_not_null",
+      "2200_19405_2_not_null",
+      "2200_19405_3_not_null"
+    ],
+    "indexes": [
+      {
+        "name": "idx_users_email",
+        "unique": false,
+        "columns": [
+          "email"
+        ]
+      },
+      {
+        "name": "idx_users_is_active",
+        "unique": false,
+        "columns": [
+          "is_active"
+        ]
+      },
+      {
+        "name": "idx_users_project_ids",
+        "unique": false,
+        "columns": [
+          "project_ids"
+        ]
+      },
+      {
+        "name": "idx_users_role_id",
+        "unique": false,
+        "columns": [
+          "role_id) WHERE (role_id IS NOT NULL"
+        ]
+      },
+      {
+        "name": "users_email_key",
+        "unique": false,
+        "columns": [
+          "email"
+        ]
+      }
+    ]
+  },
+  "public.workflow_approval_progress": {
+    "summary": "История всех действий по согласованию платежей",
+    "columns": [
+      {
+        "name": "id",
+        "type": "integer",
+        "nullable": false,
+        "default": "nextval",
+        "pk": true,
+        "fk": null,
+        "comment": null
+      },
+      {
+        "name": "workflow_id",
+        "type": "integer",
+        "nullable": false,
+        "default": null,
+        "pk": false,
+        "fk": "public.payment_workflows.id",
+        "comment": "ID процесса согласования"
+      },
+      {
+        "name": "stage_id",
+        "type": "integer",
+        "nullable": true,
+        "default": null,
+        "pk": false,
+        "fk": "public.workflow_stages.id",
+        "comment": "ID этапа согласования"
+      },
+      {
+        "name": "stage_name",
+        "type": "varchar(255)",
+        "nullable": true,
+        "default": null,
+        "pk": false,
+        "fk": null,
+        "comment": "Название этапа согласования"
+      },
+      {
+        "name": "action",
+        "type": "varchar(50)",
+        "nullable": false,
+        "default": null,
+        "pk": false,
+        "fk": null,
+        "comment": "Действие: approved, rejected, cancelled, started"
+      },
+      {
+        "name": "user_id",
+        "type": "uuid",
+        "nullable": true,
+        "default": null,
+        "pk": false,
+        "fk": "public.users.id",
+        "comment": "ID пользователя, выполнившего действие"
+      },
+      {
+        "name": "user_name",
+        "type": "varchar(255)",
+        "nullable": true,
+        "default": null,
+        "pk": false,
+        "fk": null,
+        "comment": "Имя пользователя на момент действия"
+      },
+      {
+        "name": "comment",
+        "type": "text",
+        "nullable": true,
+        "default": null,
+        "pk": false,
+        "fk": null,
+        "comment": "Комментарий при одобрении"
+      },
+      {
+        "name": "reason",
+        "type": "text",
+        "nullable": true,
+        "default": null,
+        "pk": false,
+        "fk": null,
+        "comment": "Причина при отклонении или отмене"
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "nullable": true,
+        "default": "CURRENT_TIMESTAMP",
+        "pk": false,
+        "fk": null,
+        "comment": null
+      }
+    ],
+    "primaryKey": [
+      "id"
+    ],
+    "foreignKeys": [
+      {
+        "column": "stage_id",
+        "references": "public.workflow_stages.id"
+      },
+      {
+        "column": "user_id",
+        "references": "public.users.id"
+      },
+      {
+        "column": "workflow_id",
+        "references": "public.payment_workflows.id"
+      }
+    ],
+    "unique": [],
+    "checks": [
+      "2200_24253_1_not_null",
+      "2200_24253_2_not_null",
+      "2200_24253_5_not_null",
+      "workflow_approval_progress_action_check"
+    ],
+    "indexes": [
+      {
+        "name": "idx_workflow_approval_progress_created_at",
+        "unique": false,
+        "columns": [
+          "created_at"
+        ]
+      },
+      {
+        "name": "idx_workflow_approval_progress_user_created",
+        "unique": false,
+        "columns": [
+          "user_id",
+          "created_at DESC"
+        ]
+      },
+      {
+        "name": "idx_workflow_approval_progress_user_id",
+        "unique": false,
+        "columns": [
+          "user_id"
+        ]
+      },
+      {
+        "name": "idx_workflow_approval_progress_workflow_action",
+        "unique": false,
+        "columns": [
+          "workflow_id",
+          "action"
+        ]
+      },
+      {
+        "name": "idx_workflow_approval_progress_workflow_id",
+        "unique": false,
+        "columns": [
+          "workflow_id"
+        ]
+      }
+    ]
+  },
+  "public.workflow_stages": {
+    "summary": "Table workflow_stages",
+    "columns": [
+      {
+        "name": "id",
+        "type": "integer",
+        "nullable": false,
+        "default": "nextval",
+        "pk": true,
+        "fk": null,
+        "comment": null
+      },
+      {
+        "name": "workflow_id",
+        "type": "integer",
+        "nullable": false,
+        "default": null,
+        "pk": false,
+        "fk": "public.workflows.id",
+        "comment": null
+      },
+      {
+        "name": "position",
+        "type": "integer",
+        "nullable": false,
+        "default": null,
+        "pk": false,
+        "fk": null,
+        "comment": null
+      },
+      {
+        "name": "name",
+        "type": "varchar(255)",
+        "nullable": false,
+        "default": null,
+        "pk": false,
+        "fk": null,
+        "comment": null
+      },
+      {
+        "name": "description",
+        "type": "text",
+        "nullable": true,
+        "default": null,
+        "pk": false,
+        "fk": null,
+        "comment": "Описание этапа согласования"
+      },
+      {
+        "name": "stage_type",
+        "type": "varchar(50)",
+        "nullable": false,
+        "default": "'approval' varying",
+        "pk": false,
+        "fk": null,
+        "comment": null
+      },
+      {
+        "name": "assigned_roles",
+        "type": "array",
+        "nullable": true,
+        "default": "'{}'[]",
+        "pk": false,
+        "fk": null,
+        "comment": "Массив ID ролей, назначенных на этот этап"
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "nullable": true,
+        "default": "CURRENT_TIMESTAMP",
+        "pk": false,
+        "fk": null,
+        "comment": null
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamptz",
+        "nullable": true,
+        "default": "CURRENT_TIMESTAMP",
+        "pk": false,
+        "fk": null,
+        "comment": null
+      },
+      {
+        "name": "timeout_days",
+        "type": "integer",
+        "nullable": true,
+        "default": "3",
+        "pk": false,
+        "fk": null,
+        "comment": null
+      }
+    ],
+    "primaryKey": [
+      "id"
+    ],
+    "foreignKeys": [
+      {
+        "column": "workflow_id",
+        "references": "public.workflows.id"
+      }
+    ],
+    "unique": [],
+    "checks": [
+      "2200_20437_1_not_null",
+      "2200_20437_2_not_null",
+      "2200_20437_3_not_null",
+      "2200_20437_4_not_null",
+      "2200_20437_6_not_null"
+    ],
+    "indexes": [
+      {
+        "name": "idx_workflow_stages_position",
+        "unique": false,
+        "columns": [
+          "workflow_id",
+          "position"
+        ]
+      },
+      {
+        "name": "idx_workflow_stages_type",
+        "unique": false,
+        "columns": [
+          "stage_type"
+        ]
+      },
+      {
+        "name": "idx_workflow_stages_workflow_id",
+        "unique": false,
+        "columns": [
+          "workflow_id"
+        ]
+      }
+    ]
+  },
+  "public.workflows": {
+    "summary": "Workflow configurations - simplified without company isolation",
+    "columns": [
+      {
+        "name": "id",
+        "type": "integer",
+        "nullable": false,
+        "default": "nextval",
+        "pk": true,
+        "fk": null,
+        "comment": null
+      },
+      {
+        "name": "name",
+        "type": "varchar(255)",
+        "nullable": false,
+        "default": null,
+        "pk": false,
+        "fk": null,
+        "comment": null
+      },
+      {
+        "name": "description",
+        "type": "text",
+        "nullable": true,
+        "default": null,
+        "pk": false,
+        "fk": null,
+        "comment": null
+      },
+      {
+        "name": "is_active",
+        "type": "boolean",
+        "nullable": true,
+        "default": "true",
+        "pk": false,
+        "fk": null,
+        "comment": null
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "nullable": true,
+        "default": "CURRENT_TIMESTAMP",
+        "pk": false,
+        "fk": null,
+        "comment": null
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamptz",
+        "nullable": true,
+        "default": "CURRENT_TIMESTAMP",
+        "pk": false,
+        "fk": null,
+        "comment": null
+      },
+      {
+        "name": "invoice_type_ids",
+        "type": "integer[]",
+        "nullable": true,
+        "default": "'{}'[]",
+        "pk": false,
+        "fk": null,
+        "comment": "Массив ID типов заявок из таблицы invoice_types"
+      }
+    ],
+    "primaryKey": [
+      "id"
+    ],
+    "foreignKeys": [],
+    "unique": [],
+    "checks": [
+      "2200_20415_1_not_null",
+      "2200_20415_2_not_null"
+    ],
+    "indexes": [
+      {
+        "name": "idx_workflows_invoice_types",
+        "unique": false,
+        "columns": [
+          "invoice_type_ids"
+        ]
+      },
+      {
+        "name": "idx_workflows_is_active",
+        "unique": false,
+        "columns": [
+          "is_active"
+        ]
+      }
+    ]
+  }
+}

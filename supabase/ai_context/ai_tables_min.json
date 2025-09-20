@@ -1,0 +1,1574 @@
+{
+  "public.attachments": {
+    "summary": "File attachments storage metadata",
+    "columns": [
+      {
+        "name": "id",
+        "type": "integer",
+        "nullable": false,
+        "pk": true,
+        "fk": null
+      },
+      {
+        "name": "original_name",
+        "type": "varchar(255)",
+        "nullable": false,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "storage_path",
+        "type": "varchar(500)",
+        "nullable": false,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "size_bytes",
+        "type": "integer",
+        "nullable": false,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "mime_type",
+        "type": "varchar(100)",
+        "nullable": false,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "created_by",
+        "type": "uuid",
+        "nullable": false,
+        "pk": false,
+        "fk": "public.users.id"
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      }
+    ]
+  },
+  "public.contractor_types": {
+    "summary": "Types of contractors (suppliers, clients, etc.)",
+    "columns": [
+      {
+        "name": "id",
+        "type": "integer",
+        "nullable": false,
+        "pk": true,
+        "fk": null
+      },
+      {
+        "name": "code",
+        "type": "varchar(50)",
+        "nullable": false,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "name",
+        "type": "varchar(100)",
+        "nullable": false,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "description",
+        "type": "text",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      }
+    ]
+  },
+  "public.contractors": {
+    "summary": "Contractors (suppliers and payers) information",
+    "columns": [
+      {
+        "name": "id",
+        "type": "integer",
+        "nullable": false,
+        "pk": true,
+        "fk": null
+      },
+      {
+        "name": "name",
+        "type": "varchar(255)",
+        "nullable": false,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "inn",
+        "type": "varchar(12)",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "type_id",
+        "type": "integer",
+        "nullable": true,
+        "pk": false,
+        "fk": "public.contractor_types.id"
+      },
+      {
+        "name": "is_active",
+        "type": "boolean",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "created_by",
+        "type": "uuid",
+        "nullable": true,
+        "pk": false,
+        "fk": "public.users.id"
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamptz",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "contractor_search",
+        "type": "tsvector",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "supplier_code",
+        "type": "varchar(10)",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      }
+    ]
+  },
+  "public.invoice_documents": {
+    "summary": "Таблица связи документов со счетами. РАЗРЕШЕНО множество документов на один счет!",
+    "columns": [
+      {
+        "name": "id",
+        "type": "integer",
+        "nullable": false,
+        "pk": true,
+        "fk": null
+      },
+      {
+        "name": "invoice_id",
+        "type": "integer",
+        "nullable": true,
+        "pk": false,
+        "fk": "public.invoices.id"
+      },
+      {
+        "name": "attachment_id",
+        "type": "integer",
+        "nullable": true,
+        "pk": false,
+        "fk": "public.attachments.id"
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      }
+    ]
+  },
+  "public.invoice_history": {
+    "summary": "История всех изменений счетов, платежей и связанных документов",
+    "columns": [
+      {
+        "name": "id",
+        "type": "bigint",
+        "nullable": false,
+        "pk": true,
+        "fk": null
+      },
+      {
+        "name": "invoice_id",
+        "type": "integer",
+        "nullable": true,
+        "pk": false,
+        "fk": "public.invoices.id"
+      },
+      {
+        "name": "event_type",
+        "type": "varchar(50)",
+        "nullable": false,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "event_date",
+        "type": "timestamptz",
+        "nullable": false,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "action",
+        "type": "varchar(100)",
+        "nullable": false,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "description",
+        "type": "text",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "payment_id",
+        "type": "integer",
+        "nullable": true,
+        "pk": false,
+        "fk": "public.payments.id"
+      },
+      {
+        "name": "document_id",
+        "type": "integer",
+        "nullable": true,
+        "pk": false,
+        "fk": "public.invoice_documents.id"
+      },
+      {
+        "name": "attachment_id",
+        "type": "integer",
+        "nullable": true,
+        "pk": false,
+        "fk": "public.attachments.id"
+      },
+      {
+        "name": "status_from",
+        "type": "varchar(50)",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "status_to",
+        "type": "varchar(50)",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "amount_from",
+        "type": "numeric(15,2)",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "amount_to",
+        "type": "numeric(15,2)",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "changed_fields",
+        "type": "jsonb",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "old_values",
+        "type": "jsonb",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "new_values",
+        "type": "jsonb",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "user_id",
+        "type": "uuid",
+        "nullable": true,
+        "pk": false,
+        "fk": "public.users.id"
+      },
+      {
+        "name": "user_name",
+        "type": "varchar(255)",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "user_role",
+        "type": "varchar(100)",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "metadata",
+        "type": "jsonb",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "currency",
+        "type": "varchar(10)",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      }
+    ]
+  },
+  "public.invoice_types": {
+    "summary": "Types of invoices (goods, works, rent, utilities)",
+    "columns": [
+      {
+        "name": "id",
+        "type": "integer",
+        "nullable": false,
+        "pk": true,
+        "fk": null
+      },
+      {
+        "name": "code",
+        "type": "varchar(50)",
+        "nullable": false,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "name",
+        "type": "varchar(100)",
+        "nullable": false,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "description",
+        "type": "text",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      }
+    ]
+  },
+  "public.invoices": {
+    "summary": "Invoices table - estimated_delivery_date field removed, delivery calculations now done in application layer",
+    "columns": [
+      {
+        "name": "id",
+        "type": "integer",
+        "nullable": false,
+        "pk": true,
+        "fk": null
+      },
+      {
+        "name": "invoice_number",
+        "type": "varchar(100)",
+        "nullable": false,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "invoice_date",
+        "type": "date",
+        "nullable": false,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "project_id",
+        "type": "integer",
+        "nullable": true,
+        "pk": false,
+        "fk": "public.projects.id"
+      },
+      {
+        "name": "type_id",
+        "type": "integer",
+        "nullable": false,
+        "pk": false,
+        "fk": "public.invoice_types.id"
+      },
+      {
+        "name": "supplier_id",
+        "type": "integer",
+        "nullable": false,
+        "pk": false,
+        "fk": "public.contractors.id"
+      },
+      {
+        "name": "payer_id",
+        "type": "integer",
+        "nullable": false,
+        "pk": false,
+        "fk": "public.contractors.id"
+      },
+      {
+        "name": "amount_net",
+        "type": "numeric(15,2)",
+        "nullable": false,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "vat_rate",
+        "type": "numeric(5,2)",
+        "nullable": false,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "vat_amount",
+        "type": "numeric(15,2)",
+        "nullable": false,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "total_amount",
+        "type": "numeric(15,2)",
+        "nullable": false,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "paid_amount",
+        "type": "numeric(15,2)",
+        "nullable": false,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "description",
+        "type": "text",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "priority",
+        "type": "priority_level",
+        "nullable": false,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "created_by",
+        "type": "uuid",
+        "nullable": false,
+        "pk": false,
+        "fk": "public.users.id"
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamptz",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "status",
+        "type": "varchar(50)",
+        "nullable": false,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "delivery_days",
+        "type": "integer",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "material_responsible_person_id",
+        "type": "integer",
+        "nullable": true,
+        "pk": false,
+        "fk": "public.material_responsible_persons.id"
+      },
+      {
+        "name": "internal_number",
+        "type": "varchar(50)",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "delivery_days_type",
+        "type": "varchar(20)",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "paid_at",
+        "type": "timestamptz",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      }
+    ]
+  },
+  "public.material_responsible_persons": {
+    "summary": "Материально ответственные лица (МОЛ) - сотрудники, на которых приходят материалы",
+    "columns": [
+      {
+        "name": "id",
+        "type": "integer",
+        "nullable": false,
+        "pk": true,
+        "fk": null
+      },
+      {
+        "name": "full_name",
+        "type": "varchar(255)",
+        "nullable": false,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "phone",
+        "type": "varchar(50)",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "position",
+        "type": "varchar(255)",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "email",
+        "type": "varchar(255)",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "is_active",
+        "type": "boolean",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamptz",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "created_by",
+        "type": "uuid",
+        "nullable": true,
+        "pk": false,
+        "fk": "public.users.id"
+      }
+    ]
+  },
+  "public.payment_types": {
+    "summary": "Справочник типов платежей",
+    "columns": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "nullable": false,
+        "pk": true,
+        "fk": null
+      },
+      {
+        "name": "name",
+        "type": "varchar(100)",
+        "nullable": false,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "code",
+        "type": "varchar(50)",
+        "nullable": false,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "description",
+        "type": "text",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "is_active",
+        "type": "boolean",
+        "nullable": false,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "display_order",
+        "type": "integer",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "nullable": false,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamptz",
+        "nullable": false,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "created_by",
+        "type": "uuid",
+        "nullable": true,
+        "pk": false,
+        "fk": "public.users.id"
+      },
+      {
+        "name": "updated_by",
+        "type": "uuid",
+        "nullable": true,
+        "pk": false,
+        "fk": "public.users.id"
+      }
+    ]
+  },
+  "public.payment_workflows": {
+    "summary": "Table payment_workflows",
+    "columns": [
+      {
+        "name": "id",
+        "type": "integer",
+        "nullable": false,
+        "pk": true,
+        "fk": null
+      },
+      {
+        "name": "payment_id",
+        "type": "integer",
+        "nullable": false,
+        "pk": false,
+        "fk": "public.payments.id"
+      },
+      {
+        "name": "invoice_id",
+        "type": "integer",
+        "nullable": true,
+        "pk": false,
+        "fk": "public.invoices.id"
+      },
+      {
+        "name": "workflow_id",
+        "type": "integer",
+        "nullable": false,
+        "pk": false,
+        "fk": "public.workflows.id"
+      },
+      {
+        "name": "current_stage_id",
+        "type": "integer",
+        "nullable": true,
+        "pk": false,
+        "fk": "public.workflow_stages.id"
+      },
+      {
+        "name": "current_stage_position",
+        "type": "integer",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "status",
+        "type": "varchar(50)",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "amount",
+        "type": "numeric(15,2)",
+        "nullable": false,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "description",
+        "type": "text",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "contractor_id",
+        "type": "integer",
+        "nullable": true,
+        "pk": false,
+        "fk": "public.contractors.id"
+      },
+      {
+        "name": "project_id",
+        "type": "integer",
+        "nullable": true,
+        "pk": false,
+        "fk": "public.projects.id"
+      },
+      {
+        "name": "payment_date",
+        "type": "date",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "stages_total",
+        "type": "integer",
+        "nullable": false,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "stages_completed",
+        "type": "integer",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "approval_progress",
+        "type": "jsonb",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "started_at",
+        "type": "timestamptz",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "started_by",
+        "type": "uuid",
+        "nullable": true,
+        "pk": false,
+        "fk": "public.users.id"
+      },
+      {
+        "name": "completed_at",
+        "type": "timestamptz",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "completed_by",
+        "type": "uuid",
+        "nullable": true,
+        "pk": false,
+        "fk": "public.users.id"
+      },
+      {
+        "name": "cancelled_at",
+        "type": "timestamptz",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "cancelled_by",
+        "type": "uuid",
+        "nullable": true,
+        "pk": false,
+        "fk": "public.users.id"
+      },
+      {
+        "name": "cancelled_reason",
+        "type": "text",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamptz",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      }
+    ]
+  },
+  "public.payments": {
+    "summary": "Платежи по счетам",
+    "columns": [
+      {
+        "name": "id",
+        "type": "integer",
+        "nullable": false,
+        "pk": true,
+        "fk": null
+      },
+      {
+        "name": "invoice_id",
+        "type": "integer",
+        "nullable": false,
+        "pk": false,
+        "fk": "public.invoices.id"
+      },
+      {
+        "name": "payment_date",
+        "type": "date",
+        "nullable": false,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "payer_id",
+        "type": "integer",
+        "nullable": false,
+        "pk": false,
+        "fk": "public.contractors.id"
+      },
+      {
+        "name": "comment",
+        "type": "text",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamptz",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "status",
+        "type": "varchar(50)",
+        "nullable": false,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "type_id",
+        "type": "integer",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "internal_number",
+        "type": "varchar(80)",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "vat_amount",
+        "type": "numeric(15,2)",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "vat_rate",
+        "type": "numeric(5,2)",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "total_amount",
+        "type": "numeric(15,2)",
+        "nullable": false,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "amount_net",
+        "type": "numeric(15,2)",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "created_by",
+        "type": "uuid",
+        "nullable": true,
+        "pk": false,
+        "fk": "public.users.id"
+      },
+      {
+        "name": "payment_type_id",
+        "type": "uuid",
+        "nullable": true,
+        "pk": false,
+        "fk": "public.payment_types.id"
+      }
+    ]
+  },
+  "public.projects": {
+    "summary": "Project records - simplified without company isolation",
+    "columns": [
+      {
+        "name": "id",
+        "type": "integer",
+        "nullable": false,
+        "pk": true,
+        "fk": null
+      },
+      {
+        "name": "name",
+        "type": "varchar(255)",
+        "nullable": false,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "address",
+        "type": "text",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "is_active",
+        "type": "boolean",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamptz",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "project_code",
+        "type": "varchar(4)",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      }
+    ]
+  },
+  "public.roles": {
+    "summary": "User roles - simplified without permissions, hierarchy, or company isolation",
+    "columns": [
+      {
+        "name": "id",
+        "type": "integer",
+        "nullable": false,
+        "pk": true,
+        "fk": null
+      },
+      {
+        "name": "code",
+        "type": "varchar(50)",
+        "nullable": false,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "name",
+        "type": "varchar(100)",
+        "nullable": false,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "description",
+        "type": "text",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "is_active",
+        "type": "boolean",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamptz",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "view_own_project_only",
+        "type": "boolean",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      }
+    ]
+  },
+  "public.statuses": {
+    "summary": "Справочник статусов для счетов и платежей",
+    "columns": [
+      {
+        "name": "id",
+        "type": "bigint",
+        "nullable": false,
+        "pk": true,
+        "fk": null
+      },
+      {
+        "name": "entity_type",
+        "type": "text",
+        "nullable": false,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "code",
+        "type": "text",
+        "nullable": false,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "name",
+        "type": "text",
+        "nullable": false,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "description",
+        "type": "text",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "color",
+        "type": "text",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "is_final",
+        "type": "boolean",
+        "nullable": false,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "is_active",
+        "type": "boolean",
+        "nullable": false,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "order_index",
+        "type": "integer",
+        "nullable": false,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "nullable": false,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamptz",
+        "nullable": false,
+        "pk": false,
+        "fk": null
+      }
+    ]
+  },
+  "public.themes": {
+    "summary": "Theme configurations for PayHub application",
+    "columns": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "nullable": false,
+        "pk": true,
+        "fk": null
+      },
+      {
+        "name": "name",
+        "type": "varchar(100)",
+        "nullable": false,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "description",
+        "type": "text",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "config",
+        "type": "jsonb",
+        "nullable": false,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "is_default",
+        "type": "boolean",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "is_active",
+        "type": "boolean",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "is_global",
+        "type": "boolean",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "user_id",
+        "type": "uuid",
+        "nullable": true,
+        "pk": false,
+        "fk": "public.users.id"
+      },
+      {
+        "name": "shared_with_roles",
+        "type": "integer[]",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "version",
+        "type": "integer",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "parent_theme_id",
+        "type": "uuid",
+        "nullable": true,
+        "pk": false,
+        "fk": "public.themes.id"
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamptz",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "created_by",
+        "type": "uuid",
+        "nullable": true,
+        "pk": false,
+        "fk": "public.users.id"
+      },
+      {
+        "name": "updated_by",
+        "type": "uuid",
+        "nullable": true,
+        "pk": false,
+        "fk": "public.users.id"
+      }
+    ]
+  },
+  "public.users": {
+    "summary": "Auth: Stores user login data within a secure schema.",
+    "columns": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "nullable": false,
+        "pk": true,
+        "fk": null
+      },
+      {
+        "name": "email",
+        "type": "varchar(255)",
+        "nullable": false,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "full_name",
+        "type": "varchar(255)",
+        "nullable": false,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "is_active",
+        "type": "boolean",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamptz",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "role_id",
+        "type": "integer",
+        "nullable": true,
+        "pk": false,
+        "fk": "public.roles.id"
+      },
+      {
+        "name": "project_ids",
+        "type": "integer[]",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      }
+    ]
+  },
+  "public.workflow_approval_progress": {
+    "summary": "История всех действий по согласованию платежей",
+    "columns": [
+      {
+        "name": "id",
+        "type": "integer",
+        "nullable": false,
+        "pk": true,
+        "fk": null
+      },
+      {
+        "name": "workflow_id",
+        "type": "integer",
+        "nullable": false,
+        "pk": false,
+        "fk": "public.payment_workflows.id"
+      },
+      {
+        "name": "stage_id",
+        "type": "integer",
+        "nullable": true,
+        "pk": false,
+        "fk": "public.workflow_stages.id"
+      },
+      {
+        "name": "stage_name",
+        "type": "varchar(255)",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "action",
+        "type": "varchar(50)",
+        "nullable": false,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "user_id",
+        "type": "uuid",
+        "nullable": true,
+        "pk": false,
+        "fk": "public.users.id"
+      },
+      {
+        "name": "user_name",
+        "type": "varchar(255)",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "comment",
+        "type": "text",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "reason",
+        "type": "text",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      }
+    ]
+  },
+  "public.workflow_stages": {
+    "summary": "Table workflow_stages",
+    "columns": [
+      {
+        "name": "id",
+        "type": "integer",
+        "nullable": false,
+        "pk": true,
+        "fk": null
+      },
+      {
+        "name": "workflow_id",
+        "type": "integer",
+        "nullable": false,
+        "pk": false,
+        "fk": "public.workflows.id"
+      },
+      {
+        "name": "position",
+        "type": "integer",
+        "nullable": false,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "name",
+        "type": "varchar(255)",
+        "nullable": false,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "description",
+        "type": "text",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "stage_type",
+        "type": "varchar(50)",
+        "nullable": false,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "assigned_roles",
+        "type": "array",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamptz",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "timeout_days",
+        "type": "integer",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      }
+    ]
+  },
+  "public.workflows": {
+    "summary": "Workflow configurations - simplified without company isolation",
+    "columns": [
+      {
+        "name": "id",
+        "type": "integer",
+        "nullable": false,
+        "pk": true,
+        "fk": null
+      },
+      {
+        "name": "name",
+        "type": "varchar(255)",
+        "nullable": false,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "description",
+        "type": "text",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "is_active",
+        "type": "boolean",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamptz",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      },
+      {
+        "name": "invoice_type_ids",
+        "type": "integer[]",
+        "nullable": true,
+        "pk": false,
+        "fk": null
+      }
+    ]
+  }
+}

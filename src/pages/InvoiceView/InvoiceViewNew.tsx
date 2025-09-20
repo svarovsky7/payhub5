@@ -226,16 +226,19 @@ export const InvoiceViewNew: React.FC = () => {
       const totalAmount = Number(invoice.total_amount || 0)
 
       // Calculate payment summary
-      const payments = invoice.payments || []
+      // Используем данные платежей из paymentsResponse вместо invoice.payments
+      const payments = paymentsResponse?.data || []
       const paidAmount = payments
-        .filter((p: any) => p.status === 'completed')
-        .reduce((sum: number, p: any) => sum + Number(p.amount_with_vat || 0), 0)
+        .filter((p: any) => p.status === 'paid' || p.status === 'completed')
+        .reduce((sum: number, p: any) => sum + Number(p.total_amount || 0), 0)
 
       const pendingAmount = payments
-        .filter((p: any) => p.status === 'pending' || p.status === 'processing')
-        .reduce((sum: number, p: any) => sum + Number(p.amount_with_vat || 0), 0)
+        .filter((p: any) => p.status === 'pending' || p.status === 'processing' ||
+                           p.status === 'approved' || p.status === 'scheduled' ||
+                           p.status === 'draft')
+        .reduce((sum: number, p: any) => sum + Number(p.total_amount || 0), 0)
 
-      const balance = totalAmount - paidAmount
+      const balance = totalAmount - paidAmount - pendingAmount
 
       setFinancialSummary({
         amountNet,
@@ -283,7 +286,7 @@ export const InvoiceViewNew: React.FC = () => {
         setDeliveryDate(calculatedDate)
       }
     }
-  }, [invoice, form])
+  }, [invoice, form, paymentsResponse])
 
   // Track form changes
   const handleFormChange = () => {
@@ -1054,14 +1057,24 @@ const handleAddPayment = () => {
     return
   }
 
+  // Рассчитываем сумму всех существующих платежей
+  const totalPayments = (paymentsResponse?.data || []).reduce((sum, payment) => {
+    return sum + (payment.total_amount || 0)
+  }, 0)
+
   // Устанавливаем начальные значения для формы платежа
-  const remainingAmount = invoice.total_amount - (invoice.paid_amount || 0)
+  const remainingAmount = invoice.total_amount - totalPayments
   const vatRate = invoice.vat_rate || 20
   const vatAmount = remainingAmount * vatRate / (100 + vatRate)
   const amountNet = remainingAmount - vatAmount
 
+  // Сначала сбрасываем форму
+  paymentForm.resetFields()
+
+  // Затем устанавливаем значения (без предзаполнения типа платежа)
   paymentForm.setFieldsValue({
     payment_date: dayjs(),
+    // Не предзаполняем тип платежа
     total_amount: remainingAmount > 0 ? remainingAmount : 0,
     vat_rate: vatRate,
     vat_amount: parseFloat(vatAmount.toFixed(2)),
@@ -1083,6 +1096,17 @@ const handleCreatePayment = async () => {
       values,
       defaultStatus: 'draft'
     })
+
+    // Проверяем обязательные поля
+    if (!values.payment_date) {
+      message.error('Выберите дату платежа')
+      return
+    }
+
+    if (!values.payment_type_id) {
+      message.error('Выберите тип платежа')
+      return
+    }
 
     const { PaymentCrudService } = await import('@/services/payments/crud')
 
@@ -1146,7 +1170,7 @@ const handleEditPayment = (payment: any) => {
   paymentEditForm.setFieldsValue({
     payment_date: payment.payment_date ? dayjs(payment.payment_date) : dayjs(),
     total_amount: payment.total_amount || 0,
-    payment_type_id: payment.payment_type_id || undefined, // Добавляем тип платежа
+    type_id: payment.type_id || undefined, // Добавляем тип платежа
     vat_rate: vatRate,
     vat_amount: parseFloat(vatAmount.toFixed(2)),
     amount_net: parseFloat(amountNet.toFixed(2)),
@@ -1662,7 +1686,6 @@ const loadDocuments = useCallback(async () => {
 
   try {
     // Используем метод из file-storage.ts который правильно объединяет таблицы
-    const { InvoiceFileStorage } = await import('@/services/invoices/file-storage')
     const result = await InvoiceFileStorage.getInvoiceDocuments(id)
 
     if (result.error) {
@@ -1779,8 +1802,8 @@ const renderPayments = () => {
           )
         },
         {
-          title: 'Тип',
-          dataIndex: 'payment_type_id',
+          title: 'Тип платежа',
+          dataIndex: 'type_id',
           key: 'payment_type',
           width: 150,
           render: (typeId: string) => {
@@ -1788,7 +1811,7 @@ const renderPayments = () => {
             return paymentType ? (
               <Tag color="blue">{paymentType.name}</Tag>
             ) : (
-              <Text type="secondary">-</Text>
+              <Text type="secondary">Не указан</Text>
             )
           }
         },
@@ -1916,7 +1939,6 @@ const renderDocuments = () => (
                     })
 
                     // Используем метод getFileDownloadUrl для получения URL
-                    const { InvoiceFileStorage } = await import('@/services/invoices/file-storage')
                     const result = await InvoiceFileStorage.getFileDownloadUrl(doc.storage_path)
 
                     if (result.error) {
@@ -2575,7 +2597,7 @@ const renderHistory = () => {
             </Col>
             <Col span={12}>
               <Form.Item
-                name="payment_type_id"
+                name="type_id"
                 label="Тип платежа"
                 rules={[{ required: true, message: 'Выберите тип платежа' }]}
               >
@@ -2708,7 +2730,9 @@ const renderHistory = () => {
                 <div>
                   <Text strong style={{ fontSize: 16, color: currentPaymentAmount > 0 ? '#52c41a' : '#ff4d4f' }}>
                     {new Intl.NumberFormat('ru-RU').format(
-                      Math.max(0, (invoice?.total_amount || 0) - (invoice?.paid_amount || 0) - currentPaymentAmount)
+                      Math.max(0, (invoice?.total_amount || 0) -
+                        ((paymentsResponse?.data || []).reduce((sum, p) => sum + (p.total_amount || 0), 0)) -
+                        currentPaymentAmount)
                     )} {invoice?.currency || 'RUB'}
                   </Text>
                   {currentPaymentAmount > 0 && (
@@ -2755,7 +2779,7 @@ const renderHistory = () => {
             </Col>
             <Col span={12}>
               <Form.Item
-                name="payment_type_id"
+                name="type_id"
                 label="Тип платежа"
                 rules={[{ required: true, message: 'Выберите тип платежа' }]}
               >
@@ -2885,7 +2909,11 @@ const renderHistory = () => {
                 <div>
                   <Text strong style={{ fontSize: 16 }}>
                     {new Intl.NumberFormat('ru-RU').format(
-                      Math.max(0, (invoice?.total_amount || 0) - (invoice?.paid_amount || 0))
+                      Math.max(0, (invoice?.total_amount || 0) -
+                        ((paymentsResponse?.data || [])
+                          .filter(p => p.id !== editingPayment?.id) // Исключаем редактируемый платеж
+                          .reduce((sum, p) => sum + (p.total_amount || 0), 0)) -
+                        (editingPayment?.total_amount || 0))
                     )} {invoice?.currency || 'RUB'}
                   </Text>
                 </div>

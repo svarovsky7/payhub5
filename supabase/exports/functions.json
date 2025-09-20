@@ -34,19 +34,19 @@
     "comment": null,
     "sql": "CREATE OR REPLACE FUNCTION extensions.algorithm_sign(signables text, secret text, algorithm text)\n RETURNS text\n LANGUAGE sql\n IMMUTABLE\nAS $function$\nWITH\n  alg AS (\n    SELECT CASE\n      WHEN algorithm = 'HS256' THEN 'sha256'\n      WHEN algorithm = 'HS384' THEN 'sha384'\n      WHEN algorithm = 'HS512' THEN 'sha512'\n      ELSE '' END AS id)  -- hmac throws error\nSELECT extensions.url_encode(extensions.hmac(signables, secret, alg.id)) FROM alg;\n$function$\n"
   },
-  "extensions.armor(bytea)": {
-    "schema": "extensions",
-    "name": "armor",
-    "arguments": "bytea",
-    "comment": null,
-    "sql": "CREATE OR REPLACE FUNCTION extensions.armor(bytea)\n RETURNS text\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pg_armor$function$\n"
-  },
   "extensions.armor(bytea, text[], text[])": {
     "schema": "extensions",
     "name": "armor",
     "arguments": "bytea, text[], text[]",
     "comment": null,
     "sql": "CREATE OR REPLACE FUNCTION extensions.armor(bytea, text[], text[])\n RETURNS text\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pg_armor$function$\n"
+  },
+  "extensions.armor(bytea)": {
+    "schema": "extensions",
+    "name": "armor",
+    "arguments": "bytea",
+    "comment": null,
+    "sql": "CREATE OR REPLACE FUNCTION extensions.armor(bytea)\n RETURNS text\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pg_armor$function$\n"
   },
   "extensions.crypt(text, text)": {
     "schema": "extensions",
@@ -76,19 +76,19 @@
     "comment": null,
     "sql": "CREATE OR REPLACE FUNCTION extensions.decrypt_iv(bytea, bytea, bytea, text)\n RETURNS bytea\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pg_decrypt_iv$function$\n"
   },
-  "extensions.digest(bytea, text)": {
-    "schema": "extensions",
-    "name": "digest",
-    "arguments": "bytea, text",
-    "comment": null,
-    "sql": "CREATE OR REPLACE FUNCTION extensions.digest(bytea, text)\n RETURNS bytea\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pg_digest$function$\n"
-  },
   "extensions.digest(text, text)": {
     "schema": "extensions",
     "name": "digest",
     "arguments": "text, text",
     "comment": null,
     "sql": "CREATE OR REPLACE FUNCTION extensions.digest(text, text)\n RETURNS bytea\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pg_digest$function$\n"
+  },
+  "extensions.digest(bytea, text)": {
+    "schema": "extensions",
+    "name": "digest",
+    "arguments": "bytea, text",
+    "comment": null,
+    "sql": "CREATE OR REPLACE FUNCTION extensions.digest(bytea, text)\n RETURNS bytea\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pg_digest$function$\n"
   },
   "extensions.encrypt(bytea, bytea, text)": {
     "schema": "extensions",
@@ -118,19 +118,19 @@
     "comment": null,
     "sql": "CREATE OR REPLACE FUNCTION extensions.gen_random_uuid()\n RETURNS uuid\n LANGUAGE c\n PARALLEL SAFE\nAS '$libdir/pgcrypto', $function$pg_random_uuid$function$\n"
   },
-  "extensions.gen_salt(text)": {
-    "schema": "extensions",
-    "name": "gen_salt",
-    "arguments": "text",
-    "comment": null,
-    "sql": "CREATE OR REPLACE FUNCTION extensions.gen_salt(text)\n RETURNS text\n LANGUAGE c\n PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pg_gen_salt$function$\n"
-  },
   "extensions.gen_salt(text, integer)": {
     "schema": "extensions",
     "name": "gen_salt",
     "arguments": "text, integer",
     "comment": null,
     "sql": "CREATE OR REPLACE FUNCTION extensions.gen_salt(text, integer)\n RETURNS text\n LANGUAGE c\n PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pg_gen_salt_rounds$function$\n"
+  },
+  "extensions.gen_salt(text)": {
+    "schema": "extensions",
+    "name": "gen_salt",
+    "arguments": "text",
+    "comment": null,
+    "sql": "CREATE OR REPLACE FUNCTION extensions.gen_salt(text)\n RETURNS text\n LANGUAGE c\n PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pg_gen_salt$function$\n"
   },
   "extensions.grant_pg_cron_access()": {
     "schema": "extensions",
@@ -153,19 +153,19 @@
     "comment": "Grants access to pg_net",
     "sql": "CREATE OR REPLACE FUNCTION extensions.grant_pg_net_access()\n RETURNS event_trigger\n LANGUAGE plpgsql\nAS $function$\nBEGIN\n  IF EXISTS (\n    SELECT 1\n    FROM pg_event_trigger_ddl_commands() AS ev\n    JOIN pg_extension AS ext\n    ON ev.objid = ext.oid\n    WHERE ext.extname = 'pg_net'\n  )\n  THEN\n    IF NOT EXISTS (\n      SELECT 1\n      FROM pg_roles\n      WHERE rolname = 'supabase_functions_admin'\n    )\n    THEN\n      CREATE USER supabase_functions_admin NOINHERIT CREATEROLE LOGIN NOREPLICATION;\n    END IF;\n\n    GRANT USAGE ON SCHEMA net TO supabase_functions_admin, postgres, anon, authenticated, service_role;\n\n    IF EXISTS (\n      SELECT FROM pg_extension\n      WHERE extname = 'pg_net'\n      -- all versions in use on existing projects as of 2025-02-20\n      -- version 0.12.0 onwards don't need these applied\n      AND extversion IN ('0.2', '0.6', '0.7', '0.7.1', '0.8', '0.10.0', '0.11.0')\n    ) THEN\n      ALTER function net.http_get(url text, params jsonb, headers jsonb, timeout_milliseconds integer) SECURITY DEFINER;\n      ALTER function net.http_post(url text, body jsonb, params jsonb, headers jsonb, timeout_milliseconds integer) SECURITY DEFINER;\n\n      ALTER function net.http_get(url text, params jsonb, headers jsonb, timeout_milliseconds integer) SET search_path = net;\n      ALTER function net.http_post(url text, body jsonb, params jsonb, headers jsonb, timeout_milliseconds integer) SET search_path = net;\n\n      REVOKE ALL ON FUNCTION net.http_get(url text, params jsonb, headers jsonb, timeout_milliseconds integer) FROM PUBLIC;\n      REVOKE ALL ON FUNCTION net.http_post(url text, body jsonb, params jsonb, headers jsonb, timeout_milliseconds integer) FROM PUBLIC;\n\n      GRANT EXECUTE ON FUNCTION net.http_get(url text, params jsonb, headers jsonb, timeout_milliseconds integer) TO supabase_functions_admin, postgres, anon, authenticated, service_role;\n      GRANT EXECUTE ON FUNCTION net.http_post(url text, body jsonb, params jsonb, headers jsonb, timeout_milliseconds integer) TO supabase_functions_admin, postgres, anon, authenticated, service_role;\n    END IF;\n  END IF;\nEND;\n$function$\n"
   },
-  "extensions.hmac(text, text, text)": {
-    "schema": "extensions",
-    "name": "hmac",
-    "arguments": "text, text, text",
-    "comment": null,
-    "sql": "CREATE OR REPLACE FUNCTION extensions.hmac(text, text, text)\n RETURNS bytea\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pg_hmac$function$\n"
-  },
   "extensions.hmac(bytea, bytea, text)": {
     "schema": "extensions",
     "name": "hmac",
     "arguments": "bytea, bytea, text",
     "comment": null,
     "sql": "CREATE OR REPLACE FUNCTION extensions.hmac(bytea, bytea, text)\n RETURNS bytea\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pg_hmac$function$\n"
+  },
+  "extensions.hmac(text, text, text)": {
+    "schema": "extensions",
+    "name": "hmac",
+    "arguments": "text, text, text",
+    "comment": null,
+    "sql": "CREATE OR REPLACE FUNCTION extensions.hmac(text, text, text)\n RETURNS bytea\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pg_hmac$function$\n"
   },
   "extensions.pgp_armor_headers(text, OUT key text, OUT value text)": {
     "schema": "extensions",
@@ -202,12 +202,12 @@
     "comment": null,
     "sql": "CREATE OR REPLACE FUNCTION extensions.pgp_pub_decrypt(bytea, bytea, text)\n RETURNS text\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pgp_pub_decrypt_text$function$\n"
   },
-  "extensions.pgp_pub_decrypt_bytea(bytea, bytea)": {
+  "extensions.pgp_pub_decrypt_bytea(bytea, bytea, text)": {
     "schema": "extensions",
     "name": "pgp_pub_decrypt_bytea",
-    "arguments": "bytea, bytea",
+    "arguments": "bytea, bytea, text",
     "comment": null,
-    "sql": "CREATE OR REPLACE FUNCTION extensions.pgp_pub_decrypt_bytea(bytea, bytea)\n RETURNS bytea\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pgp_pub_decrypt_bytea$function$\n"
+    "sql": "CREATE OR REPLACE FUNCTION extensions.pgp_pub_decrypt_bytea(bytea, bytea, text)\n RETURNS bytea\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pgp_pub_decrypt_bytea$function$\n"
   },
   "extensions.pgp_pub_decrypt_bytea(bytea, bytea, text, text)": {
     "schema": "extensions",
@@ -216,12 +216,12 @@
     "comment": null,
     "sql": "CREATE OR REPLACE FUNCTION extensions.pgp_pub_decrypt_bytea(bytea, bytea, text, text)\n RETURNS bytea\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pgp_pub_decrypt_bytea$function$\n"
   },
-  "extensions.pgp_pub_decrypt_bytea(bytea, bytea, text)": {
+  "extensions.pgp_pub_decrypt_bytea(bytea, bytea)": {
     "schema": "extensions",
     "name": "pgp_pub_decrypt_bytea",
-    "arguments": "bytea, bytea, text",
+    "arguments": "bytea, bytea",
     "comment": null,
-    "sql": "CREATE OR REPLACE FUNCTION extensions.pgp_pub_decrypt_bytea(bytea, bytea, text)\n RETURNS bytea\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pgp_pub_decrypt_bytea$function$\n"
+    "sql": "CREATE OR REPLACE FUNCTION extensions.pgp_pub_decrypt_bytea(bytea, bytea)\n RETURNS bytea\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pgp_pub_decrypt_bytea$function$\n"
   },
   "extensions.pgp_pub_encrypt(text, bytea, text)": {
     "schema": "extensions",
@@ -279,13 +279,6 @@
     "comment": null,
     "sql": "CREATE OR REPLACE FUNCTION extensions.pgp_sym_decrypt_bytea(bytea, text)\n RETURNS bytea\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pgp_sym_decrypt_bytea$function$\n"
   },
-  "extensions.pgp_sym_encrypt(text, text)": {
-    "schema": "extensions",
-    "name": "pgp_sym_encrypt",
-    "arguments": "text, text",
-    "comment": null,
-    "sql": "CREATE OR REPLACE FUNCTION extensions.pgp_sym_encrypt(text, text)\n RETURNS bytea\n LANGUAGE c\n PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pgp_sym_encrypt_text$function$\n"
-  },
   "extensions.pgp_sym_encrypt(text, text, text)": {
     "schema": "extensions",
     "name": "pgp_sym_encrypt",
@@ -293,12 +286,12 @@
     "comment": null,
     "sql": "CREATE OR REPLACE FUNCTION extensions.pgp_sym_encrypt(text, text, text)\n RETURNS bytea\n LANGUAGE c\n PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pgp_sym_encrypt_text$function$\n"
   },
-  "extensions.pgp_sym_encrypt_bytea(bytea, text)": {
+  "extensions.pgp_sym_encrypt(text, text)": {
     "schema": "extensions",
-    "name": "pgp_sym_encrypt_bytea",
-    "arguments": "bytea, text",
+    "name": "pgp_sym_encrypt",
+    "arguments": "text, text",
     "comment": null,
-    "sql": "CREATE OR REPLACE FUNCTION extensions.pgp_sym_encrypt_bytea(bytea, text)\n RETURNS bytea\n LANGUAGE c\n PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pgp_sym_encrypt_bytea$function$\n"
+    "sql": "CREATE OR REPLACE FUNCTION extensions.pgp_sym_encrypt(text, text)\n RETURNS bytea\n LANGUAGE c\n PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pgp_sym_encrypt_text$function$\n"
   },
   "extensions.pgp_sym_encrypt_bytea(bytea, text, text)": {
     "schema": "extensions",
@@ -306,6 +299,13 @@
     "arguments": "bytea, text, text",
     "comment": null,
     "sql": "CREATE OR REPLACE FUNCTION extensions.pgp_sym_encrypt_bytea(bytea, text, text)\n RETURNS bytea\n LANGUAGE c\n PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pgp_sym_encrypt_bytea$function$\n"
+  },
+  "extensions.pgp_sym_encrypt_bytea(bytea, text)": {
+    "schema": "extensions",
+    "name": "pgp_sym_encrypt_bytea",
+    "arguments": "bytea, text",
+    "comment": null,
+    "sql": "CREATE OR REPLACE FUNCTION extensions.pgp_sym_encrypt_bytea(bytea, text)\n RETURNS bytea\n LANGUAGE c\n PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pgp_sym_encrypt_bytea$function$\n"
   },
   "extensions.pgrst_ddl_watch()": {
     "schema": "extensions",
@@ -465,8 +465,8 @@
     "schema": "public",
     "name": "cascade_delete_invoice",
     "arguments": "p_invoice_id integer",
-    "comment": "Каскадное удаление счета и всех связанных записей с отчетом о результате",
-    "sql": "CREATE OR REPLACE FUNCTION public.cascade_delete_invoice(p_invoice_id integer)\n RETURNS jsonb\n LANGUAGE plpgsql\n SECURITY DEFINER\nAS $function$\nDECLARE\n    v_result jsonb;\n    v_deleted_payments integer := 0;\n    v_deleted_documents integer := 0;\n    v_deleted_workflows integer := 0;\n    v_deleted_history integer := 0;\n    v_deleted_approval_progress integer := 0;\n    v_error text;\nBEGIN\n    -- Начинаем транзакцию\n    BEGIN\n        -- 1. Удаляем записи прогресса согласования\n        DELETE FROM public.workflow_approval_progress\n        WHERE payment_workflow_id IN (\n            SELECT id FROM public.payment_workflows\n            WHERE invoice_id = p_invoice_id\n        );\n        GET DIAGNOSTICS v_deleted_approval_progress = ROW_COUNT;\n\n        -- 2. Удаляем workflow платежей\n        DELETE FROM public.payment_workflows\n        WHERE invoice_id = p_invoice_id;\n        GET DIAGNOSTICS v_deleted_workflows = ROW_COUNT;\n\n        -- 3. Удаляем платежи\n        DELETE FROM public.payments\n        WHERE invoice_id = p_invoice_id;\n        GET DIAGNOSTICS v_deleted_payments = ROW_COUNT;\n\n        -- 4. Удаляем документы счета\n        DELETE FROM public.invoice_documents\n        WHERE invoice_id = p_invoice_id;\n        GET DIAGNOSTICS v_deleted_documents = ROW_COUNT;\n\n        -- 5. Удаляем историю счета\n        DELETE FROM public.invoice_history\n        WHERE invoice_id = p_invoice_id;\n        GET DIAGNOSTICS v_deleted_history = ROW_COUNT;\n\n        -- 6. Удаляем сам счет\n        DELETE FROM public.invoices\n        WHERE id = p_invoice_id;\n\n        -- Формируем результат\n        v_result := jsonb_build_object(\n            'success', true,\n            'invoice_id', p_invoice_id,\n            'deleted_payments', v_deleted_payments,\n            'deleted_documents', v_deleted_documents,\n            'deleted_workflows', v_deleted_workflows,\n            'deleted_history', v_deleted_history,\n            'deleted_approval_progress', v_deleted_approval_progress,\n            'timestamp', now()\n        );\n\n        -- Логируем успешное удаление\n        RAISE NOTICE 'Счет % успешно удален вместе со связанными записями', p_invoice_id;\n\n        RETURN v_result;\n\n    EXCEPTION WHEN OTHERS THEN\n        -- В случае ошибки откатываем транзакцию\n        v_error := SQLERRM;\n\n        -- Формируем результат с ошибкой\n        v_result := jsonb_build_object(\n            'success', false,\n            'invoice_id', p_invoice_id,\n            'error', v_error,\n            'timestamp', now()\n        );\n\n        -- Логируем ошибку\n        RAISE WARNING 'Ошибка при удалении счета %: %', p_invoice_id, v_error;\n\n        RETURN v_result;\n    END;\nEND;\n$function$\n"
+    "comment": null,
+    "sql": "CREATE OR REPLACE FUNCTION public.cascade_delete_invoice(p_invoice_id integer)\n RETURNS jsonb\n LANGUAGE plpgsql\n SECURITY DEFINER\nAS $function$\nDECLARE\n    v_deleted boolean := false;\nBEGIN\n    -- Отключаем триггеры на время удаления\n    SET LOCAL session_replication_role = 'replica';\n\n    -- Удаляем связанные записи\n    DELETE FROM public.workflow_approval_progress\n    WHERE workflow_id IN (\n        SELECT id FROM public.payment_workflows\n        WHERE invoice_id = p_invoice_id\n    );\n\n    DELETE FROM public.payment_workflows\n    WHERE invoice_id = p_invoice_id;\n\n    DELETE FROM public.payments\n    WHERE invoice_id = p_invoice_id;\n\n    DELETE FROM public.invoice_documents\n    WHERE invoice_id = p_invoice_id;\n\n    DELETE FROM public.invoice_history\n    WHERE invoice_id = p_invoice_id;\n\n    DELETE FROM public.invoices\n    WHERE id = p_invoice_id;\n\n    -- Проверяем, был ли удален счет\n    GET DIAGNOSTICS v_deleted = ROW_COUNT;\n\n    -- Включаем триггеры обратно\n    SET LOCAL session_replication_role = 'origin';\n\n    -- Возвращаем результат\n    IF v_deleted THEN\n        RETURN jsonb_build_object(\n            'success', true,\n            'invoice_id', p_invoice_id,\n            'timestamp', now()\n        );\n    ELSE\n        RETURN jsonb_build_object(\n            'success', false,\n            'invoice_id', p_invoice_id,\n            'error', 'Invoice not found',\n            'timestamp', now()\n        );\n    END IF;\n\nEXCEPTION WHEN OTHERS THEN\n    -- Включаем триггеры обратно в случае ошибки\n    SET LOCAL session_replication_role = 'origin';\n\n    RETURN jsonb_build_object(\n        'success', false,\n        'invoice_id', p_invoice_id,\n        'error', SQLERRM,\n        'timestamp', now()\n    );\nEND;\n$function$\n"
   },
   "public.fn_recalc_invoice_amounts()": {
     "schema": "public",
@@ -592,7 +592,7 @@
     "name": "track_payment_history",
     "arguments": "",
     "comment": null,
-    "sql": "CREATE OR REPLACE FUNCTION public.track_payment_history()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\nDECLARE\n    v_user_id UUID;\n    v_user_name VARCHAR(255);\n    v_user_role VARCHAR(100);\n    v_invoice_id INTEGER;\nBEGIN\n    -- Получаем информацию о текущем пользователе\n    v_user_id := auth.uid();\n\n    IF v_user_id IS NOT NULL THEN\n        SELECT full_name INTO v_user_name FROM public.users WHERE id = v_user_id;\n        SELECT r.code INTO v_user_role\n        FROM public.user_profiles up\n        JOIN public.roles r ON up.role_id = r.id\n        WHERE up.user_id = v_user_id;\n    END IF;\n\n    -- Определяем invoice_id\n    IF TG_OP = 'DELETE' THEN\n        v_invoice_id := OLD.invoice_id;\n    ELSE\n        v_invoice_id := NEW.invoice_id;\n    END IF;\n\n    IF TG_OP = 'INSERT' THEN\n        -- Создание платежа\n        INSERT INTO public.invoice_history (\n            invoice_id,\n            event_type,\n            event_date,\n            user_id,\n            user_name,\n            user_role,\n            event_description,\n            field_changes,\n            payment_id,\n            payment_status,\n            payment_amount\n        ) VALUES (\n            v_invoice_id,\n            'payment_created',\n            NOW(),\n            v_user_id,\n            v_user_name,\n            v_user_role,\n            format('Создан платеж на сумму %s руб.', NEW.total_amount),\n            jsonb_build_object(\n                'payment_id', NEW.id,\n                'amount', NEW.total_amount,\n                'status', NEW.status,\n                'payment_type', NEW.payment_type\n            ),\n            NEW.id,\n            NEW.status,\n            NEW.total_amount\n        );\n\n    ELSIF TG_OP = 'UPDATE' THEN\n        -- Обновление платежа\n        IF OLD.status IS DISTINCT FROM NEW.status THEN\n            INSERT INTO public.invoice_history (\n                invoice_id,\n                event_type,\n                event_date,\n                user_id,\n                user_name,\n                user_role,\n                event_description,\n                field_changes,\n                payment_id,\n                payment_status,\n                payment_amount\n            ) VALUES (\n                v_invoice_id,\n                'payment_status_changed',\n                NOW(),\n                v_user_id,\n                v_user_name,\n                v_user_role,\n                format('Статус платежа изменен: %s → %s', OLD.status, NEW.status),\n                jsonb_build_object(\n                    'old_status', OLD.status,\n                    'new_status', NEW.status,\n                    'amount', NEW.total_amount\n                ),\n                NEW.id,\n                NEW.status,\n                NEW.total_amount\n            );\n        END IF;\n\n    ELSIF TG_OP = 'DELETE' THEN\n        -- Удаление платежа\n        INSERT INTO public.invoice_history (\n            invoice_id,\n            event_type,\n            event_date,\n            user_id,\n            user_name,\n            user_role,\n            event_description,\n            field_changes,\n            payment_id,\n            payment_status,\n            payment_amount\n        ) VALUES (\n            v_invoice_id,\n            'payment_deleted',\n            NOW(),\n            v_user_id,\n            v_user_name,\n            v_user_role,\n            format('Удален платеж на сумму %s руб.', OLD.total_amount),\n            jsonb_build_object(\n                'payment_id', OLD.id,\n                'amount', OLD.total_amount,\n                'status', OLD.status\n            ),\n            OLD.id,\n            OLD.status,\n            OLD.total_amount\n        );\n    END IF;\n\n    RETURN NEW;\nEND;\n$function$\n"
+    "sql": "CREATE OR REPLACE FUNCTION public.track_payment_history()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\nAS $function$\nBEGIN\n    IF TG_OP = 'INSERT' THEN\n        INSERT INTO public.invoice_history (\n            invoice_id,\n            event_type,\n            event_date,\n            action,\n            description,\n            payment_id,\n            status_to,\n            amount_to,\n            new_values,\n            user_id\n        ) VALUES (\n            NEW.invoice_id,\n            'PAYMENT_CREATED',\n            now(),\n            'Платеж создан',\n            'Создан новый платеж на сумму ' || NEW.total_amount,\n            NEW.id,\n            NEW.status,\n            NEW.total_amount,\n            to_jsonb(NEW),\n            auth.uid()\n        );\n        RETURN NEW;\n    ELSIF TG_OP = 'UPDATE' THEN\n        INSERT INTO public.invoice_history (\n            invoice_id,\n            event_type,\n            event_date,\n            action,\n            description,\n            payment_id,\n            status_from,\n            status_to,\n            amount_from,\n            amount_to,\n            old_values,\n            new_values,\n            user_id\n        ) VALUES (\n            NEW.invoice_id,\n            'PAYMENT_UPDATED',\n            now(),\n            'Платеж обновлен',\n            'Обновлен платеж #' || NEW.id,\n            NEW.id,\n            OLD.status,\n            NEW.status,\n            OLD.total_amount,\n            NEW.total_amount,\n            to_jsonb(OLD),\n            to_jsonb(NEW),\n            auth.uid()\n        );\n        RETURN NEW;\n    ELSIF TG_OP = 'DELETE' THEN\n        INSERT INTO public.invoice_history (\n            invoice_id,\n            event_type,\n            event_date,\n            action,\n            description,\n            payment_id,\n            status_from,\n            amount_from,\n            old_values,\n            user_id\n        ) VALUES (\n            OLD.invoice_id,\n            'PAYMENT_DELETED',\n            now(),\n            'Платеж удален',\n            'Удален платеж #' || OLD.id,\n            OLD.id,\n            OLD.status,\n            OLD.total_amount,\n            to_jsonb(OLD),\n            auth.uid()\n        );\n        RETURN OLD;\n    END IF;\n    RETURN NULL;\nEND;\n$function$\n"
   },
   "public.universal_update_updated_at()": {
     "schema": "public",

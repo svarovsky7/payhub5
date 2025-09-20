@@ -1,0 +1,140 @@
+[
+  {
+    "name": "public.add_invoice_history_entry",
+    "signature": "public.add_invoice_history_entry(p_invoice_id integer, p_event_type character varying, p_action character varying, p_description text, p_metadata jsonb)",
+    "returns": "void",
+    "summary": "Append a structured row into invoice_history with metadata supplied by application logic."
+  },
+  {
+    "name": "public.calculate_payment_vat",
+    "signature": "public.calculate_payment_vat()",
+    "returns": "trigger",
+    "summary": "Before-insert/update trigger helper that derives VAT amount and net amount from provided totals."
+  },
+  {
+    "name": "public.cascade_delete_invoice",
+    "signature": "public.cascade_delete_invoice(p_invoice_id integer)",
+    "returns": "jsonb",
+    "summary": "Recursively delete invoice-related data (documents, history, payments) and return a JSON summary payload."
+  },
+  {
+    "name": "public.fn_recalc_invoice_amounts",
+    "signature": "public.fn_recalc_invoice_amounts()",
+    "returns": "trigger",
+    "summary": "Normalise invoice monetary fields before write, recalculating totals and VAT for consistency."
+  },
+  {
+    "name": "public.fn_sync_invoice_payment",
+    "signature": "public.fn_sync_invoice_payment()",
+    "returns": "trigger",
+    "summary": "Synchronise invoice balance after payment change and append a history entry."
+  },
+  {
+    "name": "public.get_current_user_profile",
+    "signature": "public.get_current_user_profile()",
+    "returns": "SETOF users",
+    "summary": "Return current auth user's profile row from public.users (SECURITY DEFINER)."
+  },
+  {
+    "name": "public.get_invoice_history",
+    "signature": "public.get_invoice_history(p_invoice_id integer)",
+    "returns": "TABLE(id bigint, action character varying, action_description text, user_name character varying, user_role character varying, changed_fields text[], comment text, created_at timestamp with time zone, status_from character varying, status_to character varying, workflow_stage_from character varying, workflow_stage_to character varying, invoice_id integer)",
+    "summary": "Retrieve ordered invoice history entries with actor metadata for a given invoice."
+  },
+  {
+    "name": "public.get_next_invoice_sequence",
+    "signature": "public.get_next_invoice_sequence(p_org_code character varying, p_proj_code character varying, p_year_month character varying)",
+    "returns": "integer",
+    "summary": "Generate sequential internal invoice number using org/project/period segments."
+  },
+  {
+    "name": "public.get_next_payment_sequence",
+    "signature": "public.get_next_payment_sequence(p_invoice_id integer)",
+    "returns": "integer",
+    "summary": "Produce next payment ordinal per invoice to support PAY-XX numbering."
+  },
+  {
+    "name": "public.get_payment_history",
+    "signature": "public.get_payment_history(p_payment_id integer)",
+    "returns": "TABLE(id bigint, action character varying, action_description text, user_name character varying, user_role character varying, changed_fields text[], comment text, created_at timestamp with time zone, status_from character varying, status_to character varying, amount_from numeric, amount_to numeric, payment_id integer, invoice_id integer)",
+    "summary": "Return audit trail for a single payment including status changes and comments."
+  },
+  {
+    "name": "public.get_payment_history_by_invoice",
+    "signature": "public.get_payment_history_by_invoice(p_invoice_id integer)",
+    "returns": "TABLE(id bigint, action character varying, action_description text, user_name character varying, user_role character varying, changed_fields text[], comment text, created_at timestamp with time zone, status_from character varying, status_to character varying, amount_from numeric, amount_to numeric, payment_id integer, invoice_id integer)",
+    "summary": "Aggregate payment history entries for all payments within an invoice."
+  },
+  {
+    "name": "public.get_statuses_by_entity_type",
+    "signature": "public.get_statuses_by_entity_type(p_entity_type text)",
+    "returns": "TABLE(id bigint, code text, name text, color text, is_final boolean, is_active boolean, order_index integer, description text)",
+    "summary": "Fetch status catalog entries for a particular entity type (invoice, payment, etc.)."
+  },
+  {
+    "name": "public.get_workflow_for_invoice",
+    "signature": "public.get_workflow_for_invoice(p_invoice_type_id integer)",
+    "returns": "integer",
+    "summary": "Find active workflow id matching invoice type when launching approval."
+  },
+  {
+    "name": "public.handle_new_user",
+    "signature": "public.handle_new_user()",
+    "returns": "trigger",
+    "summary": "Provision public.users profile when a new auth.users row appears."
+  },
+  {
+    "name": "public.is_status_final",
+    "signature": "public.is_status_final(p_entity_type text, p_code text)",
+    "returns": "boolean",
+    "summary": "Check if a status code for an entity type is marked final (non-transitional)."
+  },
+  {
+    "name": "public.set_default_user_role",
+    "signature": "public.set_default_user_role()",
+    "returns": "trigger",
+    "summary": "Assign default role_id and activation flags before inserting into public.users."
+  },
+  {
+    "name": "public.start_payment_workflow_simple",
+    "signature": "public.start_payment_workflow_simple(p_payment_id integer, p_invoice_id integer, p_workflow_id integer, p_user_id uuid, p_amount numeric, p_description text, p_supplier_id integer, p_project_id integer, p_payment_date date)",
+    "returns": "integer",
+    "summary": "Create payment workflow instance and seed first stage progress in a single call."
+  },
+  {
+    "name": "public.track_document_changes",
+    "signature": "public.track_document_changes()",
+    "returns": "trigger",
+    "summary": "Log invoice document attachments lifecycle into invoice_history."
+  },
+  {
+    "name": "public.track_invoice_changes",
+    "signature": "public.track_invoice_changes()",
+    "returns": "trigger",
+    "summary": "Record invoice field changes into invoice_history including before/after snapshots."
+  },
+  {
+    "name": "public.track_invoice_changes_optimized",
+    "signature": "public.track_invoice_changes_optimized()",
+    "returns": "trigger",
+    "summary": "Alternative change tracker focused on batch operations with lean payload."
+  },
+  {
+    "name": "public.track_payment_history",
+    "signature": "public.track_payment_history()",
+    "returns": "trigger",
+    "summary": "Persist payment lifecycle events (status/comment changes) to invoice_history."
+  },
+  {
+    "name": "public.universal_update_updated_at",
+    "signature": "public.universal_update_updated_at()",
+    "returns": "trigger",
+    "summary": "Generic trigger that refreshes updated_at to NOW() on row change."
+  },
+  {
+    "name": "public.user_has_role",
+    "signature": "public.user_has_role(check_role text)",
+    "returns": "boolean",
+    "summary": "Utility to check whether current auth uid has the specified role code."
+  }
+]
