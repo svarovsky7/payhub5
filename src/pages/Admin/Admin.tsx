@@ -8,6 +8,7 @@ import { PageContainer } from '@ant-design/pro-components'
 import { Space, Tabs } from 'antd'
 import {
   ApartmentOutlined,
+  CreditCardOutlined,
   FileTextOutlined,
   ProjectOutlined,
   SafetyOutlined,
@@ -26,6 +27,7 @@ import { StatusesTab } from './components/StatusesTab'
 import { RolesTab } from './RolesTab'
 import { MaterialResponsiblePersonsPage } from './MaterialResponsiblePersons'
 import { WorkflowBuilderTab } from './WorkflowBuilderTab'
+import PaymentTypesManagement from './PaymentTypes/PaymentTypesManagement'
 
 const AdminPage: React.FC = () => {
   const navigate = useNavigate()
@@ -124,6 +126,16 @@ const AdminPage: React.FC = () => {
         </Space>
       ),
       children: <InvoiceTypesTab />,
+    },
+    {
+      key: 'payment-types',
+      label: (
+        <Space>
+          <CreditCardOutlined />
+          Типы платежей
+        </Space>
+      ),
+      children: <PaymentTypesManagement />,
     },
     {
       key: 'workflows',

@@ -62,7 +62,10 @@
       "Bash(git add:*)",
       "Bash(git push:*)",
       "Bash(git stash:*)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "Bash(npm ls:*)",
+      "Bash(findstr:*)",
+      "Read(//c/**)"
     ]
   },
   "enableAllProjectMcpServers": true,

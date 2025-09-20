@@ -15,7 +15,7 @@ import {
   Typography
 } from 'antd'
 import { CloseOutlined, SaveOutlined } from '@ant-design/icons'
-import type { StagePermissions, WorkflowStage } from './types'
+import type { WorkflowStage } from './types'
 import { useRolesList } from '@/services/hooks/useRoles'
 
 const { Title, Text } = Typography
@@ -38,13 +38,6 @@ export const StageEditor: React.FC<StageEditorProps> = ({
 }) => {
   const [form] = Form.useForm()
   const { data: roles, isLoading: rolesLoading } = useRolesList()
-  const [permissions, setPermissions] = useState<StagePermissions>({
-    can_view: true,
-    can_edit: false,
-    can_approve: true,
-    can_reject: true,
-    can_cancel: false,
-  })
 
   useEffect(() => {
     if (stage) {
@@ -57,22 +50,8 @@ export const StageEditor: React.FC<StageEditorProps> = ({
         assigned_roles: stage.assigned_roles,
         assigned_users: stage.assigned_users,
       })
-      setPermissions(stage.permissions || {
-        can_view: true,
-        can_edit: false,
-        can_approve: true,
-        can_reject: true,
-        can_cancel: false,
-      })
     } else {
       form.resetFields()
-      setPermissions({
-        can_view: true,
-        can_edit: false,
-        can_approve: true,
-        can_reject: true,
-        can_cancel: false,
-      })
     }
   }, [stage, form])
 
@@ -86,7 +65,6 @@ export const StageEditor: React.FC<StageEditorProps> = ({
         timeout_days: values.timeout_days,
         is_final: values.is_final || false,
         approval_quorum: 1, // Фиксированное значение
-        permissions,
         assigned_roles: values.assigned_roles,
         assigned_users: values.assigned_users,
       }
@@ -189,71 +167,6 @@ export const StageEditor: React.FC<StageEditorProps> = ({
           />
         </Form.Item>
 
-        <Divider />
-
-        <Title level={5}>Права на этапе</Title>
-        
-        <Space direction="vertical" style={{ width: '100%' }}>
-          <div>
-            <Checkbox 
-              checked={permissions.can_view}
-              onChange={(e) => setPermissions({...permissions, can_view: e.target.checked})}
-            >
-              Просмотр документов
-            </Checkbox>
-            <Text type="secondary" style={{ display: 'block', marginLeft: 24, fontSize: '12px' }}>
-              Позволяет просматривать платеж и прикрепленные документы без возможности внесения изменений
-            </Text>
-          </div>
-          
-          <div>
-            <Checkbox 
-              checked={permissions.can_edit}
-              onChange={(e) => setPermissions({...permissions, can_edit: e.target.checked})}
-            >
-              Редактирование платежа
-            </Checkbox>
-            <Text type="secondary" style={{ display: 'block', marginLeft: 24, fontSize: '12px' }}>
-              Позволяет изменять данные платежа: сумму, описание, сроки и другие параметры
-            </Text>
-          </div>
-          
-          <div>
-            <Checkbox 
-              checked={permissions.can_approve}
-              onChange={(e) => setPermissions({...permissions, can_approve: e.target.checked})}
-            >
-              Согласование платежа
-            </Checkbox>
-            <Text type="secondary" style={{ display: 'block', marginLeft: 24, fontSize: '12px' }}>
-              Позволяет одобрить платеж и передать его на следующий этап согласования
-            </Text>
-          </div>
-          
-          <div>
-            <Checkbox 
-              checked={permissions.can_reject}
-              onChange={(e) => setPermissions({...permissions, can_reject: e.target.checked})}
-            >
-              Отклонение платежа
-            </Checkbox>
-            <Text type="secondary" style={{ display: 'block', marginLeft: 24, fontSize: '12px' }}>
-              Позволяет отклонить платеж с указанием причины и вернуть его на доработку
-            </Text>
-          </div>
-          
-          <div>
-            <Checkbox 
-              checked={permissions.can_cancel}
-              onChange={(e) => setPermissions({...permissions, can_cancel: e.target.checked})}
-            >
-              Отмена платежа
-            </Checkbox>
-            <Text type="secondary" style={{ display: 'block', marginLeft: 24, fontSize: '12px' }}>
-              Позволяет полностью отменить платеж и прекратить процесс согласования
-            </Text>
-          </div>
-        </Space>
 
       </Form>
     </Card>

@@ -119,6 +119,13 @@ export const queryKeys = {
     currencies: () => [...BASE_KEY, 'enums', 'currencies'] as const,
     priorities: () => [...BASE_KEY, 'enums', 'priorities'] as const,
   },
+
+  // Payment Types
+  paymentTypes: {
+    all: [...BASE_KEY, 'paymentTypes'] as const,
+    list: (includeInactive?: boolean) => [...BASE_KEY, 'paymentTypes', 'list', includeInactive] as const,
+    detail: (id: string) => [...BASE_KEY, 'paymentTypes', 'detail', id] as const,
+  },
 } as const
 
 // Mutation keys for optimistic updates

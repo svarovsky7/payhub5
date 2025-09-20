@@ -77,6 +77,7 @@ import { useInvoiceTypesList } from '@/services/hooks/useInvoiceTypes'
 import { useMaterialResponsiblePersonsList } from '@/services/hooks/useMaterialResponsiblePersons'
 import { useCurrencies, usePriorities } from '@/services/hooks/useEnums'
 import { usePaymentsList } from '@/services/hooks/usePayments'
+import { usePaymentTypes } from '@/services/hooks/usePaymentTypes'
 import { useAuthStore } from '@/models/auth'
 import { useInvoiceHistory } from '@/services/hooks/useInvoiceHistory'
 import { InvoiceHistoryService } from '@/services/invoices/history-service'
@@ -163,6 +164,7 @@ export const InvoiceViewNew: React.FC = () => {
   const { data: materialResponsiblePersons, isLoading: loadingMRPs } = useMaterialResponsiblePersonsList({ is_active: true })
   const { data: currencies, isLoading: loadingCurrencies } = useCurrencies()
   const { data: priorities, isLoading: loadingPriorities } = usePriorities()
+  const { data: paymentTypes = [], isLoading: loadingPaymentTypes } = usePaymentTypes()
 
   // Extract data from responses
   const contractors = contractorsResponse?.data ?? []
@@ -1092,7 +1094,7 @@ const handleCreatePayment = async () => {
       total_amount: values.total_amount,
       comment: values.comment || '',
       status: 'draft', // Используем статус 'draft' (Черновик) по умолчанию
-      created_by: user?.id,
+      payment_type_id: values.payment_type_id, // Добавляем тип платежа
       // VAT поля для сохранения в БД
       vat_rate: values.vat_rate || invoice?.vat_rate || 20,
       vat_amount: values.vat_amount || 0,
@@ -1144,6 +1146,7 @@ const handleEditPayment = (payment: any) => {
   paymentEditForm.setFieldsValue({
     payment_date: payment.payment_date ? dayjs(payment.payment_date) : dayjs(),
     total_amount: payment.total_amount || 0,
+    payment_type_id: payment.payment_type_id || undefined, // Добавляем тип платежа
     vat_rate: vatRate,
     vat_amount: parseFloat(vatAmount.toFixed(2)),
     amount_net: parseFloat(amountNet.toFixed(2)),
@@ -1774,6 +1777,20 @@ const renderPayments = () => {
               }).format(amount || 0)}
             </Text>
           )
+        },
+        {
+          title: 'Тип',
+          dataIndex: 'payment_type_id',
+          key: 'payment_type',
+          width: 150,
+          render: (typeId: string) => {
+            const paymentType = paymentTypes.find(type => type.id === typeId)
+            return paymentType ? (
+              <Tag color="blue">{paymentType.name}</Tag>
+            ) : (
+              <Text type="secondary">-</Text>
+            )
+          }
         },
         {
           title: 'Статус',
@@ -2556,6 +2573,22 @@ const renderHistory = () => {
                 <DatePicker style={{ width: '100%' }} format="DD.MM.YYYY" />
               </Form.Item>
             </Col>
+            <Col span={12}>
+              <Form.Item
+                name="payment_type_id"
+                label="Тип платежа"
+                rules={[{ required: true, message: 'Выберите тип платежа' }]}
+              >
+                <Select
+                  placeholder="Выберите тип платежа"
+                  loading={loadingPaymentTypes}
+                  options={paymentTypes.map((type) => ({
+                    label: type.name,
+                    value: type.id
+                  }))}
+                />
+              </Form.Item>
+            </Col>
           </Row>
 
           <Row gutter={16}>
@@ -2718,6 +2751,22 @@ const renderHistory = () => {
                 rules={[{ required: true, message: 'Выберите дату платежа' }]}
               >
                 <DatePicker style={{ width: '100%' }} format="DD.MM.YYYY" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                name="payment_type_id"
+                label="Тип платежа"
+                rules={[{ required: true, message: 'Выберите тип платежа' }]}
+              >
+                <Select
+                  placeholder="Выберите тип платежа"
+                  loading={loadingPaymentTypes}
+                  options={paymentTypes.map((type) => ({
+                    label: type.name,
+                    value: type.id
+                  }))}
+                />
               </Form.Item>
             </Col>
           </Row>

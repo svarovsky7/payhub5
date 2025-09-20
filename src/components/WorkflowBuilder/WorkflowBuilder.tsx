@@ -259,13 +259,6 @@ export const WorkflowBuilder: React.FC = () => {
         approval_quorum: stage.approval_quorum || 1,
         timeout_days: stage.timeout_days,
         is_final: stage.is_final || false,
-        permissions: stage.permissions || {
-          can_view: true,
-          can_edit: false,
-          can_approve: true,
-          can_reject: true,
-          can_cancel: false
-        },
         assigned_roles: stage.assigned_roles || [],
         assigned_users: stage.assigned_users || []
       }
@@ -324,7 +317,6 @@ export const WorkflowBuilder: React.FC = () => {
           approval_quorum: stage.approval_quorum,
           timeout_days: stage.timeout_days,
           is_final: stage.is_final,
-          permissions: stage.permissions,
           assigned_roles: stage.assigned_roles,
           assigned_users: stage.assigned_users
         }

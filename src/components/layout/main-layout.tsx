@@ -52,23 +52,7 @@ export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }
   const [collapsed, setCollapsed] = useState(false)
 
   // Используем меню без фильтрации
-  const filterMenuByPermissions = (menuItems: MenuDataItem[]): MenuDataItem[] => {
-    return menuItems
-      .map(item => {
-        // Рекурсивно обрабатываем дочерние элементы
-        const filteredChildren = item.children 
-          ? filterMenuByPermissions(item.children)
-          : undefined
-        
-        return {
-          ...item,
-          children: filteredChildren?.length ? filteredChildren : undefined,
-        }
-      })
-      .filter(Boolean) as MenuDataItem[]
-  }
-
-  const filteredMenuData = filterMenuByPermissions(menuData)
+  const filteredMenuData = menuData
 
   const handleMenuClick = (path: string) => {
     navigate(path)

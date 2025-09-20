@@ -61,11 +61,19 @@ Located in `src/services/`:
 - Use `mcp__supabase-postgrest__sqlToRest` for complex queries
 - PostgREST API: `http://31.128.51.210:8002/rest/v1`
 
-**Database Schema Reference**
-- The file `supabase/schemas/prod.sql` contains the complete database schema export
-- Use this file to understand table structures, relationships, constraints, indexes
-- Includes all tables, views, functions, triggers, and enum types
-- This is the authoritative source for database structure when MCP queries are unavailable
+**Database Schema Reference Files**
+
+For all database-related queries (table structures, indexes, triggers, functions, enums, SQL examples), use **only** the following files in `supabase/ai_context`:
+- `ai_tables_min.json` / `ai_tables_full.json` - Table definitions with columns, constraints, indexes
+- `ai_relations.json` - Foreign key relationships between tables
+- `ai_functions_min.json` / `ai_functions_full.json` - Database functions and procedures
+- `ai_triggers_min.json` - Database triggers
+- `ai_enums_min.json` - Enum type definitions
+- `ai_examples.sql` - Example SQL queries and patterns
+
+**Important**: Never invent fields, functions, or triggers not present in these files. If information is insufficient, request an update to these files rather than making assumptions.
+
+
 
 **Important Tables**:
 - `invoices` - Main invoice records with workflow integration

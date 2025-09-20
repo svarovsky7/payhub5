@@ -88,7 +88,7 @@ export interface Database {
           total_amount: number // Total amount including VAT
           payer_id: number
           comment: string | null
-          created_by: string // uuid
+          created_by: string | null // uuid пользователя, создавшего платеж
           created_at: string
           updated_at: string
           status: string // Dynamic status from database
@@ -97,6 +97,7 @@ export interface Database {
           amount_net: number | null // Amount excluding VAT
           vat_amount: number | null
           vat_rate: number | null
+          payment_type_id: string | null // uuid reference to payment_types
         }
         Insert: {
           id?: number
@@ -105,7 +106,7 @@ export interface Database {
           total_amount: number // Total amount including VAT
           payer_id: number
           comment?: string | null
-          created_by: string
+          created_by?: string | null // uuid пользователя (опционально)
           created_at?: string
           updated_at?: string
           status?: string
@@ -114,6 +115,7 @@ export interface Database {
           amount_net?: number | null // Amount excluding VAT
           vat_amount?: number | null
           vat_rate?: number | null
+          payment_type_id?: string | null // uuid reference to payment_types
         }
         Update: {
           invoice_id?: number
@@ -128,6 +130,7 @@ export interface Database {
           amount_net?: number | null // Amount excluding VAT
           vat_amount?: number | null
           vat_rate?: number | null
+          payment_type_id?: string | null // uuid reference to payment_types
         }
       }
       contractors: {
@@ -550,6 +553,41 @@ export interface Database {
           shared_with_roles?: string[] | null
           version?: number | null
           parent_theme_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+      }
+      payment_types: {
+        Row: {
+          id: string // uuid
+          name: string
+          code: string
+          description: string | null
+          is_active: boolean
+          display_order: number
+          created_at: string
+          updated_at: string
+          created_by: string | null // uuid
+          updated_by: string | null // uuid
+        }
+        Insert: {
+          id?: string
+          name: string
+          code: string
+          description?: string | null
+          is_active?: boolean
+          display_order?: number
+          created_at?: string
+          updated_at?: string
+          created_by?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          name?: string
+          code?: string
+          description?: string | null
+          is_active?: boolean
+          display_order?: number
           updated_at?: string
           updated_by?: string | null
         }

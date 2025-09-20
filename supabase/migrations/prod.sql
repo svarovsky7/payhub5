@@ -1,13 +1,26 @@
--- Database Schema SQL Export
--- Generated: 2025-09-19T07:58:22.795662
+-- Database Schema Export
+-- Generated: 2025-09-20T18:23:14.309684
 -- Database: postgres
 -- Host: 31.128.51.210
 
 -- ============================================
+
+-- ENUM TYPES
+-- ============================================
+
+CREATE TYPE auth.aal_level AS ENUM ('aal1', 'aal2', 'aal3');
+CREATE TYPE auth.code_challenge_method AS ENUM ('s256', 'plain');
+CREATE TYPE auth.factor_status AS ENUM ('unverified', 'verified');
+CREATE TYPE auth.factor_type AS ENUM ('totp', 'webauthn', 'phone');
+CREATE TYPE auth.one_time_token_type AS ENUM ('confirmation_token', 'reauthentication_token', 'recovery_token', 'email_change_token_new', 'email_change_token_current', 'phone_change_token');
+CREATE TYPE public.priority_level AS ENUM ('low', 'normal', 'high', 'urgent');
+CREATE TYPE realtime.action AS ENUM ('INSERT', 'UPDATE', 'DELETE', 'TRUNCATE', 'ERROR');
+CREATE TYPE realtime.equality_op AS ENUM ('eq', 'neq', 'lt', 'lte', 'gt', 'gte', 'in');
+CREATE TYPE storage.buckettype AS ENUM ('STANDARD', 'ANALYTICS');
+
 -- TABLES
 -- ============================================
 
--- Table: _realtime.extensions
 CREATE TABLE IF NOT EXISTS _realtime.extensions (
     id uuid NOT NULL,
     type text,
@@ -17,15 +30,14 @@ CREATE TABLE IF NOT EXISTS _realtime.extensions (
     updated_at timestamp without time zone NOT NULL
 );
 
--- Table: _realtime.schema_migrations
--- Description: Auth: Manages updates to the auth system.
+-- Auth: Manages updates to the auth system.
 CREATE TABLE IF NOT EXISTS _realtime.schema_migrations (
     version bigint(64) NOT NULL,
     inserted_at timestamp without time zone
 );
+
 COMMENT ON TABLE _realtime.schema_migrations IS 'Auth: Manages updates to the auth system.';
 
--- Table: _realtime.tenants
 CREATE TABLE IF NOT EXISTS _realtime.tenants (
     id uuid NOT NULL,
     name text,
@@ -45,8 +57,7 @@ CREATE TABLE IF NOT EXISTS _realtime.tenants (
     private_only boolean NOT NULL DEFAULT false
 );
 
--- Table: auth.audit_log_entries
--- Description: Auth: Audit trail for user actions.
+-- Auth: Audit trail for user actions.
 CREATE TABLE IF NOT EXISTS auth.audit_log_entries (
     instance_id uuid,
     id uuid NOT NULL,
@@ -55,10 +66,10 @@ CREATE TABLE IF NOT EXISTS auth.audit_log_entries (
     ip_address character varying(64) NOT NULL DEFAULT ''::character varying,
     CONSTRAINT audit_log_entries_pkey PRIMARY KEY (id)
 );
+
 COMMENT ON TABLE auth.audit_log_entries IS 'Auth: Audit trail for user actions.';
 
--- Table: auth.flow_state
--- Description: stores metadata for pkce logins
+-- stores metadata for pkce logins
 CREATE TABLE IF NOT EXISTS auth.flow_state (
     id uuid NOT NULL,
     user_id uuid,
@@ -74,10 +85,10 @@ CREATE TABLE IF NOT EXISTS auth.flow_state (
     auth_code_issued_at timestamp with time zone,
     CONSTRAINT flow_state_pkey PRIMARY KEY (id)
 );
+
 COMMENT ON TABLE auth.flow_state IS 'stores metadata for pkce logins';
 
--- Table: auth.identities
--- Description: Auth: Stores identities associated to a user.
+-- Auth: Stores identities associated to a user.
 CREATE TABLE IF NOT EXISTS auth.identities (
     provider_id text NOT NULL,
     user_id uuid NOT NULL,
@@ -93,11 +104,11 @@ CREATE TABLE IF NOT EXISTS auth.identities (
     CONSTRAINT identities_provider_id_provider_unique UNIQUE (provider_id),
     CONSTRAINT identities_user_id_fkey FOREIGN KEY (user_id) REFERENCES None.None(None)
 );
+
 COMMENT ON TABLE auth.identities IS 'Auth: Stores identities associated to a user.';
 COMMENT ON COLUMN auth.identities.email IS 'Auth: Email is a generated column that references the optional email property in the identity_data';
 
--- Table: auth.instances
--- Description: Auth: Manages users across multiple sites.
+-- Auth: Manages users across multiple sites.
 CREATE TABLE IF NOT EXISTS auth.instances (
     id uuid NOT NULL,
     uuid uuid,
@@ -106,10 +117,10 @@ CREATE TABLE IF NOT EXISTS auth.instances (
     updated_at timestamp with time zone,
     CONSTRAINT instances_pkey PRIMARY KEY (id)
 );
+
 COMMENT ON TABLE auth.instances IS 'Auth: Manages users across multiple sites.';
 
--- Table: auth.mfa_amr_claims
--- Description: auth: stores authenticator method reference claims for multi factor authentication
+-- auth: stores authenticator method reference claims for multi factor authentication
 CREATE TABLE IF NOT EXISTS auth.mfa_amr_claims (
     session_id uuid NOT NULL,
     created_at timestamp with time zone NOT NULL,
@@ -121,10 +132,10 @@ CREATE TABLE IF NOT EXISTS auth.mfa_amr_claims (
     CONSTRAINT mfa_amr_claims_session_id_authentication_method_pkey UNIQUE (session_id),
     CONSTRAINT mfa_amr_claims_session_id_fkey FOREIGN KEY (session_id) REFERENCES None.None(None)
 );
+
 COMMENT ON TABLE auth.mfa_amr_claims IS 'auth: stores authenticator method reference claims for multi factor authentication';
 
--- Table: auth.mfa_challenges
--- Description: auth: stores metadata about challenge requests made
+-- auth: stores metadata about challenge requests made
 CREATE TABLE IF NOT EXISTS auth.mfa_challenges (
     id uuid NOT NULL,
     factor_id uuid NOT NULL,
@@ -136,10 +147,10 @@ CREATE TABLE IF NOT EXISTS auth.mfa_challenges (
     CONSTRAINT mfa_challenges_auth_factor_id_fkey FOREIGN KEY (factor_id) REFERENCES None.None(None),
     CONSTRAINT mfa_challenges_pkey PRIMARY KEY (id)
 );
+
 COMMENT ON TABLE auth.mfa_challenges IS 'auth: stores metadata about challenge requests made';
 
--- Table: auth.mfa_factors
--- Description: auth: stores metadata about factors
+-- auth: stores metadata about factors
 CREATE TABLE IF NOT EXISTS auth.mfa_factors (
     id uuid NOT NULL,
     user_id uuid NOT NULL,
@@ -157,9 +168,9 @@ CREATE TABLE IF NOT EXISTS auth.mfa_factors (
     CONSTRAINT mfa_factors_pkey PRIMARY KEY (id),
     CONSTRAINT mfa_factors_user_id_fkey FOREIGN KEY (user_id) REFERENCES None.None(None)
 );
+
 COMMENT ON TABLE auth.mfa_factors IS 'auth: stores metadata about factors';
 
--- Table: auth.one_time_tokens
 CREATE TABLE IF NOT EXISTS auth.one_time_tokens (
     id uuid NOT NULL,
     user_id uuid NOT NULL,
@@ -172,8 +183,7 @@ CREATE TABLE IF NOT EXISTS auth.one_time_tokens (
     CONSTRAINT one_time_tokens_user_id_fkey FOREIGN KEY (user_id) REFERENCES None.None(None)
 );
 
--- Table: auth.refresh_tokens
--- Description: Auth: Store of tokens used to refresh JWT tokens once they expire.
+-- Auth: Store of tokens used to refresh JWT tokens once they expire.
 CREATE TABLE IF NOT EXISTS auth.refresh_tokens (
     instance_id uuid,
     id bigint(64) NOT NULL DEFAULT nextval('auth.refresh_tokens_id_seq'::regclass),
@@ -188,10 +198,10 @@ CREATE TABLE IF NOT EXISTS auth.refresh_tokens (
     CONSTRAINT refresh_tokens_session_id_fkey FOREIGN KEY (session_id) REFERENCES None.None(None),
     CONSTRAINT refresh_tokens_token_unique UNIQUE (token)
 );
+
 COMMENT ON TABLE auth.refresh_tokens IS 'Auth: Store of tokens used to refresh JWT tokens once they expire.';
 
--- Table: auth.saml_providers
--- Description: Auth: Manages SAML Identity Provider connections.
+-- Auth: Manages SAML Identity Provider connections.
 CREATE TABLE IF NOT EXISTS auth.saml_providers (
     id uuid NOT NULL,
     sso_provider_id uuid NOT NULL,
@@ -206,10 +216,10 @@ CREATE TABLE IF NOT EXISTS auth.saml_providers (
     CONSTRAINT saml_providers_pkey PRIMARY KEY (id),
     CONSTRAINT saml_providers_sso_provider_id_fkey FOREIGN KEY (sso_provider_id) REFERENCES None.None(None)
 );
+
 COMMENT ON TABLE auth.saml_providers IS 'Auth: Manages SAML Identity Provider connections.';
 
--- Table: auth.saml_relay_states
--- Description: Auth: Contains SAML Relay State information for each Service Provider initiated login.
+-- Auth: Contains SAML Relay State information for each Service Provider initiated login.
 CREATE TABLE IF NOT EXISTS auth.saml_relay_states (
     id uuid NOT NULL,
     sso_provider_id uuid NOT NULL,
@@ -223,18 +233,18 @@ CREATE TABLE IF NOT EXISTS auth.saml_relay_states (
     CONSTRAINT saml_relay_states_pkey PRIMARY KEY (id),
     CONSTRAINT saml_relay_states_sso_provider_id_fkey FOREIGN KEY (sso_provider_id) REFERENCES None.None(None)
 );
+
 COMMENT ON TABLE auth.saml_relay_states IS 'Auth: Contains SAML Relay State information for each Service Provider initiated login.';
 
--- Table: auth.schema_migrations
--- Description: Auth: Manages updates to the auth system.
+-- Auth: Manages updates to the auth system.
 CREATE TABLE IF NOT EXISTS auth.schema_migrations (
     version character varying(255) NOT NULL,
     CONSTRAINT schema_migrations_pkey PRIMARY KEY (version)
 );
+
 COMMENT ON TABLE auth.schema_migrations IS 'Auth: Manages updates to the auth system.';
 
--- Table: auth.sessions
--- Description: Auth: Stores session data associated to a user.
+-- Auth: Stores session data associated to a user.
 CREATE TABLE IF NOT EXISTS auth.sessions (
     id uuid NOT NULL,
     user_id uuid NOT NULL,
@@ -250,11 +260,11 @@ CREATE TABLE IF NOT EXISTS auth.sessions (
     CONSTRAINT sessions_pkey PRIMARY KEY (id),
     CONSTRAINT sessions_user_id_fkey FOREIGN KEY (user_id) REFERENCES None.None(None)
 );
+
 COMMENT ON TABLE auth.sessions IS 'Auth: Stores session data associated to a user.';
 COMMENT ON COLUMN auth.sessions.not_after IS 'Auth: Not after is a nullable column that contains a timestamp after which the session should be regarded as expired.';
 
--- Table: auth.sso_domains
--- Description: Auth: Manages SSO email address domain mapping to an SSO Identity Provider.
+-- Auth: Manages SSO email address domain mapping to an SSO Identity Provider.
 CREATE TABLE IF NOT EXISTS auth.sso_domains (
     id uuid NOT NULL,
     sso_provider_id uuid NOT NULL,
@@ -264,10 +274,10 @@ CREATE TABLE IF NOT EXISTS auth.sso_domains (
     CONSTRAINT sso_domains_pkey PRIMARY KEY (id),
     CONSTRAINT sso_domains_sso_provider_id_fkey FOREIGN KEY (sso_provider_id) REFERENCES None.None(None)
 );
+
 COMMENT ON TABLE auth.sso_domains IS 'Auth: Manages SSO email address domain mapping to an SSO Identity Provider.';
 
--- Table: auth.sso_providers
--- Description: Auth: Manages SSO identity provider information; see saml_providers for SAML.
+-- Auth: Manages SSO identity provider information; see saml_providers for SAML.
 CREATE TABLE IF NOT EXISTS auth.sso_providers (
     id uuid NOT NULL,
     resource_id text,
@@ -275,11 +285,11 @@ CREATE TABLE IF NOT EXISTS auth.sso_providers (
     updated_at timestamp with time zone,
     CONSTRAINT sso_providers_pkey PRIMARY KEY (id)
 );
+
 COMMENT ON TABLE auth.sso_providers IS 'Auth: Manages SSO identity provider information; see saml_providers for SAML.';
 COMMENT ON COLUMN auth.sso_providers.resource_id IS 'Auth: Uniquely identifies a SSO provider according to a user-chosen resource ID (case insensitive), useful in infrastructure as code.';
 
--- Table: auth.users
--- Description: Auth: Stores user login data within a secure schema.
+-- Auth: Stores user login data within a secure schema.
 CREATE TABLE IF NOT EXISTS auth.users (
     instance_id uuid,
     id uuid NOT NULL,
@@ -319,11 +329,11 @@ CREATE TABLE IF NOT EXISTS auth.users (
     CONSTRAINT users_phone_key UNIQUE (phone),
     CONSTRAINT users_pkey PRIMARY KEY (id)
 );
+
 COMMENT ON TABLE auth.users IS 'Auth: Stores user login data within a secure schema.';
 COMMENT ON COLUMN auth.users.is_sso_user IS 'Auth: Set this column to true when the account comes from SSO. These accounts can have duplicate emails.';
 
--- Table: public.attachments
--- Description: File attachments storage metadata
+-- File attachments storage metadata
 CREATE TABLE IF NOT EXISTS public.attachments (
     id integer(32) NOT NULL DEFAULT nextval('attachments_id_seq'::regclass),
     original_name character varying(255) NOT NULL,
@@ -334,10 +344,10 @@ CREATE TABLE IF NOT EXISTS public.attachments (
     created_at timestamp with time zone DEFAULT now(),
     CONSTRAINT attachments_pkey PRIMARY KEY (id)
 );
+
 COMMENT ON TABLE public.attachments IS 'File attachments storage metadata';
 
--- Table: public.contractor_types
--- Description: Types of contractors (suppliers, clients, etc.)
+-- Types of contractors (suppliers, clients, etc.)
 CREATE TABLE IF NOT EXISTS public.contractor_types (
     id integer(32) NOT NULL DEFAULT nextval('contractor_types_id_seq'::regclass),
     code character varying(50) NOT NULL,
@@ -347,10 +357,10 @@ CREATE TABLE IF NOT EXISTS public.contractor_types (
     CONSTRAINT contractor_types_code_key UNIQUE (code),
     CONSTRAINT contractor_types_pkey PRIMARY KEY (id)
 );
+
 COMMENT ON TABLE public.contractor_types IS 'Types of contractors (suppliers, clients, etc.)';
 
--- Table: public.contractors
--- Description: Contractors (suppliers and payers) information
+-- Contractors (suppliers and payers) information
 CREATE TABLE IF NOT EXISTS public.contractors (
     id integer(32) NOT NULL DEFAULT nextval('contractors_id_seq'::regclass),
     name character varying(255) NOT NULL,
@@ -365,11 +375,11 @@ CREATE TABLE IF NOT EXISTS public.contractors (
     CONSTRAINT contractors_pkey PRIMARY KEY (id),
     CONSTRAINT contractors_type_id_fkey FOREIGN KEY (type_id) REFERENCES None.None(None)
 );
+
 COMMENT ON TABLE public.contractors IS 'Contractors (suppliers and payers) information';
 COMMENT ON COLUMN public.contractors.supplier_code IS 'Уникальный код поставщика (3 буквы + 4 цифры ИНН)';
 
--- Table: public.invoice_documents
--- Description: Таблица связи документов со счетами. РАЗРЕШЕНО множество документов на один счет!
+-- Таблица связи документов со счетами. РАЗРЕШЕНО множество документов на один счет!
 CREATE TABLE IF NOT EXISTS public.invoice_documents (
     id integer(32) NOT NULL DEFAULT nextval('invoice_documents_id_seq'::regclass),
     invoice_id integer(32),
@@ -379,10 +389,10 @@ CREATE TABLE IF NOT EXISTS public.invoice_documents (
     CONSTRAINT invoice_documents_invoice_id_fkey FOREIGN KEY (invoice_id) REFERENCES None.None(None),
     CONSTRAINT invoice_documents_pkey PRIMARY KEY (id)
 );
+
 COMMENT ON TABLE public.invoice_documents IS 'Таблица связи документов со счетами. РАЗРЕШЕНО множество документов на один счет!';
 
--- Table: public.invoice_history
--- Description: История всех изменений счетов, платежей и связанных документов
+-- История всех изменений счетов, платежей и связанных документов
 CREATE TABLE IF NOT EXISTS public.invoice_history (
     id bigint(64) NOT NULL DEFAULT nextval('invoice_history_id_seq'::regclass),
     invoice_id integer(32),
@@ -412,6 +422,7 @@ CREATE TABLE IF NOT EXISTS public.invoice_history (
     CONSTRAINT invoice_history_pkey PRIMARY KEY (id),
     CONSTRAINT invoice_history_user_id_fkey FOREIGN KEY (user_id) REFERENCES None.None(None)
 );
+
 COMMENT ON TABLE public.invoice_history IS 'История всех изменений счетов, платежей и связанных документов';
 COMMENT ON COLUMN public.invoice_history.event_type IS 'Тип события: INVOICE_CREATED, INVOICE_UPDATED, STATUS_CHANGED, PAYMENT_CREATED, etc.';
 COMMENT ON COLUMN public.invoice_history.action IS 'Человекочитаемое описание действия';
@@ -420,8 +431,7 @@ COMMENT ON COLUMN public.invoice_history.old_values IS 'Старые значе�
 COMMENT ON COLUMN public.invoice_history.new_values IS 'Новые значения измененных полей';
 COMMENT ON COLUMN public.invoice_history.metadata IS 'Дополнительные данные события в формате JSON';
 
--- Table: public.invoice_types
--- Description: Types of invoices (goods, works, rent, utilities)
+-- Types of invoices (goods, works, rent, utilities)
 CREATE TABLE IF NOT EXISTS public.invoice_types (
     id integer(32) NOT NULL DEFAULT nextval('invoice_types_id_seq'::regclass),
     code character varying(50) NOT NULL,
@@ -431,10 +441,10 @@ CREATE TABLE IF NOT EXISTS public.invoice_types (
     CONSTRAINT invoice_types_code_key UNIQUE (code),
     CONSTRAINT invoice_types_pkey PRIMARY KEY (id)
 );
+
 COMMENT ON TABLE public.invoice_types IS 'Types of invoices (goods, works, rent, utilities)';
 
--- Table: public.invoices
--- Description: Invoices table - estimated_delivery_date field removed, delivery calculations now done in application layer
+-- Invoices table - estimated_delivery_date field removed, delivery calculations now done in application layer
 CREATE TABLE IF NOT EXISTS public.invoices (
     id integer(32) NOT NULL DEFAULT nextval('invoices_id_seq'::regclass),
     invoice_number character varying(100) NOT NULL,
@@ -466,6 +476,7 @@ CREATE TABLE IF NOT EXISTS public.invoices (
     CONSTRAINT invoices_supplier_id_fkey FOREIGN KEY (supplier_id) REFERENCES None.None(None),
     CONSTRAINT invoices_type_id_fkey FOREIGN KEY (type_id) REFERENCES None.None(None)
 );
+
 COMMENT ON TABLE public.invoices IS 'Invoices table - estimated_delivery_date field removed, delivery calculations now done in application layer';
 COMMENT ON COLUMN public.invoices.amount_net IS 'Invoice amount excluding VAT';
 COMMENT ON COLUMN public.invoices.vat_rate IS 'VAT rate as percentage (0, 5, 7, 10, or 20)';
@@ -479,8 +490,7 @@ COMMENT ON COLUMN public.invoices.internal_number IS 'Внутренний но�
 COMMENT ON COLUMN public.invoices.delivery_days_type IS 'Тип дней для доставки: calendar - календарные, working - рабочие';
 COMMENT ON COLUMN public.invoices.paid_at IS 'Timestamp when the invoice was fully paid';
 
--- Table: public.material_responsible_persons
--- Description: Материально ответственные лица (МОЛ) - сотрудники, на которых приходят материалы
+-- Материально ответственные лица (МОЛ) - сотрудники, на которых приходят материалы
 CREATE TABLE IF NOT EXISTS public.material_responsible_persons (
     id integer(32) NOT NULL DEFAULT nextval('material_responsible_persons_id_seq'::regclass),
     full_name character varying(255) NOT NULL,
@@ -493,6 +503,7 @@ CREATE TABLE IF NOT EXISTS public.material_responsible_persons (
     created_by uuid,
     CONSTRAINT material_responsible_persons_pkey PRIMARY KEY (id)
 );
+
 COMMENT ON TABLE public.material_responsible_persons IS 'Материально ответственные лица (МОЛ) - сотрудники, на которых приходят материалы';
 COMMENT ON COLUMN public.material_responsible_persons.full_name IS 'ФИО сотрудника';
 COMMENT ON COLUMN public.material_responsible_persons.phone IS 'Телефон сотрудника';
@@ -503,7 +514,37 @@ COMMENT ON COLUMN public.material_responsible_persons.created_at IS 'Дата и
 COMMENT ON COLUMN public.material_responsible_persons.updated_at IS 'Дата и время последнего обновления';
 COMMENT ON COLUMN public.material_responsible_persons.created_by IS 'ID пользователя, создавшего запись';
 
--- Table: public.payment_workflows
+-- Справочник типов платежей
+CREATE TABLE IF NOT EXISTS public.payment_types (
+    id uuid NOT NULL DEFAULT gen_random_uuid(),
+    name character varying(100) NOT NULL,
+    code character varying(50) NOT NULL,
+    description text,
+    is_active boolean NOT NULL DEFAULT true,
+    display_order integer(32) DEFAULT 0,
+    created_at timestamp with time zone NOT NULL DEFAULT now(),
+    updated_at timestamp with time zone NOT NULL DEFAULT now(),
+    created_by uuid,
+    updated_by uuid,
+    CONSTRAINT payment_types_code_key UNIQUE (code),
+    CONSTRAINT payment_types_created_by_fkey FOREIGN KEY (created_by) REFERENCES None.None(None),
+    CONSTRAINT payment_types_name_key UNIQUE (name),
+    CONSTRAINT payment_types_pkey PRIMARY KEY (id),
+    CONSTRAINT payment_types_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES None.None(None)
+);
+
+COMMENT ON TABLE public.payment_types IS 'Справочник типов платежей';
+COMMENT ON COLUMN public.payment_types.id IS 'Уникальный идентификатор';
+COMMENT ON COLUMN public.payment_types.name IS 'Название типа платежа';
+COMMENT ON COLUMN public.payment_types.code IS 'Код типа платежа для системного использования';
+COMMENT ON COLUMN public.payment_types.description IS 'Описание типа платежа';
+COMMENT ON COLUMN public.payment_types.is_active IS 'Активен ли тип платежа';
+COMMENT ON COLUMN public.payment_types.display_order IS 'Порядок отображения';
+COMMENT ON COLUMN public.payment_types.created_at IS 'Дата создания';
+COMMENT ON COLUMN public.payment_types.updated_at IS 'Дата последнего обновления';
+COMMENT ON COLUMN public.payment_types.created_by IS 'Кто создал запись';
+COMMENT ON COLUMN public.payment_types.updated_by IS 'Кто последний обновил запись';
+
 CREATE TABLE IF NOT EXISTS public.payment_workflows (
     id integer(32) NOT NULL DEFAULT nextval('payment_workflows_id_seq'::regclass),
     payment_id integer(32) NOT NULL,
@@ -535,15 +576,13 @@ CREATE TABLE IF NOT EXISTS public.payment_workflows (
     CONSTRAINT payment_workflows_pkey PRIMARY KEY (id)
 );
 
--- Table: public.payments
--- Description: Платежи по счетам
+-- Платежи по счетам
 CREATE TABLE IF NOT EXISTS public.payments (
     id integer(32) NOT NULL DEFAULT nextval('payments_id_seq'::regclass),
     invoice_id integer(32) NOT NULL,
     payment_date date NOT NULL,
     payer_id integer(32) NOT NULL,
     comment text,
-    created_by uuid DEFAULT auth.uid(),
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone DEFAULT now(),
     status character varying(50) NOT NULL DEFAULT 'pending'::character varying,
@@ -553,18 +592,22 @@ CREATE TABLE IF NOT EXISTS public.payments (
     vat_rate numeric(5,2) DEFAULT 20,
     total_amount numeric(15,2) NOT NULL,
     amount_net numeric(15,2),
+    created_by uuid,
+    payment_type_id uuid,
+    CONSTRAINT fk_payments_created_by FOREIGN KEY (created_by) REFERENCES None.None(None),
     CONSTRAINT payments_invoice_id_fkey FOREIGN KEY (invoice_id) REFERENCES None.None(None),
     CONSTRAINT payments_payer_id_fkey FOREIGN KEY (payer_id) REFERENCES None.None(None),
+    CONSTRAINT payments_payment_type_id_fkey FOREIGN KEY (payment_type_id) REFERENCES None.None(None),
     CONSTRAINT payments_pkey PRIMARY KEY (id),
     CONSTRAINT payments_type_id_fkey FOREIGN KEY (type_id) REFERENCES None.None(None)
 );
+
 COMMENT ON TABLE public.payments IS 'Платежи по счетам';
 COMMENT ON COLUMN public.payments.id IS 'Уникальный идентификатор платежа';
 COMMENT ON COLUMN public.payments.invoice_id IS 'ID связанного счета';
 COMMENT ON COLUMN public.payments.payment_date IS 'Дата платежа';
 COMMENT ON COLUMN public.payments.payer_id IS 'ID плательщика (contractor)';
 COMMENT ON COLUMN public.payments.comment IS 'Комментарий к платежу';
-COMMENT ON COLUMN public.payments.created_by IS 'ID пользователя, создавшего платеж';
 COMMENT ON COLUMN public.payments.created_at IS 'Дата и время создания платежа';
 COMMENT ON COLUMN public.payments.updated_at IS 'Дата и время последнего обновления';
 COMMENT ON COLUMN public.payments.status IS 'Статус платежа';
@@ -574,9 +617,9 @@ COMMENT ON COLUMN public.payments.vat_amount IS 'Сумма НДС';
 COMMENT ON COLUMN public.payments.vat_rate IS 'Ставка НДС в процентах';
 COMMENT ON COLUMN public.payments.total_amount IS 'Общая сумма платежа с НДС';
 COMMENT ON COLUMN public.payments.amount_net IS 'Сумма платежа без НДС';
+COMMENT ON COLUMN public.payments.created_by IS 'UUID пользователя, создавшего платеж';
 
--- Table: public.projects
--- Description: Project records - simplified without company isolation
+-- Project records - simplified without company isolation
 CREATE TABLE IF NOT EXISTS public.projects (
     id integer(32) NOT NULL DEFAULT nextval('projects_id_seq'::regclass),
     name character varying(255) NOT NULL,
@@ -587,11 +630,11 @@ CREATE TABLE IF NOT EXISTS public.projects (
     project_code character varying(4),
     CONSTRAINT projects_pkey PRIMARY KEY (id)
 );
+
 COMMENT ON TABLE public.projects IS 'Project records - simplified without company isolation';
 COMMENT ON COLUMN public.projects.project_code IS 'Уникальный код проекта (3-4 латинские буквы)';
 
--- Table: public.roles
--- Description: User roles - simplified without permissions, hierarchy, or company isolation
+-- User roles - simplified without permissions, hierarchy, or company isolation
 CREATE TABLE IF NOT EXISTS public.roles (
     id integer(32) NOT NULL DEFAULT nextval('roles_id_seq'::regclass),
     code character varying(50) NOT NULL,
@@ -604,6 +647,7 @@ CREATE TABLE IF NOT EXISTS public.roles (
     CONSTRAINT roles_code_key UNIQUE (code),
     CONSTRAINT roles_pkey PRIMARY KEY (id)
 );
+
 COMMENT ON TABLE public.roles IS 'User roles - simplified without permissions, hierarchy, or company isolation';
 COMMENT ON COLUMN public.roles.code IS 'Unique role identifier code';
 COMMENT ON COLUMN public.roles.name IS 'Display name of the role';
@@ -611,8 +655,7 @@ COMMENT ON COLUMN public.roles.description IS 'Optional role description';
 COMMENT ON COLUMN public.roles.is_active IS 'Whether the role is active';
 COMMENT ON COLUMN public.roles.view_own_project_only IS 'If true, users with this role can only see projects specified in their project_ids field';
 
--- Table: public.statuses
--- Description: Справочник статусов для счетов и платежей
+-- Справочник статусов для счетов и платежей
 CREATE TABLE IF NOT EXISTS public.statuses (
     id bigint(64) NOT NULL DEFAULT nextval('statuses_id_seq'::regclass),
     entity_type text NOT NULL,
@@ -627,6 +670,7 @@ CREATE TABLE IF NOT EXISTS public.statuses (
     updated_at timestamp with time zone NOT NULL DEFAULT now(),
     CONSTRAINT statuses_pkey PRIMARY KEY (id)
 );
+
 COMMENT ON TABLE public.statuses IS 'Справочник статусов для счетов и платежей';
 COMMENT ON COLUMN public.statuses.entity_type IS 'Тип сущности: invoice или payment';
 COMMENT ON COLUMN public.statuses.code IS 'Уникальный код статуса в рамках типа сущности';
@@ -636,8 +680,7 @@ COMMENT ON COLUMN public.statuses.is_final IS 'Финальный статус (
 COMMENT ON COLUMN public.statuses.is_active IS 'Активен ли статус для использования';
 COMMENT ON COLUMN public.statuses.order_index IS 'Порядок сортировки в списках';
 
--- Table: public.themes
--- Description: Theme configurations for PayHub application
+-- Theme configurations for PayHub application
 CREATE TABLE IF NOT EXISTS public.themes (
     id uuid NOT NULL DEFAULT gen_random_uuid(),
     name character varying(100) NOT NULL,
@@ -660,6 +703,7 @@ CREATE TABLE IF NOT EXISTS public.themes (
     CONSTRAINT themes_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES None.None(None),
     CONSTRAINT themes_user_id_fkey FOREIGN KEY (user_id) REFERENCES None.None(None)
 );
+
 COMMENT ON TABLE public.themes IS 'Theme configurations for PayHub application';
 COMMENT ON COLUMN public.themes.id IS 'Primary key for theme';
 COMMENT ON COLUMN public.themes.name IS 'Human readable name for the theme';
@@ -673,8 +717,7 @@ COMMENT ON COLUMN public.themes.shared_with_roles IS 'Array of role IDs that can
 COMMENT ON COLUMN public.themes.version IS 'Version number for theme (for future versioning support)';
 COMMENT ON COLUMN public.themes.parent_theme_id IS 'Parent theme if this is derived from another theme';
 
--- Table: public.users
--- Description: Auth: Stores user login data within a secure schema.
+-- Auth: Stores user login data within a secure schema.
 CREATE TABLE IF NOT EXISTS public.users (
     id uuid NOT NULL,
     email character varying(255) NOT NULL,
@@ -685,14 +728,13 @@ CREATE TABLE IF NOT EXISTS public.users (
     role_id integer(32),
     project_ids ARRAY,
     CONSTRAINT users_email_key UNIQUE (email),
-    CONSTRAINT users_id_fkey FOREIGN KEY (id) REFERENCES None.None(None),
     CONSTRAINT users_pkey PRIMARY KEY (id),
     CONSTRAINT users_role_id_fkey FOREIGN KEY (role_id) REFERENCES None.None(None)
 );
+
 COMMENT ON TABLE public.users IS 'Auth: Stores user login data within a secure schema.';
 
--- Table: public.workflow_approval_progress
--- Description: История всех действий по согласованию платежей
+-- История всех действий по согласованию платежей
 CREATE TABLE IF NOT EXISTS public.workflow_approval_progress (
     id integer(32) NOT NULL DEFAULT nextval('workflow_approval_progress_id_seq'::regclass),
     workflow_id integer(32) NOT NULL,
@@ -705,9 +747,9 @@ CREATE TABLE IF NOT EXISTS public.workflow_approval_progress (
     reason text,
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT workflow_approval_progress_pkey PRIMARY KEY (id),
-    CONSTRAINT workflow_approval_progress_stage_id_fkey FOREIGN KEY (stage_id) REFERENCES None.None(None),
-    CONSTRAINT workflow_approval_progress_user_id_fkey FOREIGN KEY (user_id) REFERENCES None.None(None)
+    CONSTRAINT workflow_approval_progress_stage_id_fkey FOREIGN KEY (stage_id) REFERENCES None.None(None)
 );
+
 COMMENT ON TABLE public.workflow_approval_progress IS 'История всех действий по согласованию платежей';
 COMMENT ON COLUMN public.workflow_approval_progress.workflow_id IS 'ID процесса согласования';
 COMMENT ON COLUMN public.workflow_approval_progress.stage_id IS 'ID этапа согласования';
@@ -718,7 +760,6 @@ COMMENT ON COLUMN public.workflow_approval_progress.user_name IS 'Имя пол�
 COMMENT ON COLUMN public.workflow_approval_progress.comment IS 'Комментарий при одобрении';
 COMMENT ON COLUMN public.workflow_approval_progress.reason IS 'Причина при отклонении или отмене';
 
--- Table: public.workflow_stages
 CREATE TABLE IF NOT EXISTS public.workflow_stages (
     id integer(32) NOT NULL DEFAULT nextval('workflow_stages_id_seq'::regclass),
     workflow_id integer(32) NOT NULL,
@@ -736,8 +777,7 @@ CREATE TABLE IF NOT EXISTS public.workflow_stages (
 COMMENT ON COLUMN public.workflow_stages.description IS 'Описание этапа согласования';
 COMMENT ON COLUMN public.workflow_stages.assigned_roles IS 'Массив ID ролей, назначенных на этот этап';
 
--- Table: public.workflows
--- Description: Workflow configurations - simplified without company isolation
+-- Workflow configurations - simplified without company isolation
 CREATE TABLE IF NOT EXISTS public.workflows (
     id integer(32) NOT NULL DEFAULT nextval('workflows_id_seq'::regclass),
     name character varying(255) NOT NULL,
@@ -748,10 +788,10 @@ CREATE TABLE IF NOT EXISTS public.workflows (
     invoice_type_ids ARRAY DEFAULT '{}'::integer[],
     CONSTRAINT workflows_pkey PRIMARY KEY (id)
 );
+
 COMMENT ON TABLE public.workflows IS 'Workflow configurations - simplified without company isolation';
 COMMENT ON COLUMN public.workflows.invoice_type_ids IS 'Массив ID типов заявок из таблицы invoice_types';
 
--- Table: realtime.messages
 CREATE TABLE IF NOT EXISTS realtime.messages (
     topic text NOT NULL,
     extension text NOT NULL,
@@ -765,16 +805,15 @@ CREATE TABLE IF NOT EXISTS realtime.messages (
     CONSTRAINT messages_pkey PRIMARY KEY (inserted_at)
 );
 
--- Table: realtime.schema_migrations
--- Description: Auth: Manages updates to the auth system.
+-- Auth: Manages updates to the auth system.
 CREATE TABLE IF NOT EXISTS realtime.schema_migrations (
     version bigint(64) NOT NULL,
     inserted_at timestamp without time zone,
     CONSTRAINT schema_migrations_pkey PRIMARY KEY (version)
 );
+
 COMMENT ON TABLE realtime.schema_migrations IS 'Auth: Manages updates to the auth system.';
 
--- Table: realtime.subscription
 CREATE TABLE IF NOT EXISTS realtime.subscription (
     id bigint(64) NOT NULL,
     subscription_id uuid NOT NULL,
@@ -786,8 +825,7 @@ CREATE TABLE IF NOT EXISTS realtime.subscription (
     CONSTRAINT pk_subscription PRIMARY KEY (id)
 );
 
--- Table: storage.buckets
--- Description: Таблица buckets для организации файлов
+-- Таблица buckets для организации файлов
 CREATE TABLE IF NOT EXISTS storage.buckets (
     id text NOT NULL,
     name text NOT NULL,
@@ -802,10 +840,10 @@ CREATE TABLE IF NOT EXISTS storage.buckets (
     type USER-DEFINED NOT NULL DEFAULT 'STANDARD'::storage.buckettype,
     CONSTRAINT buckets_pkey PRIMARY KEY (id)
 );
+
 COMMENT ON TABLE storage.buckets IS 'Таблица buckets для организации файлов';
 COMMENT ON COLUMN storage.buckets.owner IS 'Field is deprecated, use owner_id instead';
 
--- Table: storage.buckets_analytics
 CREATE TABLE IF NOT EXISTS storage.buckets_analytics (
     id text NOT NULL,
     type USER-DEFINED NOT NULL DEFAULT 'ANALYTICS'::storage.buckettype,
@@ -815,7 +853,6 @@ CREATE TABLE IF NOT EXISTS storage.buckets_analytics (
     CONSTRAINT buckets_analytics_pkey PRIMARY KEY (id)
 );
 
--- Table: storage.iceberg_namespaces
 CREATE TABLE IF NOT EXISTS storage.iceberg_namespaces (
     id uuid NOT NULL DEFAULT gen_random_uuid(),
     bucket_id text NOT NULL,
@@ -826,7 +863,6 @@ CREATE TABLE IF NOT EXISTS storage.iceberg_namespaces (
     CONSTRAINT iceberg_namespaces_pkey PRIMARY KEY (id)
 );
 
--- Table: storage.iceberg_tables
 CREATE TABLE IF NOT EXISTS storage.iceberg_tables (
     id uuid NOT NULL DEFAULT gen_random_uuid(),
     namespace_id uuid NOT NULL,
@@ -840,7 +876,6 @@ CREATE TABLE IF NOT EXISTS storage.iceberg_tables (
     CONSTRAINT iceberg_tables_pkey PRIMARY KEY (id)
 );
 
--- Table: storage.migrations
 CREATE TABLE IF NOT EXISTS storage.migrations (
     id integer(32) NOT NULL,
     name character varying(100) NOT NULL,
@@ -850,8 +885,7 @@ CREATE TABLE IF NOT EXISTS storage.migrations (
     CONSTRAINT migrations_pkey PRIMARY KEY (id)
 );
 
--- Table: storage.objects
--- Description: Таблица объектов (файлов) в Storage
+-- Таблица объектов (файлов) в Storage
 CREATE TABLE IF NOT EXISTS storage.objects (
     id uuid NOT NULL DEFAULT gen_random_uuid(),
     bucket_id text,
@@ -869,10 +903,10 @@ CREATE TABLE IF NOT EXISTS storage.objects (
     CONSTRAINT objects_bucketId_fkey FOREIGN KEY (bucket_id) REFERENCES None.None(None),
     CONSTRAINT objects_pkey PRIMARY KEY (id)
 );
+
 COMMENT ON TABLE storage.objects IS 'Таблица объектов (файлов) в Storage';
 COMMENT ON COLUMN storage.objects.owner IS 'Field is deprecated, use owner_id instead';
 
--- Table: storage.prefixes
 CREATE TABLE IF NOT EXISTS storage.prefixes (
     bucket_id text NOT NULL,
     name text NOT NULL,
@@ -885,7 +919,6 @@ CREATE TABLE IF NOT EXISTS storage.prefixes (
     CONSTRAINT prefixes_pkey PRIMARY KEY (name)
 );
 
--- Table: storage.s3_multipart_uploads
 CREATE TABLE IF NOT EXISTS storage.s3_multipart_uploads (
     id text NOT NULL,
     in_progress_size bigint(64) NOT NULL DEFAULT 0,
@@ -900,7 +933,6 @@ CREATE TABLE IF NOT EXISTS storage.s3_multipart_uploads (
     CONSTRAINT s3_multipart_uploads_pkey PRIMARY KEY (id)
 );
 
--- Table: storage.s3_multipart_uploads_parts
 CREATE TABLE IF NOT EXISTS storage.s3_multipart_uploads_parts (
     id uuid NOT NULL DEFAULT gen_random_uuid(),
     upload_id text NOT NULL,
@@ -917,8 +949,7 @@ CREATE TABLE IF NOT EXISTS storage.s3_multipart_uploads_parts (
     CONSTRAINT s3_multipart_uploads_parts_upload_id_fkey FOREIGN KEY (upload_id) REFERENCES None.None(None)
 );
 
--- Table: supabase_functions.hooks
--- Description: Supabase Functions Hooks: Audit trail for triggered hooks.
+-- Supabase Functions Hooks: Audit trail for triggered hooks.
 CREATE TABLE IF NOT EXISTS supabase_functions.hooks (
     id bigint(64) NOT NULL DEFAULT nextval('supabase_functions.hooks_id_seq'::regclass),
     hook_table_id integer(32) NOT NULL,
@@ -927,17 +958,16 @@ CREATE TABLE IF NOT EXISTS supabase_functions.hooks (
     request_id bigint(64),
     CONSTRAINT hooks_pkey PRIMARY KEY (id)
 );
+
 COMMENT ON TABLE supabase_functions.hooks IS 'Supabase Functions Hooks: Audit trail for triggered hooks.';
 
--- Table: supabase_functions.migrations
 CREATE TABLE IF NOT EXISTS supabase_functions.migrations (
     version text NOT NULL,
     inserted_at timestamp with time zone NOT NULL DEFAULT now(),
     CONSTRAINT migrations_pkey PRIMARY KEY (version)
 );
 
--- Table: vault.secrets
--- Description: Table with encrypted `secret` column for storing sensitive information on disk.
+-- Table with encrypted `secret` column for storing sensitive information on disk.
 CREATE TABLE IF NOT EXISTS vault.secrets (
     id uuid NOT NULL DEFAULT gen_random_uuid(),
     name text,
@@ -949,38 +979,13 @@ CREATE TABLE IF NOT EXISTS vault.secrets (
     updated_at timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT secrets_pkey PRIMARY KEY (id)
 );
+
 COMMENT ON TABLE vault.secrets IS 'Table with encrypted `secret` column for storing sensitive information on disk.';
 
 
--- ============================================
--- ENUM TYPES
--- ============================================
-
-CREATE TYPE auth.aal_level AS ENUM ('aal1', 'aal2', 'aal3');
-
-CREATE TYPE auth.code_challenge_method AS ENUM ('s256', 'plain');
-
-CREATE TYPE auth.factor_status AS ENUM ('unverified', 'verified');
-
-CREATE TYPE auth.factor_type AS ENUM ('totp', 'webauthn', 'phone');
-
-CREATE TYPE auth.one_time_token_type AS ENUM ('confirmation_token', 'reauthentication_token', 'recovery_token', 'email_change_token_new', 'email_change_token_current', 'phone_change_token');
-
-CREATE TYPE public.priority_level AS ENUM ('low', 'normal', 'high', 'urgent');
-COMMENT ON TYPE public.priority_level IS 'Priority levels for invoices';
-
-CREATE TYPE realtime.action AS ENUM ('INSERT', 'UPDATE', 'DELETE', 'TRUNCATE', 'ERROR');
-
-CREATE TYPE realtime.equality_op AS ENUM ('eq', 'neq', 'lt', 'lte', 'gt', 'gte', 'in');
-
-CREATE TYPE storage.buckettype AS ENUM ('STANDARD', 'ANALYTICS');
-
-
--- ============================================
 -- VIEWS
 -- ============================================
 
--- View: vault.decrypted_secrets
 CREATE OR REPLACE VIEW vault.decrypted_secrets AS
  SELECT s.id,
     s.name,
@@ -994,12 +999,9 @@ CREATE OR REPLACE VIEW vault.decrypted_secrets AS
    FROM vault.secrets s;
 
 
--- ============================================
 -- FUNCTIONS
 -- ============================================
 
--- Function: auth.email
--- Description: Deprecated. Use auth.jwt() -> 'email' instead.
 CREATE OR REPLACE FUNCTION auth.email()
  RETURNS text
  LANGUAGE sql
@@ -1012,8 +1014,8 @@ AS $function$
   )::text
 $function$
 
+;
 
--- Function: auth.jwt
 CREATE OR REPLACE FUNCTION auth.jwt()
  RETURNS jsonb
  LANGUAGE sql
@@ -1026,9 +1028,8 @@ AS $function$
     )::jsonb
 $function$
 
+;
 
--- Function: auth.role
--- Description: Deprecated. Use auth.jwt() -> 'role' instead.
 CREATE OR REPLACE FUNCTION auth.role()
  RETURNS text
  LANGUAGE sql
@@ -1041,9 +1042,8 @@ AS $function$
   )::text
 $function$
 
+;
 
--- Function: auth.uid
--- Description: Deprecated. Use auth.jwt() -> 'sub' instead.
 CREATE OR REPLACE FUNCTION auth.uid()
  RETURNS uuid
  LANGUAGE plpgsql
@@ -1057,8 +1057,8 @@ BEGIN
 END;
 $function$
 
+;
 
--- Function: extensions.algorithm_sign
 CREATE OR REPLACE FUNCTION extensions.algorithm_sign(signables text, secret text, algorithm text)
  RETURNS text
  LANGUAGE sql
@@ -1074,121 +1074,120 @@ WITH
 SELECT extensions.url_encode(extensions.hmac(signables, secret, alg.id)) FROM alg;
 $function$
 
+;
 
--- Function: extensions.armor
 CREATE OR REPLACE FUNCTION extensions.armor(bytea)
  RETURNS text
  LANGUAGE c
  IMMUTABLE PARALLEL SAFE STRICT
 AS '$libdir/pgcrypto', $function$pg_armor$function$
 
+;
 
--- Function: extensions.armor
 CREATE OR REPLACE FUNCTION extensions.armor(bytea, text[], text[])
  RETURNS text
  LANGUAGE c
  IMMUTABLE PARALLEL SAFE STRICT
 AS '$libdir/pgcrypto', $function$pg_armor$function$
 
+;
 
--- Function: extensions.crypt
 CREATE OR REPLACE FUNCTION extensions.crypt(text, text)
  RETURNS text
  LANGUAGE c
  IMMUTABLE PARALLEL SAFE STRICT
 AS '$libdir/pgcrypto', $function$pg_crypt$function$
 
+;
 
--- Function: extensions.dearmor
 CREATE OR REPLACE FUNCTION extensions.dearmor(text)
  RETURNS bytea
  LANGUAGE c
  IMMUTABLE PARALLEL SAFE STRICT
 AS '$libdir/pgcrypto', $function$pg_dearmor$function$
 
+;
 
--- Function: extensions.decrypt
 CREATE OR REPLACE FUNCTION extensions.decrypt(bytea, bytea, text)
  RETURNS bytea
  LANGUAGE c
  IMMUTABLE PARALLEL SAFE STRICT
 AS '$libdir/pgcrypto', $function$pg_decrypt$function$
 
+;
 
--- Function: extensions.decrypt_iv
 CREATE OR REPLACE FUNCTION extensions.decrypt_iv(bytea, bytea, bytea, text)
  RETURNS bytea
  LANGUAGE c
  IMMUTABLE PARALLEL SAFE STRICT
 AS '$libdir/pgcrypto', $function$pg_decrypt_iv$function$
 
+;
 
--- Function: extensions.digest
 CREATE OR REPLACE FUNCTION extensions.digest(bytea, text)
  RETURNS bytea
  LANGUAGE c
  IMMUTABLE PARALLEL SAFE STRICT
 AS '$libdir/pgcrypto', $function$pg_digest$function$
 
+;
 
--- Function: extensions.digest
 CREATE OR REPLACE FUNCTION extensions.digest(text, text)
  RETURNS bytea
  LANGUAGE c
  IMMUTABLE PARALLEL SAFE STRICT
 AS '$libdir/pgcrypto', $function$pg_digest$function$
 
+;
 
--- Function: extensions.encrypt
 CREATE OR REPLACE FUNCTION extensions.encrypt(bytea, bytea, text)
  RETURNS bytea
  LANGUAGE c
  IMMUTABLE PARALLEL SAFE STRICT
 AS '$libdir/pgcrypto', $function$pg_encrypt$function$
 
+;
 
--- Function: extensions.encrypt_iv
 CREATE OR REPLACE FUNCTION extensions.encrypt_iv(bytea, bytea, bytea, text)
  RETURNS bytea
  LANGUAGE c
  IMMUTABLE PARALLEL SAFE STRICT
 AS '$libdir/pgcrypto', $function$pg_encrypt_iv$function$
 
+;
 
--- Function: extensions.gen_random_bytes
 CREATE OR REPLACE FUNCTION extensions.gen_random_bytes(integer)
  RETURNS bytea
  LANGUAGE c
  PARALLEL SAFE STRICT
 AS '$libdir/pgcrypto', $function$pg_random_bytes$function$
 
+;
 
--- Function: extensions.gen_random_uuid
 CREATE OR REPLACE FUNCTION extensions.gen_random_uuid()
  RETURNS uuid
  LANGUAGE c
  PARALLEL SAFE
 AS '$libdir/pgcrypto', $function$pg_random_uuid$function$
 
+;
 
--- Function: extensions.gen_salt
 CREATE OR REPLACE FUNCTION extensions.gen_salt(text)
  RETURNS text
  LANGUAGE c
  PARALLEL SAFE STRICT
 AS '$libdir/pgcrypto', $function$pg_gen_salt$function$
 
+;
 
--- Function: extensions.gen_salt
 CREATE OR REPLACE FUNCTION extensions.gen_salt(text, integer)
  RETURNS text
  LANGUAGE c
  PARALLEL SAFE STRICT
 AS '$libdir/pgcrypto', $function$pg_gen_salt_rounds$function$
 
+;
 
--- Function: extensions.grant_pg_cron_access
--- Description: Grants access to pg_cron
 CREATE OR REPLACE FUNCTION extensions.grant_pg_cron_access()
  RETURNS event_trigger
  LANGUAGE plpgsql
@@ -1222,9 +1221,8 @@ BEGIN
 END;
 $function$
 
+;
 
--- Function: extensions.grant_pg_graphql_access
--- Description: Grants access to pg_graphql
 CREATE OR REPLACE FUNCTION extensions.grant_pg_graphql_access()
  RETURNS event_trigger
  LANGUAGE plpgsql
@@ -1279,9 +1277,8 @@ BEGIN
 END;
 $function$
 
+;
 
--- Function: extensions.grant_pg_net_access
--- Description: Grants access to pg_net
 CREATE OR REPLACE FUNCTION extensions.grant_pg_net_access()
  RETURNS event_trigger
  LANGUAGE plpgsql
@@ -1329,184 +1326,184 @@ BEGIN
 END;
 $function$
 
+;
 
--- Function: extensions.hmac
 CREATE OR REPLACE FUNCTION extensions.hmac(text, text, text)
  RETURNS bytea
  LANGUAGE c
  IMMUTABLE PARALLEL SAFE STRICT
 AS '$libdir/pgcrypto', $function$pg_hmac$function$
 
+;
 
--- Function: extensions.hmac
 CREATE OR REPLACE FUNCTION extensions.hmac(bytea, bytea, text)
  RETURNS bytea
  LANGUAGE c
  IMMUTABLE PARALLEL SAFE STRICT
 AS '$libdir/pgcrypto', $function$pg_hmac$function$
 
+;
 
--- Function: extensions.pgp_armor_headers
 CREATE OR REPLACE FUNCTION extensions.pgp_armor_headers(text, OUT key text, OUT value text)
  RETURNS SETOF record
  LANGUAGE c
  IMMUTABLE PARALLEL SAFE STRICT
 AS '$libdir/pgcrypto', $function$pgp_armor_headers$function$
 
+;
 
--- Function: extensions.pgp_key_id
 CREATE OR REPLACE FUNCTION extensions.pgp_key_id(bytea)
  RETURNS text
  LANGUAGE c
  IMMUTABLE PARALLEL SAFE STRICT
 AS '$libdir/pgcrypto', $function$pgp_key_id_w$function$
 
+;
 
--- Function: extensions.pgp_pub_decrypt
 CREATE OR REPLACE FUNCTION extensions.pgp_pub_decrypt(bytea, bytea, text, text)
  RETURNS text
  LANGUAGE c
  IMMUTABLE PARALLEL SAFE STRICT
 AS '$libdir/pgcrypto', $function$pgp_pub_decrypt_text$function$
 
+;
 
--- Function: extensions.pgp_pub_decrypt
 CREATE OR REPLACE FUNCTION extensions.pgp_pub_decrypt(bytea, bytea)
  RETURNS text
  LANGUAGE c
  IMMUTABLE PARALLEL SAFE STRICT
 AS '$libdir/pgcrypto', $function$pgp_pub_decrypt_text$function$
 
+;
 
--- Function: extensions.pgp_pub_decrypt
 CREATE OR REPLACE FUNCTION extensions.pgp_pub_decrypt(bytea, bytea, text)
  RETURNS text
  LANGUAGE c
  IMMUTABLE PARALLEL SAFE STRICT
 AS '$libdir/pgcrypto', $function$pgp_pub_decrypt_text$function$
 
+;
 
--- Function: extensions.pgp_pub_decrypt_bytea
 CREATE OR REPLACE FUNCTION extensions.pgp_pub_decrypt_bytea(bytea, bytea)
  RETURNS bytea
  LANGUAGE c
  IMMUTABLE PARALLEL SAFE STRICT
 AS '$libdir/pgcrypto', $function$pgp_pub_decrypt_bytea$function$
 
+;
 
--- Function: extensions.pgp_pub_decrypt_bytea
 CREATE OR REPLACE FUNCTION extensions.pgp_pub_decrypt_bytea(bytea, bytea, text, text)
  RETURNS bytea
  LANGUAGE c
  IMMUTABLE PARALLEL SAFE STRICT
 AS '$libdir/pgcrypto', $function$pgp_pub_decrypt_bytea$function$
 
+;
 
--- Function: extensions.pgp_pub_decrypt_bytea
 CREATE OR REPLACE FUNCTION extensions.pgp_pub_decrypt_bytea(bytea, bytea, text)
  RETURNS bytea
  LANGUAGE c
  IMMUTABLE PARALLEL SAFE STRICT
 AS '$libdir/pgcrypto', $function$pgp_pub_decrypt_bytea$function$
 
+;
 
--- Function: extensions.pgp_pub_encrypt
 CREATE OR REPLACE FUNCTION extensions.pgp_pub_encrypt(text, bytea, text)
  RETURNS bytea
  LANGUAGE c
  PARALLEL SAFE STRICT
 AS '$libdir/pgcrypto', $function$pgp_pub_encrypt_text$function$
 
+;
 
--- Function: extensions.pgp_pub_encrypt
 CREATE OR REPLACE FUNCTION extensions.pgp_pub_encrypt(text, bytea)
  RETURNS bytea
  LANGUAGE c
  PARALLEL SAFE STRICT
 AS '$libdir/pgcrypto', $function$pgp_pub_encrypt_text$function$
 
+;
 
--- Function: extensions.pgp_pub_encrypt_bytea
 CREATE OR REPLACE FUNCTION extensions.pgp_pub_encrypt_bytea(bytea, bytea)
  RETURNS bytea
  LANGUAGE c
  PARALLEL SAFE STRICT
 AS '$libdir/pgcrypto', $function$pgp_pub_encrypt_bytea$function$
 
+;
 
--- Function: extensions.pgp_pub_encrypt_bytea
 CREATE OR REPLACE FUNCTION extensions.pgp_pub_encrypt_bytea(bytea, bytea, text)
  RETURNS bytea
  LANGUAGE c
  PARALLEL SAFE STRICT
 AS '$libdir/pgcrypto', $function$pgp_pub_encrypt_bytea$function$
 
+;
 
--- Function: extensions.pgp_sym_decrypt
 CREATE OR REPLACE FUNCTION extensions.pgp_sym_decrypt(bytea, text, text)
  RETURNS text
  LANGUAGE c
  IMMUTABLE PARALLEL SAFE STRICT
 AS '$libdir/pgcrypto', $function$pgp_sym_decrypt_text$function$
 
+;
 
--- Function: extensions.pgp_sym_decrypt
 CREATE OR REPLACE FUNCTION extensions.pgp_sym_decrypt(bytea, text)
  RETURNS text
  LANGUAGE c
  IMMUTABLE PARALLEL SAFE STRICT
 AS '$libdir/pgcrypto', $function$pgp_sym_decrypt_text$function$
 
+;
 
--- Function: extensions.pgp_sym_decrypt_bytea
 CREATE OR REPLACE FUNCTION extensions.pgp_sym_decrypt_bytea(bytea, text, text)
  RETURNS bytea
  LANGUAGE c
  IMMUTABLE PARALLEL SAFE STRICT
 AS '$libdir/pgcrypto', $function$pgp_sym_decrypt_bytea$function$
 
+;
 
--- Function: extensions.pgp_sym_decrypt_bytea
 CREATE OR REPLACE FUNCTION extensions.pgp_sym_decrypt_bytea(bytea, text)
  RETURNS bytea
  LANGUAGE c
  IMMUTABLE PARALLEL SAFE STRICT
 AS '$libdir/pgcrypto', $function$pgp_sym_decrypt_bytea$function$
 
+;
 
--- Function: extensions.pgp_sym_encrypt
 CREATE OR REPLACE FUNCTION extensions.pgp_sym_encrypt(text, text)
  RETURNS bytea
  LANGUAGE c
  PARALLEL SAFE STRICT
 AS '$libdir/pgcrypto', $function$pgp_sym_encrypt_text$function$
 
+;
 
--- Function: extensions.pgp_sym_encrypt
 CREATE OR REPLACE FUNCTION extensions.pgp_sym_encrypt(text, text, text)
  RETURNS bytea
  LANGUAGE c
  PARALLEL SAFE STRICT
 AS '$libdir/pgcrypto', $function$pgp_sym_encrypt_text$function$
 
+;
 
--- Function: extensions.pgp_sym_encrypt_bytea
 CREATE OR REPLACE FUNCTION extensions.pgp_sym_encrypt_bytea(bytea, text)
  RETURNS bytea
  LANGUAGE c
  PARALLEL SAFE STRICT
 AS '$libdir/pgcrypto', $function$pgp_sym_encrypt_bytea$function$
 
+;
 
--- Function: extensions.pgp_sym_encrypt_bytea
 CREATE OR REPLACE FUNCTION extensions.pgp_sym_encrypt_bytea(bytea, text, text)
  RETURNS bytea
  LANGUAGE c
  PARALLEL SAFE STRICT
 AS '$libdir/pgcrypto', $function$pgp_sym_encrypt_bytea$function$
 
+;
 
--- Function: extensions.pgrst_ddl_watch
 CREATE OR REPLACE FUNCTION extensions.pgrst_ddl_watch()
  RETURNS event_trigger
  LANGUAGE plpgsql
@@ -1536,8 +1533,8 @@ BEGIN
   END LOOP;
 END; $function$
 
+;
 
--- Function: extensions.pgrst_drop_watch
 CREATE OR REPLACE FUNCTION extensions.pgrst_drop_watch()
  RETURNS event_trigger
  LANGUAGE plpgsql
@@ -1565,9 +1562,8 @@ BEGIN
   END LOOP;
 END; $function$
 
+;
 
--- Function: extensions.set_graphql_placeholder
--- Description: Reintroduces placeholder function for graphql_public.graphql
 CREATE OR REPLACE FUNCTION extensions.set_graphql_placeholder()
  RETURNS event_trigger
  LANGUAGE plpgsql
@@ -1621,8 +1617,8 @@ AS $function$
     END;
 $function$
 
+;
 
--- Function: extensions.sign
 CREATE OR REPLACE FUNCTION extensions.sign(payload json, secret text, algorithm text DEFAULT 'HS256'::text)
  RETURNS text
  LANGUAGE sql
@@ -1643,8 +1639,8 @@ SELECT
     extensions.algorithm_sign(signables.data, secret, algorithm) FROM signables;
 $function$
 
+;
 
--- Function: extensions.try_cast_double
 CREATE OR REPLACE FUNCTION extensions.try_cast_double(inp text)
  RETURNS double precision
  LANGUAGE plpgsql
@@ -1659,8 +1655,8 @@ AS $function$
   END;
 $function$
 
+;
 
--- Function: extensions.url_decode
 CREATE OR REPLACE FUNCTION extensions.url_decode(data text)
  RETURNS bytea
  LANGUAGE sql
@@ -1676,8 +1672,8 @@ WITH t AS (SELECT translate(data, '-_', '+/') AS trans),
     'base64') FROM t, rem;
 $function$
 
+;
 
--- Function: extensions.url_encode
 CREATE OR REPLACE FUNCTION extensions.url_encode(data bytea)
  RETURNS text
  LANGUAGE sql
@@ -1686,88 +1682,88 @@ AS $function$
     SELECT translate(encode(data, 'base64'), E'+/=\n', '-_');
 $function$
 
+;
 
--- Function: extensions.uuid_generate_v1
 CREATE OR REPLACE FUNCTION extensions.uuid_generate_v1()
  RETURNS uuid
  LANGUAGE c
  PARALLEL SAFE STRICT
 AS '$libdir/uuid-ossp', $function$uuid_generate_v1$function$
 
+;
 
--- Function: extensions.uuid_generate_v1mc
 CREATE OR REPLACE FUNCTION extensions.uuid_generate_v1mc()
  RETURNS uuid
  LANGUAGE c
  PARALLEL SAFE STRICT
 AS '$libdir/uuid-ossp', $function$uuid_generate_v1mc$function$
 
+;
 
--- Function: extensions.uuid_generate_v3
 CREATE OR REPLACE FUNCTION extensions.uuid_generate_v3(namespace uuid, name text)
  RETURNS uuid
  LANGUAGE c
  IMMUTABLE PARALLEL SAFE STRICT
 AS '$libdir/uuid-ossp', $function$uuid_generate_v3$function$
 
+;
 
--- Function: extensions.uuid_generate_v4
 CREATE OR REPLACE FUNCTION extensions.uuid_generate_v4()
  RETURNS uuid
  LANGUAGE c
  PARALLEL SAFE STRICT
 AS '$libdir/uuid-ossp', $function$uuid_generate_v4$function$
 
+;
 
--- Function: extensions.uuid_generate_v5
 CREATE OR REPLACE FUNCTION extensions.uuid_generate_v5(namespace uuid, name text)
  RETURNS uuid
  LANGUAGE c
  IMMUTABLE PARALLEL SAFE STRICT
 AS '$libdir/uuid-ossp', $function$uuid_generate_v5$function$
 
+;
 
--- Function: extensions.uuid_nil
 CREATE OR REPLACE FUNCTION extensions.uuid_nil()
  RETURNS uuid
  LANGUAGE c
  IMMUTABLE PARALLEL SAFE STRICT
 AS '$libdir/uuid-ossp', $function$uuid_nil$function$
 
+;
 
--- Function: extensions.uuid_ns_dns
 CREATE OR REPLACE FUNCTION extensions.uuid_ns_dns()
  RETURNS uuid
  LANGUAGE c
  IMMUTABLE PARALLEL SAFE STRICT
 AS '$libdir/uuid-ossp', $function$uuid_ns_dns$function$
 
+;
 
--- Function: extensions.uuid_ns_oid
 CREATE OR REPLACE FUNCTION extensions.uuid_ns_oid()
  RETURNS uuid
  LANGUAGE c
  IMMUTABLE PARALLEL SAFE STRICT
 AS '$libdir/uuid-ossp', $function$uuid_ns_oid$function$
 
+;
 
--- Function: extensions.uuid_ns_url
 CREATE OR REPLACE FUNCTION extensions.uuid_ns_url()
  RETURNS uuid
  LANGUAGE c
  IMMUTABLE PARALLEL SAFE STRICT
 AS '$libdir/uuid-ossp', $function$uuid_ns_url$function$
 
+;
 
--- Function: extensions.uuid_ns_x500
 CREATE OR REPLACE FUNCTION extensions.uuid_ns_x500()
  RETURNS uuid
  LANGUAGE c
  IMMUTABLE PARALLEL SAFE STRICT
 AS '$libdir/uuid-ossp', $function$uuid_ns_x500$function$
 
+;
 
--- Function: extensions.verify
 CREATE OR REPLACE FUNCTION extensions.verify(token text, secret text, algorithm text DEFAULT 'HS256'::text)
  RETURNS TABLE(header json, payload json, valid boolean)
  LANGUAGE sql
@@ -1789,8 +1785,8 @@ AS $function$
   ) jwt
 $function$
 
+;
 
--- Function: graphql_public.graphql
 CREATE OR REPLACE FUNCTION graphql_public.graphql("operationName" text DEFAULT NULL::text, query text DEFAULT NULL::text, variables jsonb DEFAULT NULL::jsonb, extensions jsonb DEFAULT NULL::jsonb)
  RETURNS jsonb
  LANGUAGE plpgsql
@@ -1820,8 +1816,8 @@ AS $function$
             END;
         $function$
 
+;
 
--- Function: pgbouncer.get_auth
 CREATE OR REPLACE FUNCTION pgbouncer.get_auth(p_usename text)
  RETURNS TABLE(username text, password text)
  LANGUAGE plpgsql
@@ -1836,9 +1832,8 @@ BEGIN
 END;
 $function$
 
+;
 
--- Function: public.add_invoice_history_entry
--- Description: Функция для ручного добавления записей в историю счетов
 CREATE OR REPLACE FUNCTION public.add_invoice_history_entry(p_invoice_id integer, p_event_type character varying, p_action character varying, p_description text DEFAULT NULL::text, p_metadata jsonb DEFAULT NULL::jsonb)
  RETURNS void
  LANGUAGE plpgsql
@@ -1878,8 +1873,8 @@ BEGIN
 END;
 $function$
 
+;
 
--- Function: public.calculate_payment_vat
 CREATE OR REPLACE FUNCTION public.calculate_payment_vat()
  RETURNS trigger
  LANGUAGE plpgsql
@@ -1930,98 +1925,95 @@ BEGIN
 END;
 $function$
 
+;
 
--- Function: public.cascade_delete_invoice
 CREATE OR REPLACE FUNCTION public.cascade_delete_invoice(p_invoice_id integer)
  RETURNS jsonb
  LANGUAGE plpgsql
  SECURITY DEFINER
 AS $function$
 DECLARE
-    v_cleared_history integer := 0;
-    v_deleted_history integer := 0;
-    v_deleted_documents integer := 0;
-    v_deleted_workflow_progress integer := 0;
-    v_deleted_workflows integer := 0;
+    v_result jsonb;
     v_deleted_payments integer := 0;
-    v_deleted_invoice integer := 0;
-    v_invoice_number text;
+    v_deleted_documents integer := 0;
+    v_deleted_workflows integer := 0;
+    v_deleted_history integer := 0;
+    v_deleted_approval_progress integer := 0;
+    v_error text;
 BEGIN
-    SELECT invoice_number INTO v_invoice_number
-    FROM public.invoices
-    WHERE id = p_invoice_id;
+    -- Начинаем транзакцию
+    BEGIN
+        -- 1. Удаляем записи прогресса согласования
+        DELETE FROM public.workflow_approval_progress
+        WHERE payment_workflow_id IN (
+            SELECT id FROM public.payment_workflows
+            WHERE invoice_id = p_invoice_id
+        );
+        GET DIAGNOSTICS v_deleted_approval_progress = ROW_COUNT;
 
-    IF v_invoice_number IS NULL THEN
-        RAISE EXCEPTION 'Invoice with id % not found', p_invoice_id;
-    END IF;
+        -- 2. Удаляем workflow платежей
+        DELETE FROM public.payment_workflows
+        WHERE invoice_id = p_invoice_id;
+        GET DIAGNOSTICS v_deleted_workflows = ROW_COUNT;
 
-    UPDATE public.invoice_history
-    SET payment_id = NULL
-    WHERE invoice_id = p_invoice_id;
-    GET DIAGNOSTICS v_cleared_history = ROW_COUNT;
+        -- 3. Удаляем платежи
+        DELETE FROM public.payments
+        WHERE invoice_id = p_invoice_id;
+        GET DIAGNOSTICS v_deleted_payments = ROW_COUNT;
 
-    DELETE FROM public.invoice_history
-    WHERE invoice_id = p_invoice_id;
-    GET DIAGNOSTICS v_deleted_history = ROW_COUNT;
+        -- 4. Удаляем документы счета
+        DELETE FROM public.invoice_documents
+        WHERE invoice_id = p_invoice_id;
+        GET DIAGNOSTICS v_deleted_documents = ROW_COUNT;
 
-    DELETE FROM public.invoice_documents
-    WHERE invoice_id = p_invoice_id;
-    GET DIAGNOSTICS v_deleted_documents = ROW_COUNT;
+        -- 5. Удаляем историю счета
+        DELETE FROM public.invoice_history
+        WHERE invoice_id = p_invoice_id;
+        GET DIAGNOSTICS v_deleted_history = ROW_COUNT;
 
-    DELETE FROM public.workflow_approval_progress
-    WHERE workflow_id IN (
-        SELECT workflow_id
-        FROM public.payment_workflows
-        WHERE invoice_id = p_invoice_id
-    );
-    GET DIAGNOSTICS v_deleted_workflow_progress = ROW_COUNT;
+        -- 6. Удаляем сам счет
+        DELETE FROM public.invoices
+        WHERE id = p_invoice_id;
 
-    DELETE FROM public.payment_workflows
-    WHERE invoice_id = p_invoice_id;
-    GET DIAGNOSTICS v_deleted_workflows = ROW_COUNT;
-
-    DELETE FROM public.payments
-    WHERE invoice_id = p_invoice_id;
-    GET DIAGNOSTICS v_deleted_payments = ROW_COUNT;
-
-    DELETE FROM public.invoices
-    WHERE id = p_invoice_id;
-    GET DIAGNOSTICS v_deleted_invoice = ROW_COUNT;
-
-    IF v_deleted_invoice = 0 THEN
-        RAISE EXCEPTION 'Invoice with id % could not be deleted', p_invoice_id;
-    END IF;
-
-    RETURN jsonb_build_object(
-        'success', true,
-        'invoice_id', p_invoice_id,
-        'invoice_number', v_invoice_number,
-        'cleared_history_links', v_cleared_history,
-        'deleted', jsonb_build_object(
-            'history', v_deleted_history,
-            'documents', v_deleted_documents,
-            'workflow_progress', v_deleted_workflow_progress,
-            'workflows', v_deleted_workflows,
-            'payments', v_deleted_payments,
-            'invoice', v_deleted_invoice
-        ),
-        'timestamp', now()
-    );
-
-EXCEPTION
-    WHEN OTHERS THEN
-        RETURN jsonb_build_object(
-            'success', false,
-            'error', SQLERRM,
+        -- Формируем результат
+        v_result := jsonb_build_object(
+            'success', true,
             'invoice_id', p_invoice_id,
+            'deleted_payments', v_deleted_payments,
+            'deleted_documents', v_deleted_documents,
+            'deleted_workflows', v_deleted_workflows,
+            'deleted_history', v_deleted_history,
+            'deleted_approval_progress', v_deleted_approval_progress,
             'timestamp', now()
         );
+
+        -- Логируем успешное удаление
+        RAISE NOTICE 'Счет % успешно удален вместе со связанными записями', p_invoice_id;
+
+        RETURN v_result;
+
+    EXCEPTION WHEN OTHERS THEN
+        -- В случае ошибки откатываем транзакцию
+        v_error := SQLERRM;
+
+        -- Формируем результат с ошибкой
+        v_result := jsonb_build_object(
+            'success', false,
+            'invoice_id', p_invoice_id,
+            'error', v_error,
+            'timestamp', now()
+        );
+
+        -- Логируем ошибку
+        RAISE WARNING 'Ошибка при удалении счета %: %', p_invoice_id, v_error;
+
+        RETURN v_result;
+    END;
 END;
 $function$
 
+;
 
--- Function: public.fn_recalc_invoice_amounts
--- Description: Recalculates VAT and total amounts before invoice insert/update
 CREATE OR REPLACE FUNCTION public.fn_recalc_invoice_amounts()
  RETURNS trigger
  LANGUAGE plpgsql
@@ -2055,9 +2047,8 @@ BEGIN
 END;
 $function$
 
+;
 
--- Function: public.fn_sync_invoice_payment
--- Description: Синхронизирует оплаченную сумму счета. Работает ТОЛЬКО с реальными статусами: completed, processing
 CREATE OR REPLACE FUNCTION public.fn_sync_invoice_payment()
  RETURNS trigger
  LANGUAGE plpgsql
@@ -2081,23 +2072,16 @@ BEGIN
     FROM invoices
     WHERE id = target_invoice_id;
 
-    -- Суммируем платежи с РЕАЛЬНЫМИ статусами из приложения
-    -- completed и processing - это статусы, которые реально используются
+    -- Вычисляем общую сумму оплаченных платежей
     SELECT
         COALESCE(SUM(total_amount), 0),
-        MAX(CASE
-            WHEN status = 'completed' THEN updated_at
-            ELSE NULL
-        END)
-    INTO total_paid, v_last_payment_date
+        MAX(payment_date)
+    INTO
+        total_paid,
+        v_last_payment_date
     FROM payments
     WHERE invoice_id = target_invoice_id
-    AND status IN (
-        'completed',   -- Основной статус завершенного платежа
-        'processing'   -- Платеж в обработке (тоже считаем)
-        -- НЕ включаем: 'pending', 'draft', 'failed', 'cancelled'
-        -- НЕ включаем устаревшие: 'paid', 'approved', 'scheduled'
-    );
+        AND status IN ('completed', 'processing');
 
     -- Получаем общую сумму счета
     SELECT total_amount
@@ -2109,7 +2093,6 @@ BEGIN
     UPDATE invoices
     SET
         paid_amount = total_paid,
-        -- Устанавливаем paid_at когда полностью оплачено
         paid_at = CASE
             WHEN total_paid >= invoice_total AND paid_at IS NULL
                 THEN COALESCE(v_last_payment_date, NOW())
@@ -2117,7 +2100,6 @@ BEGIN
                 THEN NULL
             ELSE paid_at
         END,
-        -- Автоматически обновляем статус счета
         status = CASE
             WHEN total_paid = 0 THEN 'draft'
             WHEN total_paid > 0 AND total_paid < invoice_total THEN 'partially_paid'
@@ -2132,7 +2114,7 @@ BEGIN
         RAISE NOTICE 'Синхронизация счета #%: paid=% of %, status=%',
             target_invoice_id, total_paid, invoice_total, NEW.status;
 
-        -- Записываем в историю в правильном формате
+        -- Записываем в историю с использованием NEW.created_by
         INSERT INTO public.invoice_history (
             invoice_id,
             payment_id,
@@ -2163,7 +2145,7 @@ BEGIN
                 'payment_amount', NEW.total_amount,
                 'total_paid', total_paid
             ),
-            NEW.created_by,
+            NEW.created_by,  -- Теперь это поле существует!
             NOW()
         );
     END IF;
@@ -2172,8 +2154,8 @@ BEGIN
 END;
 $function$
 
+;
 
--- Function: public.get_current_user_profile
 CREATE OR REPLACE FUNCTION public.get_current_user_profile()
  RETURNS SETOF users
  LANGUAGE sql
@@ -2182,8 +2164,8 @@ AS $function$
     SELECT * FROM public.users WHERE id = auth.uid();
 $function$
 
+;
 
--- Function: public.get_invoice_history
 CREATE OR REPLACE FUNCTION public.get_invoice_history(p_invoice_id integer)
  RETURNS TABLE(id bigint, action character varying, action_description text, user_name character varying, user_role character varying, changed_fields text[], comment text, created_at timestamp with time zone, status_from character varying, status_to character varying, workflow_stage_from character varying, workflow_stage_to character varying, invoice_id integer)
  LANGUAGE plpgsql
@@ -2220,8 +2202,8 @@ BEGIN
 END;
 $function$
 
+;
 
--- Function: public.get_next_invoice_sequence
 CREATE OR REPLACE FUNCTION public.get_next_invoice_sequence(p_org_code character varying, p_proj_code character varying, p_year_month character varying)
  RETURNS integer
  LANGUAGE plpgsql
@@ -2250,8 +2232,8 @@ BEGIN
 END;
 $function$
 
+;
 
--- Function: public.get_next_payment_sequence
 CREATE OR REPLACE FUNCTION public.get_next_payment_sequence(p_invoice_id integer)
  RETURNS integer
  LANGUAGE plpgsql
@@ -2291,8 +2273,8 @@ BEGIN
 END;
 $function$
 
+;
 
--- Function: public.get_payment_history
 CREATE OR REPLACE FUNCTION public.get_payment_history(p_payment_id integer)
  RETURNS TABLE(id bigint, action character varying, action_description text, user_name character varying, user_role character varying, changed_fields text[], comment text, created_at timestamp with time zone, status_from character varying, status_to character varying, amount_from numeric, amount_to numeric, payment_id integer, invoice_id integer)
  LANGUAGE plpgsql
@@ -2331,8 +2313,8 @@ BEGIN
 END;
 $function$
 
+;
 
--- Function: public.get_payment_history_by_invoice
 CREATE OR REPLACE FUNCTION public.get_payment_history_by_invoice(p_invoice_id integer)
  RETURNS TABLE(id bigint, action character varying, action_description text, user_name character varying, user_role character varying, changed_fields text[], comment text, created_at timestamp with time zone, status_from character varying, status_to character varying, amount_from numeric, amount_to numeric, payment_id integer, invoice_id integer)
  LANGUAGE plpgsql
@@ -2371,8 +2353,8 @@ BEGIN
 END;
 $function$
 
+;
 
--- Function: public.get_statuses_by_entity_type
 CREATE OR REPLACE FUNCTION public.get_statuses_by_entity_type(p_entity_type text)
  RETURNS TABLE(id bigint, code text, name text, color text, is_final boolean, is_active boolean, order_index integer, description text)
  LANGUAGE plpgsql
@@ -2396,8 +2378,8 @@ begin
 end;
 $function$
 
+;
 
--- Function: public.get_workflow_for_invoice
 CREATE OR REPLACE FUNCTION public.get_workflow_for_invoice(p_invoice_type_id integer)
  RETURNS integer
  LANGUAGE plpgsql
@@ -2420,9 +2402,8 @@ BEGIN
 END;
 $function$
 
+;
 
--- Function: public.handle_new_user
--- Description: Creates user record when new auth user is created
 CREATE OR REPLACE FUNCTION public.handle_new_user()
  RETURNS trigger
  LANGUAGE plpgsql
@@ -2457,8 +2438,8 @@ AS $function$
   END;
   $function$
 
+;
 
--- Function: public.is_status_final
 CREATE OR REPLACE FUNCTION public.is_status_final(p_entity_type text, p_code text)
  RETURNS boolean
  LANGUAGE plpgsql
@@ -2477,8 +2458,8 @@ begin
 end;
 $function$
 
+;
 
--- Function: public.set_default_user_role
 CREATE OR REPLACE FUNCTION public.set_default_user_role()
  RETURNS trigger
  LANGUAGE plpgsql
@@ -2511,9 +2492,8 @@ BEGIN
 END;
 $function$
 
+;
 
--- Function: public.start_payment_workflow_simple
--- Description: Запускает процесс согласования платежа. Все ID теперь INTEGER
 CREATE OR REPLACE FUNCTION public.start_payment_workflow_simple(p_payment_id integer, p_invoice_id integer, p_workflow_id integer, p_user_id uuid, p_amount numeric, p_description text DEFAULT NULL::text, p_supplier_id integer DEFAULT NULL::integer, p_project_id integer DEFAULT NULL::integer, p_payment_date date DEFAULT CURRENT_DATE)
  RETURNS integer
  LANGUAGE plpgsql
@@ -2613,8 +2593,8 @@ BEGIN
 END;
 $function$
 
+;
 
--- Function: public.track_document_changes
 CREATE OR REPLACE FUNCTION public.track_document_changes()
  RETURNS trigger
  LANGUAGE plpgsql
@@ -2724,8 +2704,8 @@ BEGIN
 END;
 $function$
 
+;
 
--- Function: public.track_invoice_changes
 CREATE OR REPLACE FUNCTION public.track_invoice_changes()
  RETURNS trigger
  LANGUAGE plpgsql
@@ -3098,278 +3078,91 @@ BEGIN
 END;
 $function$
 
+;
 
--- Function: public.track_payment_changes
-CREATE OR REPLACE FUNCTION public.track_payment_changes()
+CREATE OR REPLACE FUNCTION public.track_invoice_changes_optimized()
  RETURNS trigger
  LANGUAGE plpgsql
+ SECURITY DEFINER
 AS $function$
 DECLARE
     v_user_id uuid;
-    v_user_email varchar(255);
-    v_user_role varchar(50);
+    v_user_name text;
+    v_user_role text;
+    v_event_type text;
+    v_action text;
+    v_description text;
+    v_changes jsonb;
 BEGIN
-    -- Получаем текущего пользователя
-    v_user_id := auth.uid();
+    -- Получить информацию о пользователе
+    SELECT
+        u.id,
+        u.name,
+        r.name
+    INTO v_user_id, v_user_name, v_user_role
+    FROM public.users u
+    LEFT JOIN public.roles r ON r.id = u.role_id
+    WHERE u.id = auth.uid();
 
-    IF v_user_id IS NOT NULL THEN
-        SELECT email INTO v_user_email
-        FROM auth.users
-        WHERE id = v_user_id;
+    -- Определить тип события
+    CASE TG_OP
+        WHEN 'INSERT' THEN
+            v_event_type := 'invoice_created';
+            v_action := 'create';
+            v_description := format('Счет создан пользователем %s', COALESCE(v_user_name, 'System'));
+            v_changes := to_jsonb(NEW);
 
-        SELECT role INTO v_user_role
-        FROM public.user_profiles
-        WHERE id = v_user_id;
-    END IF;
-
-    IF TG_OP = 'DELETE' THEN
-        -- При удалении платежа
-        IF v_user_id IS NOT NULL THEN
-            INSERT INTO public.invoice_history (
-                invoice_id,
-                event_type,
-                event_data,
-                user_id,
-                user_email,
-                user_role,
-                status,
-                amount,
-                currency,
-                old_data,
-                description,
-                metadata
-            ) VALUES (
-                OLD.invoice_id,
-                'payment_deleted',
-                to_jsonb(OLD),
-                v_user_id,
-                v_user_email,
-                v_user_role,
-                OLD.status,
-                OLD.total_amount,
-                'RUB',
-                to_jsonb(OLD),
-                'Платеж удален',
-                jsonb_build_object(
-                    'payment_id', OLD.id,
-                    'internal_number', OLD.internal_number,
-                    'deleted_at', NOW()
+        WHEN 'UPDATE' THEN
+            v_event_type := 'invoice_updated';
+            v_action := 'update';
+            v_description := format('Счет изменен пользователем %s', COALESCE(v_user_name, 'System'));
+            -- Записывать только измененные поля
+            v_changes := jsonb_build_object(
+                'old', jsonb_strip_nulls(to_jsonb(OLD)),
+                'new', jsonb_strip_nulls(to_jsonb(NEW)),
+                'diff', (
+                    SELECT jsonb_object_agg(key, value)
+                    FROM jsonb_each(to_jsonb(NEW))
+                    WHERE to_jsonb(OLD) -> key IS DISTINCT FROM value
                 )
             );
-        ELSE
-            INSERT INTO public.invoice_history (
-                invoice_id,
-                event_type,
-                event_data,
-                status,
-                amount,
-                description,
-                metadata
-            ) VALUES (
-                OLD.invoice_id,
-                'payment_deleted',
-                to_jsonb(OLD),
-                OLD.status,
-                OLD.total_amount,
-                'Платеж удален',
-                jsonb_build_object(
-                    'payment_id', OLD.id,
-                    'internal_number', OLD.internal_number,
-                    'deleted_at', NOW()
-                )
-            );
-        END IF;
 
-    ELSIF TG_OP = 'INSERT' THEN
-        -- При создании платежа
-        IF v_user_id IS NOT NULL THEN
-            INSERT INTO public.invoice_history (
-                invoice_id,
-                event_type,
-                event_data,
-                user_id,
-                user_email,
-                user_role,
-                status,
-                amount,
-                currency,
-                new_data,
-                description,
-                metadata
-            ) VALUES (
-                NEW.invoice_id,
-                'payment_created',
-                to_jsonb(NEW),
-                v_user_id,
-                v_user_email,
-                v_user_role,
-                NEW.status,
-                NEW.total_amount,
-                'RUB',
-                to_jsonb(NEW),
-                'Создан платеж на сумму ' || NEW.total_amount || ' RUB',
-                jsonb_build_object(
-                    'payment_id', NEW.id,
-                    'internal_number', NEW.internal_number,
-                    'payer_id', NEW.payer_id
-                )
-            );
-        ELSE
-            INSERT INTO public.invoice_history (
-                invoice_id,
-                event_type,
-                event_data,
-                status,
-                amount,
-                new_data,
-                description,
-                metadata
-            ) VALUES (
-                NEW.invoice_id,
-                'payment_created',
-                to_jsonb(NEW),
-                NEW.status,
-                NEW.total_amount,
-                to_jsonb(NEW),
-                'Создан платеж на сумму ' || NEW.total_amount || ' RUB',
-                jsonb_build_object(
-                    'payment_id', NEW.id,
-                    'internal_number', NEW.internal_number,
-                    'payer_id', NEW.payer_id
-                )
-            );
-        END IF;
+        WHEN 'DELETE' THEN
+            v_event_type := 'invoice_deleted';
+            v_action := 'delete';
+            v_description := format('Счет удален пользователем %s', COALESCE(v_user_name, 'System'));
+            v_changes := to_jsonb(OLD);
+    END CASE;
 
-    ELSIF TG_OP = 'UPDATE' THEN
-        -- При обновлении платежа
+    -- Записать в историю
+    INSERT INTO public.invoice_history (
+        invoice_id,
+        event_type,
+        action,
+        description,
+        metadata,
+        user_id,
+        user_name,
+        user_role,
+        created_at
+    ) VALUES (
+        COALESCE(NEW.id, OLD.id),
+        v_event_type,
+        v_action,
+        v_description,
+        v_changes,
+        v_user_id,
+        v_user_name,
+        v_user_role,
+        CURRENT_TIMESTAMP
+    );
 
-        -- Проверяем изменение статуса
-        IF OLD.status IS DISTINCT FROM NEW.status THEN
-            IF v_user_id IS NOT NULL THEN
-                INSERT INTO public.invoice_history (
-                    invoice_id,
-                    event_type,
-                    event_data,
-                    user_id,
-                    user_email,
-                    user_role,
-                    old_status,
-                    new_status,
-                    amount,
-                    currency,
-                    description,
-                    metadata
-                ) VALUES (
-                    NEW.invoice_id,
-                    'payment_status_changed',
-                    to_jsonb(NEW),
-                    v_user_id,
-                    v_user_email,
-                    v_user_role,
-                    OLD.status,
-                    NEW.status,
-                    NEW.total_amount,
-                    'RUB',
-                    'Статус платежа изменен с "' || COALESCE(OLD.status, 'нет') || '" на "' || NEW.status || '"',
-                    jsonb_build_object(
-                        'payment_id', NEW.id,
-                        'internal_number', NEW.internal_number
-                    )
-                );
-            ELSE
-                INSERT INTO public.invoice_history (
-                    invoice_id,
-                    event_type,
-                    event_data,
-                    old_status,
-                    new_status,
-                    amount,
-                    description,
-                    metadata
-                ) VALUES (
-                    NEW.invoice_id,
-                    'payment_status_changed',
-                    to_jsonb(NEW),
-                    OLD.status,
-                    NEW.status,
-                    NEW.total_amount,
-                    'Статус платежа изменен с "' || COALESCE(OLD.status, 'нет') || '" на "' || NEW.status || '"',
-                    jsonb_build_object(
-                        'payment_id', NEW.id,
-                        'internal_number', NEW.internal_number
-                    )
-                );
-            END IF;
-        END IF;
-
-        -- Проверяем изменение суммы
-        IF OLD.total_amount IS DISTINCT FROM NEW.total_amount THEN
-            IF v_user_id IS NOT NULL THEN
-                INSERT INTO public.invoice_history (
-                    invoice_id,
-                    event_type,
-                    event_data,
-                    user_id,
-                    user_email,
-                    user_role,
-                    status,
-                    old_amount,
-                    amount,
-                    currency,
-                    description,
-                    metadata
-                ) VALUES (
-                    NEW.invoice_id,
-                    'payment_amount_changed',
-                    to_jsonb(NEW),
-                    v_user_id,
-                    v_user_email,
-                    v_user_role,
-                    NEW.status,
-                    OLD.total_amount,
-                    NEW.total_amount,
-                    'RUB',
-                    'Сумма платежа изменена с ' || OLD.total_amount || ' на ' || NEW.total_amount || ' RUB',
-                    jsonb_build_object(
-                        'payment_id', NEW.id,
-                        'internal_number', NEW.internal_number,
-                        'difference', NEW.total_amount - OLD.total_amount
-                    )
-                );
-            ELSE
-                INSERT INTO public.invoice_history (
-                    invoice_id,
-                    event_type,
-                    event_data,
-                    status,
-                    old_amount,
-                    amount,
-                    description,
-                    metadata
-                ) VALUES (
-                    NEW.invoice_id,
-                    'payment_amount_changed',
-                    to_jsonb(NEW),
-                    NEW.status,
-                    OLD.total_amount,
-                    NEW.total_amount,
-                    'Сумма платежа изменена с ' || OLD.total_amount || ' на ' || NEW.total_amount || ' RUB',
-                    jsonb_build_object(
-                        'payment_id', NEW.id,
-                        'internal_number', NEW.internal_number,
-                        'difference', NEW.total_amount - OLD.total_amount
-                    )
-                );
-            END IF;
-        END IF;
-    END IF;
-
-    RETURN NEW;
+    RETURN COALESCE(NEW, OLD);
 END;
 $function$
 
+;
 
--- Function: public.track_payment_history
 CREATE OR REPLACE FUNCTION public.track_payment_history()
  RETURNS trigger
  LANGUAGE plpgsql
@@ -3502,21 +3295,20 @@ BEGIN
 END;
 $function$
 
+;
 
--- Function: public.update_updated_at
--- Description: Updates updated_at timestamp to current time
-CREATE OR REPLACE FUNCTION public.update_updated_at()
+CREATE OR REPLACE FUNCTION public.universal_update_updated_at()
  RETURNS trigger
  LANGUAGE plpgsql
 AS $function$
 BEGIN
-    NEW.updated_at = now();
+    NEW.updated_at = CURRENT_TIMESTAMP;
     RETURN NEW;
 END;
 $function$
 
+;
 
--- Function: public.user_has_role
 CREATE OR REPLACE FUNCTION public.user_has_role(check_role text)
  RETURNS boolean
  LANGUAGE sql
@@ -3530,8 +3322,8 @@ AS $function$
     );
 $function$
 
+;
 
--- Function: realtime.apply_rls
 CREATE OR REPLACE FUNCTION realtime.apply_rls(wal jsonb, max_record_bytes integer DEFAULT (1024 * 1024))
  RETURNS SETOF realtime.wal_rls
  LANGUAGE plpgsql
@@ -3833,8 +3625,8 @@ perform set_config('role', null, true);
 end;
 $function$
 
+;
 
--- Function: realtime.broadcast_changes
 CREATE OR REPLACE FUNCTION realtime.broadcast_changes(topic_name text, event_name text, operation text, table_name text, table_schema text, new record, old record, level text DEFAULT 'ROW'::text)
  RETURNS void
  LANGUAGE plpgsql
@@ -3860,8 +3652,8 @@ END;
 
 $function$
 
+;
 
--- Function: realtime.build_prepared_statement_sql
 CREATE OR REPLACE FUNCTION realtime.build_prepared_statement_sql(prepared_statement_name text, entity regclass, columns realtime.wal_column[])
  RETURNS text
  LANGUAGE sql
@@ -3891,8 +3683,8 @@ AS $function$
               entity
       $function$
 
+;
 
--- Function: realtime.cast
 CREATE OR REPLACE FUNCTION realtime."cast"(val text, type_ regtype)
  RETURNS jsonb
  LANGUAGE plpgsql
@@ -3906,8 +3698,8 @@ AS $function$
     end
     $function$
 
+;
 
--- Function: realtime.check_equality_op
 CREATE OR REPLACE FUNCTION realtime.check_equality_op(op realtime.equality_op, type_ regtype, val_1 text, val_2 text)
  RETURNS boolean
  LANGUAGE plpgsql
@@ -3944,8 +3736,8 @@ AS $function$
       end;
       $function$
 
+;
 
--- Function: realtime.is_visible_through_filters
 CREATE OR REPLACE FUNCTION realtime.is_visible_through_filters(columns realtime.wal_column[], filters realtime.user_defined_filter[])
  RETURNS boolean
  LANGUAGE sql
@@ -3979,8 +3771,8 @@ AS $function$
                 on f.column_name = col.name;
     $function$
 
+;
 
--- Function: realtime.list_changes
 CREATE OR REPLACE FUNCTION realtime.list_changes(publication name, slot_name name, max_changes integer, max_record_bytes integer)
  RETURNS SETOF realtime.wal_rls
  LANGUAGE sql
@@ -4043,8 +3835,8 @@ AS $function$
         and xyz.subscription_ids[1] is not null
     $function$
 
+;
 
--- Function: realtime.quote_wal2json
 CREATE OR REPLACE FUNCTION realtime.quote_wal2json(entity regclass)
  RETURNS text
  LANGUAGE sql
@@ -4080,8 +3872,8 @@ AS $function$
         pc.oid = entity
     $function$
 
+;
 
--- Function: realtime.send
 CREATE OR REPLACE FUNCTION realtime.send(payload jsonb, event text, topic text, private boolean DEFAULT true)
  RETURNS void
  LANGUAGE plpgsql
@@ -4111,8 +3903,8 @@ BEGIN
 END;
 $function$
 
+;
 
--- Function: realtime.subscription_check_filters
 CREATE OR REPLACE FUNCTION realtime.subscription_check_filters()
  RETURNS trigger
  LANGUAGE plpgsql
@@ -4183,16 +3975,16 @@ AS $function$
     end;
     $function$
 
+;
 
--- Function: realtime.to_regrole
 CREATE OR REPLACE FUNCTION realtime.to_regrole(role_name text)
  RETURNS regrole
  LANGUAGE sql
  IMMUTABLE
 AS $function$ select role_name::regrole $function$
 
+;
 
--- Function: realtime.topic
 CREATE OR REPLACE FUNCTION realtime.topic()
  RETURNS text
  LANGUAGE sql
@@ -4201,8 +3993,8 @@ AS $function$
 select nullif(current_setting('realtime.topic', true), '')::text;
 $function$
 
+;
 
--- Function: storage.add_prefixes
 CREATE OR REPLACE FUNCTION storage.add_prefixes(_bucket_id text, _name text)
  RETURNS void
  LANGUAGE plpgsql
@@ -4220,8 +4012,8 @@ BEGIN
 END;
 $function$
 
+;
 
--- Function: storage.can_insert_object
 CREATE OR REPLACE FUNCTION storage.can_insert_object(bucketid text, name text, owner uuid, metadata jsonb)
  RETURNS void
  LANGUAGE plpgsql
@@ -4235,8 +4027,8 @@ BEGIN
 END
 $function$
 
+;
 
--- Function: storage.delete_prefix
 CREATE OR REPLACE FUNCTION storage.delete_prefix(_bucket_id text, _name text)
  RETURNS boolean
  LANGUAGE plpgsql
@@ -4270,8 +4062,8 @@ BEGIN
 END;
 $function$
 
+;
 
--- Function: storage.delete_prefix_hierarchy_trigger
 CREATE OR REPLACE FUNCTION storage.delete_prefix_hierarchy_trigger()
  RETURNS trigger
  LANGUAGE plpgsql
@@ -4289,8 +4081,8 @@ BEGIN
 END;
 $function$
 
+;
 
--- Function: storage.enforce_bucket_name_length
 CREATE OR REPLACE FUNCTION storage.enforce_bucket_name_length()
  RETURNS trigger
  LANGUAGE plpgsql
@@ -4303,8 +4095,8 @@ begin
 end;
 $function$
 
+;
 
--- Function: storage.extension
 CREATE OR REPLACE FUNCTION storage.extension(name text)
  RETURNS text
  LANGUAGE plpgsql
@@ -4320,8 +4112,8 @@ BEGIN
 END
 $function$
 
+;
 
--- Function: storage.filename
 CREATE OR REPLACE FUNCTION storage.filename(name text)
  RETURNS text
  LANGUAGE plpgsql
@@ -4334,8 +4126,8 @@ BEGIN
 END
 $function$
 
+;
 
--- Function: storage.foldername
 CREATE OR REPLACE FUNCTION storage.foldername(name text)
  RETURNS text[]
  LANGUAGE plpgsql
@@ -4351,8 +4143,8 @@ BEGIN
 END
 $function$
 
+;
 
--- Function: storage.get_level
 CREATE OR REPLACE FUNCTION storage.get_level(name text)
  RETURNS integer
  LANGUAGE sql
@@ -4361,8 +4153,8 @@ AS $function$
 SELECT array_length(string_to_array("name", '/'), 1);
 $function$
 
+;
 
--- Function: storage.get_prefix
 CREATE OR REPLACE FUNCTION storage.get_prefix(name text)
  RETURNS text
  LANGUAGE sql
@@ -4376,8 +4168,8 @@ SELECT
         END;
 $function$
 
+;
 
--- Function: storage.get_prefixes
 CREATE OR REPLACE FUNCTION storage.get_prefixes(name text)
  RETURNS text[]
  LANGUAGE plpgsql
@@ -4402,8 +4194,8 @@ BEGIN
 END;
 $function$
 
+;
 
--- Function: storage.get_size_by_bucket
 CREATE OR REPLACE FUNCTION storage.get_size_by_bucket()
  RETURNS TABLE(size bigint, bucket_id text)
  LANGUAGE plpgsql
@@ -4417,8 +4209,8 @@ BEGIN
 END
 $function$
 
+;
 
--- Function: storage.list_multipart_uploads_with_delimiter
 CREATE OR REPLACE FUNCTION storage.list_multipart_uploads_with_delimiter(bucket_id text, prefix_param text, delimiter_param text, max_keys integer DEFAULT 100, next_key_token text DEFAULT ''::text, next_upload_token text DEFAULT ''::text)
  RETURNS TABLE(key text, id text, created_at timestamp with time zone)
  LANGUAGE plpgsql
@@ -4461,8 +4253,8 @@ BEGIN
 END;
 $function$
 
+;
 
--- Function: storage.list_objects_with_delimiter
 CREATE OR REPLACE FUNCTION storage.list_objects_with_delimiter(bucket_id text, prefix_param text, delimiter_param text, max_keys integer DEFAULT 100, start_after text DEFAULT ''::text, next_token text DEFAULT ''::text)
  RETURNS TABLE(name text, id uuid, metadata jsonb, updated_at timestamp with time zone)
  LANGUAGE plpgsql
@@ -4503,8 +4295,8 @@ BEGIN
 END;
 $function$
 
+;
 
--- Function: storage.objects_insert_prefix_trigger
 CREATE OR REPLACE FUNCTION storage.objects_insert_prefix_trigger()
  RETURNS trigger
  LANGUAGE plpgsql
@@ -4517,8 +4309,8 @@ BEGIN
 END;
 $function$
 
+;
 
--- Function: storage.objects_update_prefix_trigger
 CREATE OR REPLACE FUNCTION storage.objects_update_prefix_trigger()
  RETURNS trigger
  LANGUAGE plpgsql
@@ -4557,8 +4349,8 @@ BEGIN
 END;
 $function$
 
+;
 
--- Function: storage.operation
 CREATE OR REPLACE FUNCTION storage.operation()
  RETURNS text
  LANGUAGE plpgsql
@@ -4569,8 +4361,8 @@ BEGIN
 END;
 $function$
 
+;
 
--- Function: storage.prefixes_insert_trigger
 CREATE OR REPLACE FUNCTION storage.prefixes_insert_trigger()
  RETURNS trigger
  LANGUAGE plpgsql
@@ -4581,8 +4373,8 @@ BEGIN
 END;
 $function$
 
+;
 
--- Function: storage.search
 CREATE OR REPLACE FUNCTION storage.search(prefix text, bucketname text, limits integer DEFAULT 100, levels integer DEFAULT 1, offsets integer DEFAULT 0, search text DEFAULT ''::text, sortcolumn text DEFAULT 'name'::text, sortorder text DEFAULT 'asc'::text)
  RETURNS TABLE(name text, id uuid, updated_at timestamp with time zone, created_at timestamp with time zone, last_accessed_at timestamp with time zone, metadata jsonb)
  LANGUAGE plpgsql
@@ -4603,8 +4395,8 @@ begin
 end;
 $function$
 
+;
 
--- Function: storage.search_legacy_v1
 CREATE OR REPLACE FUNCTION storage.search_legacy_v1(prefix text, bucketname text, limits integer DEFAULT 100, levels integer DEFAULT 1, offsets integer DEFAULT 0, search text DEFAULT ''::text, sortcolumn text DEFAULT 'name'::text, sortorder text DEFAULT 'asc'::text)
  RETURNS TABLE(name text, id uuid, updated_at timestamp with time zone, created_at timestamp with time zone, last_accessed_at timestamp with time zone, metadata jsonb)
  LANGUAGE plpgsql
@@ -4671,8 +4463,8 @@ begin
 end;
 $function$
 
+;
 
--- Function: storage.search_v1_optimised
 CREATE OR REPLACE FUNCTION storage.search_v1_optimised(prefix text, bucketname text, limits integer DEFAULT 100, levels integer DEFAULT 1, offsets integer DEFAULT 0, search text DEFAULT ''::text, sortcolumn text DEFAULT 'name'::text, sortorder text DEFAULT 'asc'::text)
  RETURNS TABLE(name text, id uuid, updated_at timestamp with time zone, created_at timestamp with time zone, last_accessed_at timestamp with time zone, metadata jsonb)
  LANGUAGE plpgsql
@@ -4738,8 +4530,8 @@ begin
 end;
 $function$
 
+;
 
--- Function: storage.search_v2
 CREATE OR REPLACE FUNCTION storage.search_v2(prefix text, bucket_name text, limits integer DEFAULT 100, levels integer DEFAULT 1, start_after text DEFAULT ''::text)
  RETURNS TABLE(key text, name text, id uuid, updated_at timestamp with time zone, created_at timestamp with time zone, metadata jsonb)
  LANGUAGE plpgsql
@@ -4784,8 +4576,8 @@ BEGIN
 END;
 $function$
 
+;
 
--- Function: storage.update_updated_at_column
 CREATE OR REPLACE FUNCTION storage.update_updated_at_column()
  RETURNS trigger
  LANGUAGE plpgsql
@@ -4796,8 +4588,8 @@ BEGIN
 END;
 $function$
 
+;
 
--- Function: supabase_functions.http_request
 CREATE OR REPLACE FUNCTION supabase_functions.http_request()
  RETURNS trigger
  LANGUAGE plpgsql
@@ -4876,32 +4668,32 @@ AS $function$
     END
   $function$
 
+;
 
--- Function: vault._crypto_aead_det_decrypt
 CREATE OR REPLACE FUNCTION vault._crypto_aead_det_decrypt(message bytea, additional bytea, key_id bigint, context bytea DEFAULT '\x7067736f6469756d'::bytea, nonce bytea DEFAULT NULL::bytea)
  RETURNS bytea
  LANGUAGE c
  IMMUTABLE
 AS '$libdir/supabase_vault', $function$pgsodium_crypto_aead_det_decrypt_by_id$function$
 
+;
 
--- Function: vault._crypto_aead_det_encrypt
 CREATE OR REPLACE FUNCTION vault._crypto_aead_det_encrypt(message bytea, additional bytea, key_id bigint, context bytea DEFAULT '\x7067736f6469756d'::bytea, nonce bytea DEFAULT NULL::bytea)
  RETURNS bytea
  LANGUAGE c
  IMMUTABLE
 AS '$libdir/supabase_vault', $function$pgsodium_crypto_aead_det_encrypt_by_id$function$
 
+;
 
--- Function: vault._crypto_aead_det_noncegen
 CREATE OR REPLACE FUNCTION vault._crypto_aead_det_noncegen()
  RETURNS bytea
  LANGUAGE c
  IMMUTABLE
 AS '$libdir/supabase_vault', $function$pgsodium_crypto_aead_det_noncegen$function$
 
+;
 
--- Function: vault.create_secret
 CREATE OR REPLACE FUNCTION vault.create_secret(new_secret text, new_name text DEFAULT NULL::text, new_description text DEFAULT ''::text, new_key_id uuid DEFAULT NULL::uuid)
  RETURNS uuid
  LANGUAGE plpgsql
@@ -4931,8 +4723,8 @@ BEGIN
 END
 $function$
 
+;
 
--- Function: vault.update_secret
 CREATE OR REPLACE FUNCTION vault.update_secret(secret_id uuid, new_secret text DEFAULT NULL::text, new_name text DEFAULT NULL::text, new_description text DEFAULT NULL::text, new_key_id uuid DEFAULT NULL::uuid)
  RETURNS void
  LANGUAGE plpgsql
@@ -4959,593 +4751,573 @@ BEGIN
 END
 $function$
 
+;
 
 
--- ============================================
 -- TRIGGERS
 -- ============================================
 
--- Trigger: on_auth_user_created on auth.users
 CREATE TRIGGER on_auth_user_created AFTER INSERT ON auth.users FOR EACH ROW EXECUTE FUNCTION handle_new_user()
+;
 
--- Trigger: update_contractors_updated_at on public.contractors
-CREATE TRIGGER update_contractors_updated_at BEFORE UPDATE ON public.contractors FOR EACH ROW EXECUTE FUNCTION update_updated_at()
+CREATE TRIGGER update_contractors_updated_at BEFORE UPDATE ON public.contractors FOR EACH ROW EXECUTE FUNCTION universal_update_updated_at()
+;
 
--- Trigger: document_history_trigger_after_insert on public.invoice_documents
-CREATE TRIGGER document_history_trigger_after_insert AFTER INSERT ON public.invoice_documents FOR EACH ROW EXECUTE FUNCTION track_document_changes()
+CREATE TRIGGER track_document_changes_trigger AFTER INSERT OR DELETE ON public.invoice_documents FOR EACH ROW EXECUTE FUNCTION track_document_changes()
+;
 
--- Trigger: document_history_trigger_before_delete on public.invoice_documents
-CREATE TRIGGER document_history_trigger_before_delete BEFORE DELETE ON public.invoice_documents FOR EACH ROW EXECUTE FUNCTION track_document_changes()
-
--- Trigger: invoice_history_trigger on public.invoices
 CREATE TRIGGER invoice_history_trigger AFTER INSERT OR DELETE OR UPDATE ON public.invoices FOR EACH ROW EXECUTE FUNCTION track_invoice_changes()
+;
 
--- Trigger: invoice_history_trigger_after_insert on public.invoices
-CREATE TRIGGER invoice_history_trigger_after_insert AFTER INSERT ON public.invoices FOR EACH ROW EXECUTE FUNCTION track_invoice_changes()
-
--- Trigger: invoice_history_trigger_after_update on public.invoices
-CREATE TRIGGER invoice_history_trigger_after_update AFTER UPDATE ON public.invoices FOR EACH ROW EXECUTE FUNCTION track_invoice_changes()
-
--- Trigger: invoice_history_trigger_before_delete on public.invoices
-CREATE TRIGGER invoice_history_trigger_before_delete BEFORE DELETE ON public.invoices FOR EACH ROW EXECUTE FUNCTION track_invoice_changes()
-
--- Trigger: trigger_recalc_invoice_amounts on public.invoices
 CREATE TRIGGER trigger_recalc_invoice_amounts BEFORE INSERT OR UPDATE ON public.invoices FOR EACH ROW EXECUTE FUNCTION fn_recalc_invoice_amounts()
+;
 
--- Trigger: update_invoices_updated_at on public.invoices
-CREATE TRIGGER update_invoices_updated_at BEFORE UPDATE ON public.invoices FOR EACH ROW EXECUTE FUNCTION update_updated_at()
+CREATE TRIGGER update_invoices_updated_at BEFORE UPDATE ON public.invoices FOR EACH ROW EXECUTE FUNCTION universal_update_updated_at()
+;
 
--- Trigger: calculate_payment_vat_trigger on public.payments
+CREATE TRIGGER payment_types_updated_at_trigger BEFORE UPDATE ON public.payment_types FOR EACH ROW EXECUTE FUNCTION universal_update_updated_at()
+;
+
 CREATE TRIGGER calculate_payment_vat_trigger BEFORE INSERT OR UPDATE ON public.payments FOR EACH ROW EXECUTE FUNCTION calculate_payment_vat()
+;
 
--- Trigger: payment_history_trigger on public.payments
-CREATE TRIGGER payment_history_trigger AFTER INSERT OR DELETE OR UPDATE ON public.payments FOR EACH ROW EXECUTE FUNCTION track_payment_changes()
+CREATE TRIGGER payment_history_trigger AFTER INSERT OR DELETE OR UPDATE ON public.payments FOR EACH ROW EXECUTE FUNCTION track_payment_history()
+;
 
--- Trigger: payment_history_trigger_after_insert on public.payments
-CREATE TRIGGER payment_history_trigger_after_insert AFTER INSERT ON public.payments FOR EACH ROW EXECUTE FUNCTION track_payment_changes()
-
--- Trigger: payment_history_trigger_after_update on public.payments
-CREATE TRIGGER payment_history_trigger_after_update AFTER UPDATE ON public.payments FOR EACH ROW EXECUTE FUNCTION track_payment_changes()
-
--- Trigger: payment_history_trigger_before_delete on public.payments
-CREATE TRIGGER payment_history_trigger_before_delete BEFORE DELETE ON public.payments FOR EACH ROW EXECUTE FUNCTION track_payment_changes()
-
--- Trigger: tr_sync_invoice_payment_on_delete on public.payments
-CREATE TRIGGER tr_sync_invoice_payment_on_delete AFTER DELETE ON public.payments FOR EACH ROW EXECUTE FUNCTION fn_sync_invoice_payment()
-
--- Trigger: tr_sync_invoice_payment_on_insert on public.payments
-CREATE TRIGGER tr_sync_invoice_payment_on_insert AFTER INSERT ON public.payments FOR EACH ROW EXECUTE FUNCTION fn_sync_invoice_payment()
-
--- Trigger: tr_sync_invoice_payment_on_update on public.payments
-CREATE TRIGGER tr_sync_invoice_payment_on_update AFTER UPDATE ON public.payments FOR EACH ROW EXECUTE FUNCTION fn_sync_invoice_payment()
-
--- Trigger: trg_sync_invoice_payment on public.payments
 CREATE TRIGGER trg_sync_invoice_payment AFTER INSERT OR DELETE OR UPDATE ON public.payments FOR EACH ROW EXECUTE FUNCTION fn_sync_invoice_payment()
+;
 
--- Trigger: update_payments_updated_at on public.payments
-CREATE TRIGGER update_payments_updated_at BEFORE UPDATE ON public.payments FOR EACH ROW EXECUTE FUNCTION update_updated_at()
+CREATE TRIGGER update_payments_updated_at BEFORE UPDATE ON public.payments FOR EACH ROW EXECUTE FUNCTION universal_update_updated_at()
+;
 
--- Trigger: update_projects_updated_at on public.projects
-CREATE TRIGGER update_projects_updated_at BEFORE UPDATE ON public.projects FOR EACH ROW EXECUTE FUNCTION update_updated_at()
+CREATE TRIGGER update_projects_updated_at BEFORE UPDATE ON public.projects FOR EACH ROW EXECUTE FUNCTION universal_update_updated_at()
+;
 
--- Trigger: update_roles_updated_at on public.roles
-CREATE TRIGGER update_roles_updated_at BEFORE UPDATE ON public.roles FOR EACH ROW EXECUTE FUNCTION update_updated_at()
+CREATE TRIGGER update_roles_updated_at BEFORE UPDATE ON public.roles FOR EACH ROW EXECUTE FUNCTION universal_update_updated_at()
+;
 
--- Trigger: update_statuses_updated_at on public.statuses
-CREATE TRIGGER update_statuses_updated_at BEFORE UPDATE ON public.statuses FOR EACH ROW EXECUTE FUNCTION update_updated_at()
+CREATE TRIGGER update_statuses_updated_at BEFORE UPDATE ON public.statuses FOR EACH ROW EXECUTE FUNCTION universal_update_updated_at()
+;
 
--- Trigger: update_themes_updated_at on public.themes
-CREATE TRIGGER update_themes_updated_at BEFORE UPDATE ON public.themes FOR EACH ROW EXECUTE FUNCTION update_updated_at()
+CREATE TRIGGER update_themes_updated_at BEFORE UPDATE ON public.themes FOR EACH ROW EXECUTE FUNCTION universal_update_updated_at()
+;
 
--- Trigger: set_user_defaults_trigger on public.users
 CREATE TRIGGER set_user_defaults_trigger BEFORE INSERT ON public.users FOR EACH ROW EXECUTE FUNCTION set_default_user_role()
+;
 
--- Trigger: update_users_updated_at on public.users
-CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON public.users FOR EACH ROW EXECUTE FUNCTION update_updated_at()
+CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON public.users FOR EACH ROW EXECUTE FUNCTION universal_update_updated_at()
+;
 
--- Trigger: update_workflow_stages_updated_at on public.workflow_stages
-CREATE TRIGGER update_workflow_stages_updated_at BEFORE UPDATE ON public.workflow_stages FOR EACH ROW EXECUTE FUNCTION update_updated_at()
+CREATE TRIGGER update_workflow_stages_updated_at BEFORE UPDATE ON public.workflow_stages FOR EACH ROW EXECUTE FUNCTION universal_update_updated_at()
+;
 
--- Trigger: update_workflows_updated_at on public.workflows
-CREATE TRIGGER update_workflows_updated_at BEFORE UPDATE ON public.workflows FOR EACH ROW EXECUTE FUNCTION update_updated_at()
+CREATE TRIGGER update_workflows_updated_at BEFORE UPDATE ON public.workflows FOR EACH ROW EXECUTE FUNCTION universal_update_updated_at()
+;
 
--- Trigger: tr_check_filters on realtime.subscription
 CREATE TRIGGER tr_check_filters BEFORE INSERT OR UPDATE ON realtime.subscription FOR EACH ROW EXECUTE FUNCTION realtime.subscription_check_filters()
+;
 
--- Trigger: update_objects_updated_at on storage.objects
 CREATE TRIGGER update_objects_updated_at BEFORE UPDATE ON storage.objects FOR EACH ROW EXECUTE FUNCTION storage.update_updated_at_column()
+;
 
 
--- ============================================
 -- INDEXES
 -- ============================================
 
--- Index on _realtime.extensions
-CREATE INDEX extensions_tenant_external_id_index ON _realtime.extensions USING btree (tenant_external_id);
+CREATE INDEX extensions_tenant_external_id_index ON _realtime.extensions USING btree (tenant_external_id)
+;
 
--- Index on _realtime.extensions
-CREATE UNIQUE INDEX extensions_tenant_external_id_type_index ON _realtime.extensions USING btree (tenant_external_id, type);
+CREATE UNIQUE INDEX extensions_tenant_external_id_type_index ON _realtime.extensions USING btree (tenant_external_id, type)
+;
 
--- Index on _realtime.tenants
-CREATE UNIQUE INDEX tenants_external_id_index ON _realtime.tenants USING btree (external_id);
+CREATE UNIQUE INDEX tenants_external_id_index ON _realtime.tenants USING btree (external_id)
+;
 
--- Index on auth.audit_log_entries
-CREATE INDEX audit_logs_instance_id_idx ON auth.audit_log_entries USING btree (instance_id);
+CREATE INDEX audit_logs_instance_id_idx ON auth.audit_log_entries USING btree (instance_id)
+;
 
--- Index on auth.flow_state
-CREATE INDEX flow_state_created_at_idx ON auth.flow_state USING btree (created_at DESC);
+CREATE INDEX flow_state_created_at_idx ON auth.flow_state USING btree (created_at DESC)
+;
 
--- Index on auth.flow_state
-CREATE INDEX idx_auth_code ON auth.flow_state USING btree (auth_code);
+CREATE INDEX idx_auth_code ON auth.flow_state USING btree (auth_code)
+;
 
--- Index on auth.flow_state
-CREATE INDEX idx_user_id_auth_method ON auth.flow_state USING btree (user_id, authentication_method);
+CREATE INDEX idx_user_id_auth_method ON auth.flow_state USING btree (user_id, authentication_method)
+;
 
--- Index on auth.identities
-CREATE INDEX identities_email_idx ON auth.identities USING btree (email text_pattern_ops);
+CREATE INDEX identities_email_idx ON auth.identities USING btree (email text_pattern_ops)
+;
 
--- Index on auth.identities
-CREATE UNIQUE INDEX identities_provider_id_provider_unique ON auth.identities USING btree (provider_id, provider);
+CREATE UNIQUE INDEX identities_provider_id_provider_unique ON auth.identities USING btree (provider_id, provider)
+;
 
--- Index on auth.identities
-CREATE INDEX identities_user_id_idx ON auth.identities USING btree (user_id);
+CREATE INDEX identities_user_id_idx ON auth.identities USING btree (user_id)
+;
 
--- Index on auth.mfa_amr_claims
-CREATE UNIQUE INDEX amr_id_pk ON auth.mfa_amr_claims USING btree (id);
+CREATE UNIQUE INDEX amr_id_pk ON auth.mfa_amr_claims USING btree (id)
+;
 
--- Index on auth.mfa_challenges
-CREATE INDEX mfa_challenge_created_at_idx ON auth.mfa_challenges USING btree (created_at DESC);
+CREATE INDEX mfa_challenge_created_at_idx ON auth.mfa_challenges USING btree (created_at DESC)
+;
 
--- Index on auth.mfa_factors
-CREATE INDEX factor_id_created_at_idx ON auth.mfa_factors USING btree (user_id, created_at);
+CREATE INDEX factor_id_created_at_idx ON auth.mfa_factors USING btree (user_id, created_at)
+;
 
--- Index on auth.mfa_factors
-CREATE UNIQUE INDEX mfa_factors_last_challenged_at_key ON auth.mfa_factors USING btree (last_challenged_at);
+CREATE UNIQUE INDEX mfa_factors_last_challenged_at_key ON auth.mfa_factors USING btree (last_challenged_at)
+;
 
--- Index on auth.mfa_factors
-CREATE UNIQUE INDEX mfa_factors_user_friendly_name_unique ON auth.mfa_factors USING btree (friendly_name, user_id) WHERE (TRIM(BOTH FROM friendly_name) <> ''::text);
+CREATE UNIQUE INDEX mfa_factors_user_friendly_name_unique ON auth.mfa_factors USING btree (friendly_name, user_id) WHERE (TRIM(BOTH FROM friendly_name) <> ''::text)
+;
 
--- Index on auth.mfa_factors
-CREATE INDEX mfa_factors_user_id_idx ON auth.mfa_factors USING btree (user_id);
+CREATE INDEX mfa_factors_user_id_idx ON auth.mfa_factors USING btree (user_id)
+;
 
--- Index on auth.mfa_factors
-CREATE UNIQUE INDEX unique_phone_factor_per_user ON auth.mfa_factors USING btree (user_id, phone);
+CREATE UNIQUE INDEX unique_phone_factor_per_user ON auth.mfa_factors USING btree (user_id, phone)
+;
 
--- Index on auth.one_time_tokens
-CREATE INDEX one_time_tokens_relates_to_hash_idx ON auth.one_time_tokens USING hash (relates_to);
+CREATE INDEX one_time_tokens_relates_to_hash_idx ON auth.one_time_tokens USING hash (relates_to)
+;
 
--- Index on auth.one_time_tokens
-CREATE INDEX one_time_tokens_token_hash_hash_idx ON auth.one_time_tokens USING hash (token_hash);
+CREATE INDEX one_time_tokens_token_hash_hash_idx ON auth.one_time_tokens USING hash (token_hash)
+;
 
--- Index on auth.one_time_tokens
-CREATE UNIQUE INDEX one_time_tokens_user_id_token_type_key ON auth.one_time_tokens USING btree (user_id, token_type);
+CREATE UNIQUE INDEX one_time_tokens_user_id_token_type_key ON auth.one_time_tokens USING btree (user_id, token_type)
+;
 
--- Index on auth.refresh_tokens
-CREATE INDEX refresh_tokens_instance_id_idx ON auth.refresh_tokens USING btree (instance_id);
+CREATE INDEX refresh_tokens_instance_id_idx ON auth.refresh_tokens USING btree (instance_id)
+;
 
--- Index on auth.refresh_tokens
-CREATE INDEX refresh_tokens_instance_id_user_id_idx ON auth.refresh_tokens USING btree (instance_id, user_id);
+CREATE INDEX refresh_tokens_instance_id_user_id_idx ON auth.refresh_tokens USING btree (instance_id, user_id)
+;
 
--- Index on auth.refresh_tokens
-CREATE INDEX refresh_tokens_parent_idx ON auth.refresh_tokens USING btree (parent);
+CREATE INDEX refresh_tokens_parent_idx ON auth.refresh_tokens USING btree (parent)
+;
 
--- Index on auth.refresh_tokens
-CREATE INDEX refresh_tokens_session_id_revoked_idx ON auth.refresh_tokens USING btree (session_id, revoked);
+CREATE INDEX refresh_tokens_session_id_revoked_idx ON auth.refresh_tokens USING btree (session_id, revoked)
+;
 
--- Index on auth.refresh_tokens
-CREATE UNIQUE INDEX refresh_tokens_token_unique ON auth.refresh_tokens USING btree (token);
+CREATE UNIQUE INDEX refresh_tokens_token_unique ON auth.refresh_tokens USING btree (token)
+;
 
--- Index on auth.refresh_tokens
-CREATE INDEX refresh_tokens_updated_at_idx ON auth.refresh_tokens USING btree (updated_at DESC);
+CREATE INDEX refresh_tokens_updated_at_idx ON auth.refresh_tokens USING btree (updated_at DESC)
+;
 
--- Index on auth.saml_providers
-CREATE UNIQUE INDEX saml_providers_entity_id_key ON auth.saml_providers USING btree (entity_id);
+CREATE UNIQUE INDEX saml_providers_entity_id_key ON auth.saml_providers USING btree (entity_id)
+;
 
--- Index on auth.saml_providers
-CREATE INDEX saml_providers_sso_provider_id_idx ON auth.saml_providers USING btree (sso_provider_id);
+CREATE INDEX saml_providers_sso_provider_id_idx ON auth.saml_providers USING btree (sso_provider_id)
+;
 
--- Index on auth.saml_relay_states
-CREATE INDEX saml_relay_states_created_at_idx ON auth.saml_relay_states USING btree (created_at DESC);
+CREATE INDEX saml_relay_states_created_at_idx ON auth.saml_relay_states USING btree (created_at DESC)
+;
 
--- Index on auth.saml_relay_states
-CREATE INDEX saml_relay_states_for_email_idx ON auth.saml_relay_states USING btree (for_email);
+CREATE INDEX saml_relay_states_for_email_idx ON auth.saml_relay_states USING btree (for_email)
+;
 
--- Index on auth.saml_relay_states
-CREATE INDEX saml_relay_states_sso_provider_id_idx ON auth.saml_relay_states USING btree (sso_provider_id);
+CREATE INDEX saml_relay_states_sso_provider_id_idx ON auth.saml_relay_states USING btree (sso_provider_id)
+;
 
--- Index on auth.sessions
-CREATE INDEX sessions_not_after_idx ON auth.sessions USING btree (not_after DESC);
+CREATE INDEX sessions_not_after_idx ON auth.sessions USING btree (not_after DESC)
+;
 
--- Index on auth.sessions
-CREATE INDEX sessions_user_id_idx ON auth.sessions USING btree (user_id);
+CREATE INDEX sessions_user_id_idx ON auth.sessions USING btree (user_id)
+;
 
--- Index on auth.sessions
-CREATE INDEX user_id_created_at_idx ON auth.sessions USING btree (user_id, created_at);
+CREATE INDEX user_id_created_at_idx ON auth.sessions USING btree (user_id, created_at)
+;
 
--- Index on auth.sso_domains
-CREATE UNIQUE INDEX sso_domains_domain_idx ON auth.sso_domains USING btree (lower(domain));
+CREATE UNIQUE INDEX sso_domains_domain_idx ON auth.sso_domains USING btree (lower(domain))
+;
 
--- Index on auth.sso_domains
-CREATE INDEX sso_domains_sso_provider_id_idx ON auth.sso_domains USING btree (sso_provider_id);
+CREATE INDEX sso_domains_sso_provider_id_idx ON auth.sso_domains USING btree (sso_provider_id)
+;
 
--- Index on auth.sso_providers
-CREATE UNIQUE INDEX sso_providers_resource_id_idx ON auth.sso_providers USING btree (lower(resource_id));
+CREATE UNIQUE INDEX sso_providers_resource_id_idx ON auth.sso_providers USING btree (lower(resource_id))
+;
 
--- Index on auth.users
-CREATE UNIQUE INDEX confirmation_token_idx ON auth.users USING btree (confirmation_token) WHERE ((confirmation_token)::text !~ '^[0-9 ]*$'::text);
+CREATE UNIQUE INDEX confirmation_token_idx ON auth.users USING btree (confirmation_token) WHERE ((confirmation_token)::text !~ '^[0-9 ]*$'::text)
+;
 
--- Index on auth.users
-CREATE UNIQUE INDEX email_change_token_current_idx ON auth.users USING btree (email_change_token_current) WHERE ((email_change_token_current)::text !~ '^[0-9 ]*$'::text);
+CREATE UNIQUE INDEX email_change_token_current_idx ON auth.users USING btree (email_change_token_current) WHERE ((email_change_token_current)::text !~ '^[0-9 ]*$'::text)
+;
 
--- Index on auth.users
-CREATE UNIQUE INDEX email_change_token_new_idx ON auth.users USING btree (email_change_token_new) WHERE ((email_change_token_new)::text !~ '^[0-9 ]*$'::text);
+CREATE UNIQUE INDEX email_change_token_new_idx ON auth.users USING btree (email_change_token_new) WHERE ((email_change_token_new)::text !~ '^[0-9 ]*$'::text)
+;
 
--- Index on auth.users
-CREATE UNIQUE INDEX reauthentication_token_idx ON auth.users USING btree (reauthentication_token) WHERE ((reauthentication_token)::text !~ '^[0-9 ]*$'::text);
+CREATE UNIQUE INDEX reauthentication_token_idx ON auth.users USING btree (reauthentication_token) WHERE ((reauthentication_token)::text !~ '^[0-9 ]*$'::text)
+;
 
--- Index on auth.users
-CREATE UNIQUE INDEX recovery_token_idx ON auth.users USING btree (recovery_token) WHERE ((recovery_token)::text !~ '^[0-9 ]*$'::text);
+CREATE UNIQUE INDEX recovery_token_idx ON auth.users USING btree (recovery_token) WHERE ((recovery_token)::text !~ '^[0-9 ]*$'::text)
+;
 
--- Index on auth.users
-CREATE UNIQUE INDEX users_email_partial_key ON auth.users USING btree (email) WHERE (is_sso_user = false);
+CREATE UNIQUE INDEX users_email_partial_key ON auth.users USING btree (email) WHERE (is_sso_user = false)
+;
 
--- Index on auth.users
-CREATE INDEX users_instance_id_email_idx ON auth.users USING btree (instance_id, lower((email)::text));
+CREATE INDEX users_instance_id_email_idx ON auth.users USING btree (instance_id, lower((email)::text))
+;
 
--- Index on auth.users
-CREATE INDEX users_instance_id_idx ON auth.users USING btree (instance_id);
+CREATE INDEX users_instance_id_idx ON auth.users USING btree (instance_id)
+;
 
--- Index on auth.users
-CREATE INDEX users_is_anonymous_idx ON auth.users USING btree (is_anonymous);
+CREATE INDEX users_is_anonymous_idx ON auth.users USING btree (is_anonymous)
+;
 
--- Index on auth.users
-CREATE UNIQUE INDEX users_phone_key ON auth.users USING btree (phone);
+CREATE UNIQUE INDEX users_phone_key ON auth.users USING btree (phone)
+;
 
--- Index on public.attachments
-CREATE INDEX idx_attachments_created_by ON public.attachments USING btree (created_by);
+CREATE INDEX idx_attachments_created_by ON public.attachments USING btree (created_by)
+;
 
--- Index on public.attachments
-CREATE INDEX idx_attachments_mime_type ON public.attachments USING btree (mime_type);
+CREATE INDEX idx_attachments_mime_type ON public.attachments USING btree (mime_type)
+;
 
--- Index on public.contractor_types
-CREATE UNIQUE INDEX contractor_types_code_key ON public.contractor_types USING btree (code);
+CREATE UNIQUE INDEX contractor_types_code_key ON public.contractor_types USING btree (code)
+;
 
--- Index on public.contractors
-CREATE INDEX idx_contractors_active_name ON public.contractors USING btree (name) WHERE (is_active = true);
+CREATE INDEX idx_contractors_active_name ON public.contractors USING btree (name) WHERE (is_active = true)
+;
 
--- Index on public.contractors
-CREATE INDEX idx_contractors_created_by ON public.contractors USING btree (created_by);
+CREATE INDEX idx_contractors_created_by ON public.contractors USING btree (created_by)
+;
 
--- Index on public.contractors
-CREATE INDEX idx_contractors_inn ON public.contractors USING btree (inn);
+CREATE INDEX idx_contractors_inn ON public.contractors USING btree (inn)
+;
 
--- Index on public.contractors
-CREATE UNIQUE INDEX idx_contractors_inn_unique ON public.contractors USING btree (inn) WHERE (inn IS NOT NULL);
+CREATE UNIQUE INDEX idx_contractors_inn_unique ON public.contractors USING btree (inn) WHERE (inn IS NOT NULL)
+;
 
--- Index on public.contractors
-CREATE INDEX idx_contractors_is_active ON public.contractors USING btree (is_active);
+CREATE INDEX idx_contractors_is_active ON public.contractors USING btree (is_active)
+;
 
--- Index on public.contractors
-CREATE INDEX idx_contractors_name_active ON public.contractors USING btree (name, is_active) WHERE (is_active = true);
+CREATE INDEX idx_contractors_name_active ON public.contractors USING btree (name, is_active) WHERE (is_active = true)
+;
 
--- Index on public.contractors
-CREATE INDEX idx_contractors_search_vector ON public.contractors USING gin (contractor_search);
+CREATE INDEX idx_contractors_search_vector ON public.contractors USING gin (contractor_search)
+;
 
--- Index on public.contractors
-CREATE INDEX idx_contractors_supplier_code ON public.contractors USING btree (supplier_code);
+CREATE INDEX idx_contractors_supplier_code ON public.contractors USING btree (supplier_code)
+;
 
--- Index on public.contractors
-CREATE INDEX idx_contractors_type_id ON public.contractors USING btree (type_id);
+CREATE INDEX idx_contractors_type_id ON public.contractors USING btree (type_id)
+;
 
--- Index on public.invoice_documents
-CREATE INDEX idx_invoice_documents_attachment_id ON public.invoice_documents USING btree (attachment_id);
+CREATE INDEX idx_invoice_documents_attachment_id ON public.invoice_documents USING btree (attachment_id)
+;
 
--- Index on public.invoice_documents
-CREATE INDEX idx_invoice_documents_invoice_id ON public.invoice_documents USING btree (invoice_id);
+CREATE INDEX idx_invoice_documents_invoice_id ON public.invoice_documents USING btree (invoice_id)
+;
 
--- Index on public.invoice_documents
-CREATE UNIQUE INDEX invoice_documents_composite_key ON public.invoice_documents USING btree (invoice_id, attachment_id);
+CREATE UNIQUE INDEX invoice_documents_composite_key ON public.invoice_documents USING btree (invoice_id, attachment_id)
+;
 
--- Index on public.invoice_history
-CREATE INDEX idx_invoice_history_created_at ON public.invoice_history USING btree (created_at DESC);
+CREATE INDEX idx_invoice_history_created_at ON public.invoice_history USING btree (created_at DESC)
+;
 
--- Index on public.invoice_history
-CREATE INDEX idx_invoice_history_event_date ON public.invoice_history USING btree (event_date DESC);
+CREATE INDEX idx_invoice_history_event_date ON public.invoice_history USING btree (event_date DESC)
+;
 
--- Index on public.invoice_history
-CREATE INDEX idx_invoice_history_event_type ON public.invoice_history USING btree (event_type);
+CREATE INDEX idx_invoice_history_event_type ON public.invoice_history USING btree (event_type)
+;
 
--- Index on public.invoice_history
-CREATE INDEX idx_invoice_history_invoice_id ON public.invoice_history USING btree (invoice_id);
+CREATE INDEX idx_invoice_history_invoice_id ON public.invoice_history USING btree (invoice_id)
+;
 
--- Index on public.invoice_history
-CREATE INDEX idx_invoice_history_payment_id ON public.invoice_history USING btree (payment_id) WHERE (payment_id IS NOT NULL);
+CREATE INDEX idx_invoice_history_payment_id ON public.invoice_history USING btree (payment_id) WHERE (payment_id IS NOT NULL)
+;
 
--- Index on public.invoice_history
-CREATE INDEX idx_invoice_history_user_id ON public.invoice_history USING btree (user_id) WHERE (user_id IS NOT NULL);
+CREATE INDEX idx_invoice_history_user_id ON public.invoice_history USING btree (user_id) WHERE (user_id IS NOT NULL)
+;
 
--- Index on public.invoice_types
-CREATE UNIQUE INDEX invoice_types_code_key ON public.invoice_types USING btree (code);
+CREATE UNIQUE INDEX invoice_types_code_key ON public.invoice_types USING btree (code)
+;
 
--- Index on public.invoices
-CREATE INDEX idx_invoices_created_at ON public.invoices USING btree (created_at DESC);
+CREATE INDEX idx_invoices_created_at ON public.invoices USING btree (created_at DESC)
+;
 
--- Index on public.invoices
-CREATE INDEX idx_invoices_created_by ON public.invoices USING btree (created_by);
+CREATE INDEX idx_invoices_created_by ON public.invoices USING btree (created_by)
+;
 
--- Index on public.invoices
-CREATE INDEX idx_invoices_internal_number ON public.invoices USING btree (internal_number);
+CREATE INDEX idx_invoices_internal_number ON public.invoices USING btree (internal_number)
+;
 
--- Index on public.invoices
-CREATE INDEX idx_invoices_internal_number_pattern ON public.invoices USING btree (internal_number) WHERE (internal_number IS NOT NULL);
+CREATE INDEX idx_invoices_internal_number_pattern ON public.invoices USING btree (internal_number) WHERE (internal_number IS NOT NULL)
+;
 
--- Index on public.invoices
-CREATE INDEX idx_invoices_invoice_date ON public.invoices USING btree (invoice_date);
+CREATE INDEX idx_invoices_invoice_date ON public.invoices USING btree (invoice_date)
+;
 
--- Index on public.invoices
-CREATE INDEX idx_invoices_invoice_number ON public.invoices USING btree (invoice_number);
+CREATE INDEX idx_invoices_invoice_number ON public.invoices USING btree (invoice_number)
+;
 
--- Index on public.invoices
-CREATE INDEX idx_invoices_material_responsible_person_id ON public.invoices USING btree (material_responsible_person_id);
+CREATE INDEX idx_invoices_material_responsible_person_id ON public.invoices USING btree (material_responsible_person_id)
+;
 
--- Index on public.invoices
-CREATE INDEX idx_invoices_payer_id ON public.invoices USING btree (payer_id);
+CREATE INDEX idx_invoices_payer_id ON public.invoices USING btree (payer_id)
+;
 
--- Index on public.invoices
-CREATE INDEX idx_invoices_payer_status ON public.invoices USING btree (payer_id, status) WHERE (payer_id IS NOT NULL);
+CREATE INDEX idx_invoices_payer_status ON public.invoices USING btree (payer_id, status) WHERE (payer_id IS NOT NULL)
+;
 
--- Index on public.invoices
-CREATE INDEX idx_invoices_priority ON public.invoices USING btree (priority);
+CREATE INDEX idx_invoices_priority ON public.invoices USING btree (priority)
+;
 
--- Index on public.invoices
-CREATE INDEX idx_invoices_project_id ON public.invoices USING btree (project_id);
+CREATE INDEX idx_invoices_project_id ON public.invoices USING btree (project_id)
+;
 
--- Index on public.invoices
-CREATE INDEX idx_invoices_project_status ON public.invoices USING btree (project_id, status) WHERE (project_id IS NOT NULL);
+CREATE INDEX idx_invoices_project_status ON public.invoices USING btree (project_id, status) WHERE (project_id IS NOT NULL)
+;
 
--- Index on public.invoices
-CREATE INDEX idx_invoices_status ON public.invoices USING btree (status);
+CREATE INDEX idx_invoices_status ON public.invoices USING btree (status)
+;
 
--- Index on public.invoices
-CREATE INDEX idx_invoices_supplier_id ON public.invoices USING btree (supplier_id);
+CREATE INDEX idx_invoices_supplier_id ON public.invoices USING btree (supplier_id)
+;
 
--- Index on public.invoices
-CREATE INDEX idx_invoices_supplier_status ON public.invoices USING btree (supplier_id, status) WHERE (supplier_id IS NOT NULL);
+CREATE INDEX idx_invoices_supplier_status ON public.invoices USING btree (supplier_id, status) WHERE (supplier_id IS NOT NULL)
+;
 
--- Index on public.invoices
-CREATE INDEX idx_invoices_total_amount ON public.invoices USING btree (total_amount) WHERE (total_amount IS NOT NULL);
+CREATE INDEX idx_invoices_total_amount ON public.invoices USING btree (total_amount) WHERE (total_amount IS NOT NULL)
+;
 
--- Index on public.invoices
-CREATE INDEX idx_invoices_type_id ON public.invoices USING btree (type_id);
+CREATE INDEX idx_invoices_type_id ON public.invoices USING btree (type_id)
+;
 
--- Index on public.material_responsible_persons
-CREATE INDEX idx_mrp_full_name ON public.material_responsible_persons USING btree (full_name);
+CREATE INDEX idx_mrp_full_name ON public.material_responsible_persons USING btree (full_name)
+;
 
--- Index on public.material_responsible_persons
-CREATE INDEX idx_mrp_is_active ON public.material_responsible_persons USING btree (is_active);
+CREATE INDEX idx_mrp_is_active ON public.material_responsible_persons USING btree (is_active)
+;
 
--- Index on public.payment_workflows
-CREATE INDEX idx_payment_workflows_invoice_id ON public.payment_workflows USING btree (invoice_id);
+CREATE INDEX idx_payment_types_code ON public.payment_types USING btree (code)
+;
 
--- Index on public.payment_workflows
-CREATE INDEX idx_payment_workflows_payment_id ON public.payment_workflows USING btree (payment_id);
+CREATE INDEX idx_payment_types_display_order ON public.payment_types USING btree (display_order)
+;
 
--- Index on public.payment_workflows
-CREATE INDEX idx_payment_workflows_payment_invoice ON public.payment_workflows USING btree (payment_id, invoice_id);
+CREATE INDEX idx_payment_types_is_active ON public.payment_types USING btree (is_active)
+;
 
--- Index on public.payment_workflows
-CREATE INDEX idx_payment_workflows_status ON public.payment_workflows USING btree (status);
+CREATE UNIQUE INDEX payment_types_code_key ON public.payment_types USING btree (code)
+;
 
--- Index on public.payment_workflows
-CREATE INDEX idx_payment_workflows_workflow_id ON public.payment_workflows USING btree (workflow_id);
+CREATE UNIQUE INDEX payment_types_name_key ON public.payment_types USING btree (name)
+;
 
--- Index on public.payment_workflows
-CREATE UNIQUE INDEX payment_workflows_payment_id_key ON public.payment_workflows USING btree (payment_id);
+CREATE INDEX idx_payment_workflows_invoice_id ON public.payment_workflows USING btree (invoice_id)
+;
 
--- Index on public.payments
-CREATE INDEX idx_payments_created_at ON public.payments USING btree (created_at DESC);
+CREATE INDEX idx_payment_workflows_payment_id ON public.payment_workflows USING btree (payment_id)
+;
 
--- Index on public.payments
-CREATE INDEX idx_payments_created_by ON public.payments USING btree (created_by);
+CREATE INDEX idx_payment_workflows_payment_invoice ON public.payment_workflows USING btree (payment_id, invoice_id)
+;
 
--- Index on public.payments
-CREATE INDEX idx_payments_internal_number ON public.payments USING btree (internal_number);
+CREATE INDEX idx_payment_workflows_status ON public.payment_workflows USING btree (status)
+;
 
--- Index on public.payments
-CREATE INDEX idx_payments_internal_number_pattern ON public.payments USING btree (internal_number) WHERE (internal_number IS NOT NULL);
+CREATE INDEX idx_payment_workflows_workflow_id ON public.payment_workflows USING btree (workflow_id)
+;
 
--- Index on public.payments
-CREATE INDEX idx_payments_invoice_id ON public.payments USING btree (invoice_id);
+CREATE UNIQUE INDEX payment_workflows_payment_id_key ON public.payment_workflows USING btree (payment_id)
+;
 
--- Index on public.payments
-CREATE INDEX idx_payments_payer_id ON public.payments USING btree (payer_id);
+CREATE INDEX idx_payments_created_at ON public.payments USING btree (created_at DESC)
+;
 
--- Index on public.payments
-CREATE INDEX idx_payments_payment_date ON public.payments USING btree (payment_date);
+CREATE INDEX idx_payments_created_by ON public.payments USING btree (created_by)
+;
 
--- Index on public.payments
-CREATE INDEX idx_payments_status ON public.payments USING btree (status);
+CREATE INDEX idx_payments_internal_number ON public.payments USING btree (internal_number)
+;
 
--- Index on public.payments
-CREATE INDEX idx_payments_status_invoice ON public.payments USING btree (status, invoice_id);
+CREATE INDEX idx_payments_internal_number_pattern ON public.payments USING btree (internal_number) WHERE (internal_number IS NOT NULL)
+;
 
--- Index on public.payments
-CREATE INDEX idx_payments_status_invoice_id ON public.payments USING btree (status, invoice_id);
+CREATE INDEX idx_payments_invoice_id ON public.payments USING btree (invoice_id)
+;
 
--- Index on public.payments
-CREATE INDEX idx_payments_total_amount ON public.payments USING btree (total_amount);
+CREATE INDEX idx_payments_invoice_id_status ON public.payments USING btree (invoice_id, status)
+;
 
--- Index on public.payments
-CREATE INDEX idx_payments_type_id ON public.payments USING btree (type_id);
+CREATE INDEX idx_payments_payer_id ON public.payments USING btree (payer_id)
+;
 
--- Index on public.payments
-CREATE INDEX idx_payments_vat_rate ON public.payments USING btree (vat_rate);
+CREATE INDEX idx_payments_payment_date ON public.payments USING btree (payment_date)
+;
 
--- Index on public.projects
-CREATE INDEX idx_projects_active_name ON public.projects USING btree (name) WHERE (is_active = true);
+CREATE INDEX idx_payments_payment_type_id ON public.payments USING btree (payment_type_id)
+;
 
--- Index on public.projects
-CREATE INDEX idx_projects_is_active ON public.projects USING btree (is_active);
+CREATE INDEX idx_payments_status ON public.payments USING btree (status)
+;
 
--- Index on public.projects
-CREATE INDEX idx_projects_project_code ON public.projects USING btree (project_code);
+CREATE INDEX idx_payments_status_invoice ON public.payments USING btree (status, invoice_id)
+;
 
--- Index on public.roles
-CREATE INDEX idx_roles_active ON public.roles USING btree (is_active);
+CREATE INDEX idx_payments_status_invoice_id ON public.payments USING btree (status, invoice_id)
+;
 
--- Index on public.roles
-CREATE INDEX idx_roles_code ON public.roles USING btree (code);
+CREATE INDEX idx_payments_total_amount ON public.payments USING btree (total_amount)
+;
 
--- Index on public.roles
-CREATE INDEX idx_roles_view_own_project_only ON public.roles USING btree (view_own_project_only);
+CREATE INDEX idx_payments_type_id ON public.payments USING btree (type_id)
+;
 
--- Index on public.roles
-CREATE UNIQUE INDEX roles_code_key ON public.roles USING btree (code);
+CREATE INDEX idx_payments_vat_rate ON public.payments USING btree (vat_rate)
+;
 
--- Index on public.statuses
-CREATE INDEX statuses_active_idx ON public.statuses USING btree (is_active) WHERE (is_active = true);
+CREATE INDEX idx_projects_active_name ON public.projects USING btree (name) WHERE (is_active = true)
+;
 
--- Index on public.statuses
-CREATE UNIQUE INDEX statuses_entity_code_ux ON public.statuses USING btree (entity_type, code);
+CREATE INDEX idx_projects_is_active ON public.projects USING btree (is_active)
+;
 
--- Index on public.statuses
-CREATE INDEX statuses_entity_idx ON public.statuses USING btree (entity_type);
+CREATE INDEX idx_projects_project_code ON public.projects USING btree (project_code)
+;
 
--- Index on public.statuses
-CREATE INDEX statuses_order_idx ON public.statuses USING btree (order_index);
+CREATE INDEX idx_roles_active ON public.roles USING btree (is_active)
+;
 
--- Index on public.themes
-CREATE INDEX idx_themes_created_at ON public.themes USING btree (created_at);
+CREATE INDEX idx_roles_code ON public.roles USING btree (code)
+;
 
--- Index on public.themes
-CREATE INDEX idx_themes_is_active ON public.themes USING btree (is_active);
+CREATE INDEX idx_roles_view_own_project_only ON public.roles USING btree (view_own_project_only)
+;
 
--- Index on public.themes
-CREATE INDEX idx_themes_is_default ON public.themes USING btree (is_default) WHERE (is_default = true);
+CREATE UNIQUE INDEX roles_code_key ON public.roles USING btree (code)
+;
 
--- Index on public.themes
-CREATE INDEX idx_themes_is_global ON public.themes USING btree (is_global) WHERE (is_global = true);
+CREATE INDEX statuses_active_idx ON public.statuses USING btree (is_active) WHERE (is_active = true)
+;
 
--- Index on public.themes
-CREATE INDEX idx_themes_name ON public.themes USING btree (name);
+CREATE UNIQUE INDEX statuses_entity_code_ux ON public.statuses USING btree (entity_type, code)
+;
 
--- Index on public.themes
-CREATE UNIQUE INDEX idx_themes_unique_default_per_user ON public.themes USING btree (user_id) WHERE ((is_default = true) AND (is_active = true) AND (is_global = false));
+CREATE INDEX statuses_entity_idx ON public.statuses USING btree (entity_type)
+;
 
--- Index on public.themes
-CREATE UNIQUE INDEX idx_themes_unique_global_default ON public.themes USING btree (is_global) WHERE ((is_global = true) AND (is_default = true) AND (is_active = true));
+CREATE INDEX statuses_order_idx ON public.statuses USING btree (order_index)
+;
 
--- Index on public.themes
-CREATE INDEX idx_themes_user_id ON public.themes USING btree (user_id);
+CREATE INDEX idx_themes_created_at ON public.themes USING btree (created_at)
+;
 
--- Index on public.users
-CREATE INDEX idx_users_email ON public.users USING btree (email);
+CREATE INDEX idx_themes_is_active ON public.themes USING btree (is_active)
+;
 
--- Index on public.users
-CREATE INDEX idx_users_is_active ON public.users USING btree (is_active);
+CREATE INDEX idx_themes_is_default ON public.themes USING btree (is_default) WHERE (is_default = true)
+;
 
--- Index on public.users
-CREATE INDEX idx_users_project_ids ON public.users USING gin (project_ids);
+CREATE INDEX idx_themes_is_global ON public.themes USING btree (is_global) WHERE (is_global = true)
+;
 
--- Index on public.users
-CREATE INDEX idx_users_role_id ON public.users USING btree (role_id) WHERE (role_id IS NOT NULL);
+CREATE INDEX idx_themes_name ON public.themes USING btree (name)
+;
 
--- Index on public.users
-CREATE UNIQUE INDEX users_email_key ON public.users USING btree (email);
+CREATE UNIQUE INDEX idx_themes_unique_default_per_user ON public.themes USING btree (user_id) WHERE ((is_default = true) AND (is_active = true) AND (is_global = false))
+;
 
--- Index on public.workflow_approval_progress
-CREATE INDEX idx_workflow_approval_progress_created_at ON public.workflow_approval_progress USING btree (created_at);
+CREATE UNIQUE INDEX idx_themes_unique_global_default ON public.themes USING btree (is_global) WHERE ((is_global = true) AND (is_default = true) AND (is_active = true))
+;
 
--- Index on public.workflow_approval_progress
-CREATE INDEX idx_workflow_approval_progress_user_created ON public.workflow_approval_progress USING btree (user_id, created_at DESC);
+CREATE INDEX idx_themes_user_id ON public.themes USING btree (user_id)
+;
 
--- Index on public.workflow_approval_progress
-CREATE INDEX idx_workflow_approval_progress_user_id ON public.workflow_approval_progress USING btree (user_id);
+CREATE INDEX idx_users_email ON public.users USING btree (email)
+;
 
--- Index on public.workflow_approval_progress
-CREATE INDEX idx_workflow_approval_progress_workflow_action ON public.workflow_approval_progress USING btree (workflow_id, action);
+CREATE INDEX idx_users_is_active ON public.users USING btree (is_active)
+;
 
--- Index on public.workflow_approval_progress
-CREATE INDEX idx_workflow_approval_progress_workflow_id ON public.workflow_approval_progress USING btree (workflow_id);
+CREATE INDEX idx_users_project_ids ON public.users USING gin (project_ids)
+;
 
--- Index on public.workflow_stages
-CREATE INDEX idx_workflow_stages_position ON public.workflow_stages USING btree (workflow_id, "position");
+CREATE INDEX idx_users_role_id ON public.users USING btree (role_id) WHERE (role_id IS NOT NULL)
+;
 
--- Index on public.workflow_stages
-CREATE INDEX idx_workflow_stages_type ON public.workflow_stages USING btree (stage_type);
+CREATE UNIQUE INDEX users_email_key ON public.users USING btree (email)
+;
 
--- Index on public.workflow_stages
-CREATE INDEX idx_workflow_stages_workflow_id ON public.workflow_stages USING btree (workflow_id);
+CREATE INDEX idx_workflow_approval_progress_created_at ON public.workflow_approval_progress USING btree (created_at)
+;
 
--- Index on public.workflows
-CREATE INDEX idx_workflows_invoice_types ON public.workflows USING gin (invoice_type_ids);
+CREATE INDEX idx_workflow_approval_progress_user_created ON public.workflow_approval_progress USING btree (user_id, created_at DESC)
+;
 
--- Index on public.workflows
-CREATE INDEX idx_workflows_is_active ON public.workflows USING btree (is_active);
+CREATE INDEX idx_workflow_approval_progress_user_id ON public.workflow_approval_progress USING btree (user_id)
+;
 
--- Index on realtime.subscription
-CREATE INDEX ix_realtime_subscription_entity ON realtime.subscription USING btree (entity);
+CREATE INDEX idx_workflow_approval_progress_workflow_action ON public.workflow_approval_progress USING btree (workflow_id, action)
+;
 
--- Index on realtime.subscription
-CREATE UNIQUE INDEX pk_subscription ON realtime.subscription USING btree (id);
+CREATE INDEX idx_workflow_approval_progress_workflow_id ON public.workflow_approval_progress USING btree (workflow_id)
+;
 
--- Index on realtime.subscription
-CREATE UNIQUE INDEX subscription_subscription_id_entity_filters_key ON realtime.subscription USING btree (subscription_id, entity, filters);
+CREATE INDEX idx_workflow_stages_position ON public.workflow_stages USING btree (workflow_id, "position")
+;
 
--- Index on storage.buckets
-CREATE UNIQUE INDEX bname ON storage.buckets USING btree (name);
+CREATE INDEX idx_workflow_stages_type ON public.workflow_stages USING btree (stage_type)
+;
 
--- Index on storage.iceberg_namespaces
-CREATE UNIQUE INDEX idx_iceberg_namespaces_bucket_id ON storage.iceberg_namespaces USING btree (bucket_id, name);
+CREATE INDEX idx_workflow_stages_workflow_id ON public.workflow_stages USING btree (workflow_id)
+;
 
--- Index on storage.iceberg_tables
-CREATE UNIQUE INDEX idx_iceberg_tables_namespace_id ON storage.iceberg_tables USING btree (namespace_id, name);
+CREATE INDEX idx_workflows_invoice_types ON public.workflows USING gin (invoice_type_ids)
+;
 
--- Index on storage.migrations
-CREATE UNIQUE INDEX migrations_name_key ON storage.migrations USING btree (name);
+CREATE INDEX idx_workflows_is_active ON public.workflows USING btree (is_active)
+;
 
--- Index on storage.objects
-CREATE UNIQUE INDEX bucketid_objname ON storage.objects USING btree (bucket_id, name);
+CREATE INDEX ix_realtime_subscription_entity ON realtime.subscription USING btree (entity)
+;
 
--- Index on storage.objects
-CREATE UNIQUE INDEX idx_name_bucket_level_unique ON storage.objects USING btree (name COLLATE "C", bucket_id, level);
+CREATE UNIQUE INDEX pk_subscription ON realtime.subscription USING btree (id)
+;
 
--- Index on storage.objects
-CREATE INDEX idx_objects_bucket_id_name ON storage.objects USING btree (bucket_id, name COLLATE "C");
+CREATE UNIQUE INDEX subscription_subscription_id_entity_filters_key ON realtime.subscription USING btree (subscription_id, entity, filters)
+;
 
--- Index on storage.objects
-CREATE INDEX idx_objects_lower_name ON storage.objects USING btree ((path_tokens[level]), lower(name) text_pattern_ops, bucket_id, level);
+CREATE UNIQUE INDEX bname ON storage.buckets USING btree (name)
+;
 
--- Index on storage.objects
-CREATE INDEX name_prefix_search ON storage.objects USING btree (name text_pattern_ops);
+CREATE UNIQUE INDEX idx_iceberg_namespaces_bucket_id ON storage.iceberg_namespaces USING btree (bucket_id, name)
+;
 
--- Index on storage.objects
-CREATE UNIQUE INDEX objects_bucket_id_level_idx ON storage.objects USING btree (bucket_id, level, name COLLATE "C");
+CREATE UNIQUE INDEX idx_iceberg_tables_namespace_id ON storage.iceberg_tables USING btree (namespace_id, name)
+;
 
--- Index on storage.prefixes
-CREATE INDEX idx_prefixes_lower_name ON storage.prefixes USING btree (bucket_id, level, ((string_to_array(name, '/'::text))[level]), lower(name) text_pattern_ops);
+CREATE UNIQUE INDEX migrations_name_key ON storage.migrations USING btree (name)
+;
 
--- Index on storage.s3_multipart_uploads
-CREATE INDEX idx_multipart_uploads_list ON storage.s3_multipart_uploads USING btree (bucket_id, key, created_at);
+CREATE UNIQUE INDEX bucketid_objname ON storage.objects USING btree (bucket_id, name)
+;
 
--- Index on supabase_functions.hooks
-CREATE INDEX supabase_functions_hooks_h_table_id_h_name_idx ON supabase_functions.hooks USING btree (hook_table_id, hook_name);
+CREATE UNIQUE INDEX idx_name_bucket_level_unique ON storage.objects USING btree (name COLLATE "C", bucket_id, level)
+;
 
--- Index on supabase_functions.hooks
-CREATE INDEX supabase_functions_hooks_request_id_idx ON supabase_functions.hooks USING btree (request_id);
+CREATE INDEX idx_objects_bucket_id_name ON storage.objects USING btree (bucket_id, name COLLATE "C")
+;
 
--- Index on vault.secrets
-CREATE UNIQUE INDEX secrets_name_idx ON vault.secrets USING btree (name) WHERE (name IS NOT NULL);
+CREATE INDEX idx_objects_lower_name ON storage.objects USING btree ((path_tokens[level]), lower(name) text_pattern_ops, bucket_id, level)
+;
 
+CREATE INDEX name_prefix_search ON storage.objects USING btree (name text_pattern_ops)
+;
 
--- ============================================
--- STORAGE BUCKETS
--- ============================================
+CREATE UNIQUE INDEX objects_bucket_id_level_idx ON storage.objects USING btree (bucket_id, level, name COLLATE "C")
+;
 
--- Storage Bucket: documents
--- Public: True
--- File Size Limit: 10485760 bytes
--- Allowed MIME Types: application/pdf, application/msword, application/vnd.openxmlformats-officedocument.wordprocessingml.document, application/vnd.ms-excel, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, image/jpeg, image/jpg, image/png, image/gif, image/bmp, text/plain, text/html, text/csv
--- INSERT INTO storage.buckets (name, public, file_size_limit, allowed_mime_types)
--- VALUES ('documents', True, 10485760, 
---        ARRAY['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/bmp', 'text/plain', 'text/html', 'text/csv']::text[]);
+CREATE INDEX idx_prefixes_lower_name ON storage.prefixes USING btree (bucket_id, level, ((string_to_array(name, '/'::text))[level]), lower(name) text_pattern_ops)
+;
+
+CREATE INDEX idx_multipart_uploads_list ON storage.s3_multipart_uploads USING btree (bucket_id, key, created_at)
+;
+
+CREATE INDEX supabase_functions_hooks_h_table_id_h_name_idx ON supabase_functions.hooks USING btree (hook_table_id, hook_name)
+;
+
+CREATE INDEX supabase_functions_hooks_request_id_idx ON supabase_functions.hooks USING btree (request_id)
+;
+
+CREATE UNIQUE INDEX secrets_name_idx ON vault.secrets USING btree (name) WHERE (name IS NOT NULL)
+;

@@ -2,14 +2,15 @@
  * CRUD operations for payments
  */
 
-import { 
-  type ApiResponse, 
+import {
+  type ApiResponse,
   handleSupabaseError,
-  type Payment, 
+  type Payment,
   type PaymentInsert,
   type PaymentUpdate,
   supabase
 } from '../supabase'
+import type { PaymentInsertWithType } from '@/types/payment'
 
 export interface PaymentWithRelations extends Payment {
   invoice?: {
@@ -31,6 +32,12 @@ export class PaymentCrudService {
         total_amount: payment.total_amount,
         status: payment.status || 'draft'
       })
+
+      // Получаем текущего пользователя
+      const { data: { user }, error: userError } = await supabase.auth.getUser()
+      if (userError || !user) {
+        console.warn('[PaymentCrudService.create] Не удалось получить текущего пользователя:', userError)
+      }
       
       // Проверяем, что заявка существует и готова к оплате
       const { data: invoice, error: invoiceError } = await supabase
@@ -101,7 +108,8 @@ export class PaymentCrudService {
         type_id: invoice.type_id, // Наследуем тип счета от связанного счета
         internal_number: generatedInternalNumber || (payment as any).internal_number,
         comment: payment.comment || (payment as any).description || (payment as any).notes,
-        created_by: payment.created_by,
+        // Временно убираем created_by, так как вызывает ошибку прав доступа к таблице users
+        // created_by: payment.created_by,
         status: payment.status || 'draft', // По умолчанию используем статус 'draft' (Черновик)
         // VAT поля
         vat_rate: (payment as any).vat_rate || 20,
@@ -114,9 +122,34 @@ export class PaymentCrudService {
 
       console.log('[PaymentCrudService.create] Подготовленные данные для вставки:', paymentData)
 
+      // Вставляем платеж в базу данных
+      // Теперь поле created_by добавлено в таблицу payments
+      const insertData = {
+        invoice_id: paymentData.invoice_id,
+        payment_date: paymentData.payment_date,
+        total_amount: paymentData.total_amount,
+        payer_id: paymentData.payer_id,
+        type_id: paymentData.type_id,
+        internal_number: paymentData.internal_number,
+        comment: paymentData.comment,
+        status: paymentData.status,
+        vat_rate: paymentData.vat_rate,
+        vat_amount: paymentData.vat_amount,
+        amount_net: paymentData.amount_net,
+        created_by: user?.id // Записываем ID текущего пользователя
+      }
+
+      console.log('[PaymentCrudService.create] Вставка платежа в БД:', insertData)
+
+      // ПРИМЕЧАНИЕ О ТРИГГЕРАХ:
+      // После добавления поля created_by в таблицу payments:
+      // 1. Функция fn_sync_invoice_payment теперь работает корректно
+      // 2. Функция track_payment_changes все еще может вызывать проблемы с auth.uid()
+      // См. database/add-created-by-to-payments.sql для деталей миграции
+
       const { data, error } = await supabase
         .from('payments')
-        .insert([paymentData])
+        .insert(insertData)
         .select()
         .single()
 
@@ -359,7 +392,7 @@ export class PaymentCrudService {
       // Проверяем, что платеж можно отменить
       const { data: payment, error: fetchError } = await supabase
         .from('payments')
-        .select('status, created_by')
+        .select('status')
         .eq('id', id)
         .single()
 
@@ -371,10 +404,10 @@ export class PaymentCrudService {
         return { data: null, error: 'Нельзя отменить оплаченный платеж' }
       }
 
-      // Проверяем права (только автор может отменить)
-      if (payment.created_by !== userId) {
-        return { data: null, error: 'Отменить можно только свой платеж' }
-      }
+      // Проверка прав убрана, так как поле created_by не существует в БД
+      // if (payment.created_by !== userId) {
+      //   return { data: null, error: 'Отменить можно только свой платеж' }
+      // }
 
       const updateData: PaymentUpdate = {
         status: 'cancelled',

@@ -9,7 +9,6 @@ export type {
   WorkflowDefinition,
   WorkflowRules,
   WorkflowStage,
-  StagePermissions,
   StageConditions,
   WorkflowRole,
   ApprovalAction,

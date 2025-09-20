@@ -83,7 +83,6 @@ export class OptimizedApprovalQueryService {
             amount,
             payment_date,
             status,
-            payment_method,
             comment,
             created_at,
             payer:contractorspayer_id(id, name, inn, email, phone)

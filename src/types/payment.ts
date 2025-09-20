@@ -17,7 +17,7 @@
 // }
 
 // Расширенный интерфейс для платежа с типом
-interface PaymentWithType {
+export interface PaymentWithType {
   id: string
   invoice_id: string
   payment_date: string
@@ -35,7 +35,7 @@ interface PaymentWithType {
 }
 
 // Интерфейс для создания платежа
-interface PaymentInsertWithType {
+export interface PaymentInsertWithType {
   invoice_id: string
   payment_date?: string
   total_amount: number // Total amount including VAT
@@ -50,7 +50,7 @@ interface PaymentInsertWithType {
 }
 
 // Интерфейс для обновления платежа
-interface PaymentUpdateWithType {
+export interface PaymentUpdateWithType {
   payment_date?: string
   total_amount?: number // Total amount including VAT
   amount_net?: number // Amount excluding VAT

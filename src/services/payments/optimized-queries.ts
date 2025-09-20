@@ -41,11 +41,9 @@ export class OptimizedPaymentQueryService {
           total_amount,
           payment_date,
           status,
-          payment_method,
           comment,
           created_at,
           updated_at,
-          created_by,
           invoice_id,
           payer_id,
           invoice:invoices!invoice_id(
@@ -67,17 +65,19 @@ export class OptimizedPaymentQueryService {
         query = query.eq('status', filters.status)
       }
 
-      if (filters.method) {
-        query = query.eq('payment_method', filters.method)
-      }
+      // payment_method filter removed - field doesn't exist in database
+      // if (filters.method) {
+      //   query = query.eq('payment_method', filters.method)
+      // }
 
       if (filters.invoiceId) {
         query = query.eq('invoice_id', filters.invoiceId)
       }
 
-      if (filters.userId) {
-        query = query.eq('created_by', filters.userId)
-      }
+      // Фильтр по userId убран, так как поле created_by не существует в БД
+      // if (filters.userId) {
+      //   query = query.eq('created_by', filters.userId)
+      // }
 
       // processedBy filter removed since approved_by field no longer exists
 
@@ -156,7 +156,8 @@ export class OptimizedPaymentQueryService {
       // Collect unique user IDs for batch loading
       const userIds = new Set<string>()
       data?.forEach(payment => {
-        if (payment.created_by) {userIds.add(payment.created_by)}
+        // поле created_by не существует в таблице payments
+        // if (payment.created_by) {userIds.add(payment.created_by)}
       })
 
       // Batch load user data
@@ -178,7 +179,7 @@ export class OptimizedPaymentQueryService {
       // Transform and enrich data
       const transformedData = (data || []).map(payment => ({
         ...payment,
-        creator: payment.created_by ? usersMap[payment.created_by] : null,
+        creator: null, // поле created_by не существует в таблице payments
         workflow: workflowsMap[payment.id] || null,
         // Transform invoice data for compatibility
         invoice: payment.invoice ? {
@@ -254,20 +255,9 @@ export class OptimizedPaymentQueryService {
             failed: baseStats.failed_amount,
             cancelled: baseStats.cancelled_amount,
           },
-          byMethod: {
-            bank_transfer: baseStats.bank_transfer_count,
-            cash: baseStats.cash_count,
-            card: baseStats.card_count,
-            check: baseStats.check_count,
-            other: baseStats.other_count,
-          },
-          byMethodAmount: {
-            bank_transfer: baseStats.bank_transfer_amount,
-            cash: baseStats.cash_amount,
-            card: baseStats.card_amount,
-            check: baseStats.check_amount,
-            other: baseStats.other_amount,
-          },
+          // payment_method stats removed - field doesn't exist
+          byMethod: {},
+          byMethodAmount: {},
           avgAmount: baseStats.avg_amount,
           avgProcessingTime: baseStats.avg_processing_time,
         }
@@ -279,7 +269,6 @@ export class OptimizedPaymentQueryService {
         .select(`
           total_amount,
           status,
-          payment_method,
           created_at
         `)
         .eq('company_id', companyId)
@@ -311,12 +300,9 @@ export class OptimizedPaymentQueryService {
       const byStatusAmount: Record<Payment['status'], number> = {
         pending: 0, processing: 0, completed: 0, failed: 0, cancelled: 0,
       }
-      const byMethod: Record<Payment['payment_method'], number> = {
-        bank_transfer: 0, cash: 0, card: 0, check: 0, other: 0,
-      }
-      const byMethodAmount: Record<Payment['payment_method'], number> = {
-        bank_transfer: 0, cash: 0, card: 0, check: 0, other: 0,
-      }
+      // payment_method stats removed - field doesn't exist in database
+      // const byMethod = {}
+      // const byMethodAmount = {}
 
       const totalProcessingTime = 0
       const processedCount = 0
@@ -327,10 +313,11 @@ export class OptimizedPaymentQueryService {
           byStatusAmount[payment.status] += payment.total_amount
         }
         
-        if (byMethod[payment.payment_method] !== undefined) {
-          byMethod[payment.payment_method]++
-          byMethodAmount[payment.payment_method] += payment.total_amount
-        }
+        // payment_method counting removed - field doesn't exist
+        // if (payment.payment_method) {
+        //   byMethod[payment.payment_method]++
+        //   byMethodAmount[payment.payment_method] += payment.total_amount
+        // }
 
         // Processing time calculation removed since approved_at is no longer available
       })
@@ -342,8 +329,9 @@ export class OptimizedPaymentQueryService {
         totalAmount,
         byStatus,
         byStatusAmount,
-        byMethod,
-        byMethodAmount,
+        // payment_method stats removed
+        byMethod: {},
+        byMethodAmount: {},
         avgAmount,
         avgProcessingTime,
       }
@@ -354,8 +342,8 @@ export class OptimizedPaymentQueryService {
         totalAmount: 0,
         byStatus: { pending: 0, processing: 0, completed: 0, failed: 0, cancelled: 0 },
         byStatusAmount: { pending: 0, processing: 0, completed: 0, failed: 0, cancelled: 0 },
-        byMethod: { bank_transfer: 0, cash: 0, card: 0, check: 0, other: 0 },
-        byMethodAmount: { bank_transfer: 0, cash: 0, card: 0, check: 0, other: 0 },
+        byMethod: {},
+        byMethodAmount: {},
         avgAmount: 0,
         avgProcessingTime: 0,
       }
@@ -509,11 +497,9 @@ export class OptimizedPaymentQueryService {
           reference,
           total_amount,
           status,
-          payment_method,
           payment_date,
           comment,
           created_at,
-          created_by,
         `)
         .eq('invoice_id', invoiceId)
         .order('created_at', { ascending: false })
@@ -543,7 +529,6 @@ export class OptimizedPaymentQueryService {
           reference,
           total_amount,
           status,
-          payment_method,
           payment_date,
           comment,
           created_at,
@@ -571,7 +556,7 @@ export class OptimizedPaymentQueryService {
         'Номер платежа': payment.reference,
         'Сумма': `${payment.total_amount} RUB`,
         'Статус': this.getStatusLabel(payment.status),
-        'Метод платежа': this.getMethodLabel(payment.payment_method),
+        // 'Метод платежа': removed - field doesn't exist,
         'Счет': payment.invoice?.invoice_number || '',
         'Описание счета': payment.invoice?.description || '',
         'Поставщик': payment.invoice?.supplier?.name || '',
@@ -604,17 +589,10 @@ export class OptimizedPaymentQueryService {
     return statusLabels[status] || status
   }
 
-  private static getMethodLabel(method: Payment['payment_method']): string {
-    const methodLabels: Record<Payment['payment_method'], string> = {
-      bank_transfer: 'Банковский перевод',
-      cash: 'Наличные',
-      card: 'Банковская карта',
-      check: 'Чек',
-      other: 'Другое',
-    }
-    
-    return methodLabels[method] || method
-  }
+  // Method label function removed - payment_method doesn't exist
+  // private static getMethodLabel(method: string): string {
+  //   return method
+  // }
 }
 
 // SQL for creating the full-text search column

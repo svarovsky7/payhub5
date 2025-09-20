@@ -116,15 +116,6 @@ export const WorkflowEditor: React.FC<WorkflowEditorProps> = ({
     console.log('[WorkflowEditor] Deleting stage:', stageId)
   }
 
-  const getPermissionIcons = (stage: WorkflowStage) => {
-    const icons = []
-    if (stage.permissions?.can_view) {icons.push(<EyeOutlined key="view" title="Просмотр" />)}
-    if (stage.permissions?.can_edit) {icons.push(<EditOutlined key="edit" title="Редактирование" />)}
-    if (stage.permissions?.can_approve) {icons.push(<CheckCircleOutlined key="approve" title="Согласование" style={{ color: '#52c41a' }} />)}
-    if (stage.permissions?.can_reject) {icons.push(<CloseCircleOutlined key="reject" title="Отклонение" style={{ color: '#f5222d' }} />)}
-    if (stage.permissions?.can_cancel) {icons.push(<DeleteOutlined key="cancel" title="Отмена" />)}
-    return icons
-  }
 
   const getRoleNames = (stage: WorkflowStage) => {
     if (!stage.assigned_roles || stage.assigned_roles.length === 0) {
@@ -267,10 +258,6 @@ export const WorkflowEditor: React.FC<WorkflowEditorProps> = ({
                               </Tag>
                             </Space>
 
-                            <Space>
-                              <Text type="secondary" style={{ fontSize: 12 }}>Права:</Text>
-                              {getPermissionIcons(stage)}
-                            </Space>
                           </Space>
                         </Card>
                         

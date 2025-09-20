@@ -23,19 +23,10 @@ export interface WorkflowStage {
   description?: string
   timeout_days?: number
   is_final?: boolean // Финальный этап - после него счет считается оплаченным
-  permissions: StagePermissions
   assigned_roles?: WorkflowRole[]
   assigned_users?: string[]
   created_at: string
   updated_at: string
-}
-
-export interface StagePermissions {
-  can_view: boolean
-  can_edit: boolean
-  can_approve: boolean
-  can_reject: boolean
-  can_cancel: boolean
 }
 
 // StageConditions interface removed - not used in current implementation
@@ -44,7 +35,6 @@ export interface WorkflowRole {
   id: string
   name: string
   code: string
-  permissions: string[]
 }
 
 export interface ApprovalAction {
@@ -86,7 +76,6 @@ export interface CreateStageInput {
   approval_quorum?: number
   description?: string
   timeout_days?: number
-  permissions: StagePermissions
   assigned_roles?: string[]
   assigned_users?: string[]
 }
@@ -97,7 +86,6 @@ export interface UpdateStageInput {
   approval_quorum?: number
   description?: string
   timeout_days?: number
-  permissions?: StagePermissions
   assigned_roles?: string[]
   assigned_users?: string[]
 }

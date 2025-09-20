@@ -82,9 +82,10 @@ export class PaymentQueryService {
         query = query.eq('status', filters.status)
       }
 
-      if (filters.method) {
-        query = query.eq('payment_method', filters.method)
-      }
+      // payment_method filter removed - field doesn't exist in database
+      // if (filters.method) {
+      //   query = query.eq('payment_method', filters.method)
+      // }
 
       if (filters.invoiceId) {
         query = query.eq('invoice_id', filters.invoiceId)
@@ -119,9 +120,10 @@ export class PaymentQueryService {
 
       // Contractor filter removed as we don't have that relationship
 
-      if (filters.userId) {
-        query = query.eq('created_by', filters.userId)
-      }
+      // Фильтр по создателю убран, так как поле created_by не существует в БД
+      // if (filters.userId) {
+      //   query = query.eq('created_by', filters.userId)
+      // }
 
       if (filters.processedBy) {
         query = query.eq('processed_by', filters.processedBy)
@@ -169,13 +171,14 @@ export class PaymentQueryService {
         throw error
       }
 
-      console.log('[PaymentQueryService.getList] Получено платежей:', data?.length || 0)
+      console.log('[PaymentQueryService.getList] Получено платежей из БД:', data?.length || 0)
 
       // Собираем уникальные payment ids и user ids для загрузки
       const paymentIds = data?.map(p => p.id) || []
       const userIds = new Set<string>()
       data?.forEach(payment => {
-        if (payment.created_by) {userIds.add(payment.created_by)}
+        // поле created_by не существует в таблице payments
+        // if (payment.created_by) {userIds.add(payment.created_by)}
         if (payment.confirmed_by) {userIds.add(payment.confirmed_by)}
       })
 
@@ -230,7 +233,7 @@ export class PaymentQueryService {
           // Добавляем поле amount для совместимости с компонентом (в БД это total_amount)
           amount: payment.total_amount || 0,
           // Добавляем информацию о пользователях
-          creator: payment.created_by ? usersMap[payment.created_by] : null,
+          creator: null, // поле created_by не существует в таблице payments
           confirmed_by: payment.confirmed_by ? usersMap[payment.confirmed_by] : null,
           // Добавляем информацию о workflow
           workflow: workflowsMap[payment.id] || null,
@@ -243,14 +246,15 @@ export class PaymentQueryService {
         }
       })
 
-      const totalPages = Math.ceil((count || 0) / limit)
+      const totalCount = count || 0
+      const totalPages = Math.ceil(totalCount / limit)
 
       console.log('[PaymentQueryService.getList] Преобразовано данных:', transformedData.length)
 
       return {
         data: transformedData as PaymentWithRelations[],
         error: null,
-        count: count || 0,
+        count: totalCount,
         page,
         limit,
         totalPages,
@@ -453,7 +457,7 @@ export class PaymentQueryService {
     try {
       let query = supabase
         .from('payments')
-        .select('total_amount, status, payment_method, created_at')
+        .select('total_amount, status, created_at')
         .eq('company_id', companyId)
 
       // Применяем те же фильтры что и в getList
@@ -710,18 +714,21 @@ export class PaymentQueryService {
       // Форматируем данные
       const exportData = result.data.map(payment => ({
         ...payment,
-        invoiceNumber: payment.invoice.invoice_number,
-        invoiceTitle: payment.invoice.title,
-        contractorName: payment.invoice.contractor.name,
-        formattedAmount: `${payment.total_amount} ${payment.currency}`,
-        formattedPaymentDate: payment.payment_date 
-          ? new Date(payment.payment_date).toLocaleDateString('ru-RU') 
+        invoiceNumber: payment.invoice?.invoice_number || '',
+        invoiceTitle: payment.invoice?.description || 'Без описания',
+        contractorName: payment.invoice?.supplier?.name || payment.invoice?.payer?.name || '',
+        formattedAmount: new Intl.NumberFormat('ru-RU', {
+          style: 'currency',
+          currency: 'RUB'
+        }).format(payment.total_amount || 0),
+        formattedPaymentDate: payment.payment_date
+          ? new Date(payment.payment_date).toLocaleDateString('ru-RU')
           : '',
         formattedProcessedDate: '',
-        createdByName: payment.created_by || '',
+        createdByName: '', // поле created_by не существует в таблице payments
         processedByName: '',
         statusLabel: this.getStatusLabel(payment.status),
-        methodLabel: this.getMethodLabel(payment.payment_method),
+        methodLabel: '', // payment_method не существует в таблице payments
       }))
 
       await exportToExcel(exportData, filename, columns)
@@ -743,7 +750,7 @@ export class PaymentQueryService {
     try {
       const { data, error } = await supabase
         .from('payments')
-        .select('total_amount, status, created_at, payment_method')
+        .select('total_amount, status, created_at')
         .eq('company_id', companyId)
         .gte('created_at', dateFrom)
         .lte('created_at', dateTo)
@@ -820,16 +827,17 @@ export class PaymentQueryService {
 
   /**
    * Получить локализованное название метода платежа
+   * @deprecated payment_method field doesn't exist in database
    */
-  private static getMethodLabel(method: Payment['payment_method']): string {
-    const methodLabels: Record<Payment['payment_method'], string> = {
-      bank_transfer: 'Банковский перевод',
-      cash: 'Наличные',
-      card: 'Банковская карта',
-      check: 'Чек',
-      other: 'Другое',
-    }
-    
-    return methodLabels[method] || method
-  }
+  // private static getMethodLabel(method: string): string {
+  //   const methodLabels: Record<string, string> = {
+  //     bank_transfer: 'Банковский перевод',
+  //     cash: 'Наличные',
+  //     card: 'Банковская карта',
+  //     check: 'Чек',
+  //     other: 'Другое',
+  //   }
+  //
+  //   return methodLabels[method] || method
+  // }
 }

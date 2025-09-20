@@ -103,17 +103,20 @@ export class ApprovalQueryService {
 
             // Получаем полную информацию о пользователе и его роли
             let userRole = testRole || 'user'
+            let userRoleId: string | null = null
             let viewOwnProjectOnly = false
             let userProjectIds = userProfile?.project_ids ?? []
 
             // Получаем полную информацию о роли пользователя из базы данных
             const {data: userData} = await supabase
                 .from('users')
-                .select('role_id, project_ids, roles!inner(code, view_own_project_only)')
+                .select('role_id, project_ids, roles!inner(id, code, view_own_project_only)')
                 .eq('id', userId)
                 .single()
 
             if (userData) {
+                // Сохраняем ID роли для сравнения с assigned_roles
+                userRoleId = userData.role_id
                 // Используем тестовую роль если она передана, иначе берем из БД
                 if (!testRole) {
                     userRole = userData.roles?.code || 'user'
@@ -121,15 +124,16 @@ export class ApprovalQueryService {
                 viewOwnProjectOnly = userData.roles?.view_own_project_only ?? false
                 userProjectIds = userData.project_ids ?? []
 
-                // Если передана тестовая роль, получаем её настройки
+                // Если передана тестовая роль, получаем её настройки и ID
                 if (testRole && testRole !== userData.roles?.code) {
                     const {data: testRoleData} = await supabase
                         .from('roles')
-                        .select('view_own_project_only')
+                        .select('id, view_own_project_only')
                         .eq('code', testRole)
                         .single()
 
                     if (testRoleData) {
+                        userRoleId = testRoleData.id
                         viewOwnProjectOnly = testRoleData.view_own_project_only ?? false
                     }
                 }
@@ -158,7 +162,8 @@ export class ApprovalQueryService {
                 }
             }
 
-            // Сначала получаем workflow instances где текущий пользователь является approver на текущем этапе
+            // Получаем workflow instances где текущий пользователь является approver на текущем этапе
+            // КРИТИЧНО: Фильтруем по роли на уровне SQL ДО пагинации для правильного подсчета
             let query = supabase
                 .from('payment_workflows')
                 .select(`
@@ -189,7 +194,38 @@ export class ApprovalQueryService {
         `, {count: 'exact'})
                 .eq('status', 'in_progress')
 
-            // Сортировка и пагинация
+            // Фильтр по роли пользователя через JOIN с workflow_stages
+            // Поскольку нам нужно фильтровать по массиву assigned_roles в связанной таблице,
+            // мы сначала получаем все workflow_stages где пользователь является approver
+            if (userRoleId) {
+                console.log('[ApprovalQueryService.getMyApprovals] Фильтрация по роли на уровне SQL, userRoleId:', userRoleId)
+
+                // Сначала получаем ID всех stage где пользователь может согласовывать
+                const { data: stageIds } = await supabase
+                    .from('workflow_stages')
+                    .select('id')
+                    .contains('assigned_roles', [userRoleId])
+
+                if (stageIds && stageIds.length > 0) {
+                    // Фильтруем workflows по найденным stage_id
+                    query = query.in('current_stage_id', stageIds.map(s => s.id))
+                } else {
+                    // Если нет подходящих stages, возвращаем пустой результат
+                    console.log('[ApprovalQueryService.getMyApprovals] Нет stages для роли пользователя')
+                    return {
+                        data: [],
+                        error: null,
+                        count: 0,
+                        page,
+                        limit,
+                        totalPages: 0,
+                        hasNextPage: false,
+                        hasPrevPage: false,
+                    }
+                }
+            }
+
+            // Сортировка и пагинация (применяем ПОСЛЕ всех фильтров)
             query = query
                 .order(sortBy, {ascending: sortOrder === 'asc'})
                 .range(from, to)
@@ -201,8 +237,9 @@ export class ApprovalQueryService {
                 throw error
             }
 
-            console.log('[ApprovalQueryService.getMyApprovals] Загружено workflows до фильтрации:', {
+            console.log('[ApprovalQueryService.getMyApprovals] Загружено workflows после SQL фильтрации:', {
                 count: workflows?.length || 0,
+                totalCount: count || 0,
                 workflows: workflows?.map(w => ({
                     id: w.id,
                     payment_id: w.payment_id,
@@ -212,43 +249,8 @@ export class ApprovalQueryService {
                 }))
             })
 
-            // Фильтруем workflows, где текущий пользователь является approver
-            const filteredWorkflows = workflows?.filter((workflow, index) => {
-                console.log(`[ApprovalQueryService.getMyApprovals] Проверка workflow ${index + 1}:`, {
-                    workflowId: workflow.id,
-                    paymentId: workflow.payment_id,
-                    invoiceId: workflow.invoice_id,
-                    status: workflow.status,
-                    currentStage: workflow.current_stage,
-                    hasCurrentStage: !!workflow.current_stage
-                })
-
-                if (!workflow.current_stage) {
-                    console.log(`[ApprovalQueryService.getMyApprovals] Workflow ${workflow.id} пропущен - нет current_stage`)
-                    return false
-                }
-
-                // Проверяем, является ли пользователь approver на текущем этапе
-                const assignedRoles: string[] = workflow.current_stage.assigned_roles || []
-
-                console.log(`[ApprovalQueryService.getMyApprovals] Детали согласования для workflow ${workflow.id}:`, {
-                    stageName: workflow.current_stage.name,
-                    currentUserId: userId,
-                    currentUserRole: userRole,
-                    assignedRoles: assignedRoles
-                })
-
-                // Проверяем, есть ли роль пользователя в списке назначенных ролей для этапа
-                const isAssigned = assignedRoles.includes(userRole)
-
-                if (isAssigned) {
-                    console.log(`[ApprovalQueryService.getMyApprovals] Workflow ${workflow.id} включен - пользователь является согласующим`)
-                    return true
-                } else {
-                    console.log(`[ApprovalQueryService.getMyApprovals] Workflow ${workflow.id} исключен - пользователь не является согласующим`)
-                    return false
-                }
-            }) || []
+            // Больше не нужна фильтрация на уровне JavaScript, так как мы фильтруем на уровне SQL
+            const filteredWorkflows = workflows || []
 
             console.log('[ApprovalQueryService.getMyApprovals] Отфильтровано workflows для пользователя:', {
                 userId,
@@ -432,7 +434,8 @@ export class ApprovalQueryService {
                 }
             }
 
-            const filteredCount = filteredWorkflows.length
+            // Используем count из SQL запроса для правильной пагинации
+            const filteredCount = count || 0
             const totalPages = Math.ceil(filteredCount / limit)
 
             console.log('[ApprovalQueryService.getMyApprovals] Загружено платежей на согласовании:', approvalItems.length)
@@ -575,9 +578,7 @@ export class ApprovalQueryService {
                 const {error: paymentUpdateError} = await supabase
                     .from('payments')
                     .update({
-                        status: 'completed', // Используем 'completed' для платежа (допустимый статус в таблице payments)
-                        approved_by: userId,
-                        approved_at: new Date().toISOString()
+                        status: 'completed' // Используем 'completed' для платежа (допустимый статус в таблице payments)
                     })
                     .eq('id', paymentId)
 
@@ -768,8 +769,6 @@ export class ApprovalQueryService {
                 .from('payments')
                 .update({
                     status: 'failed',
-                    approved_by: userId,
-                    approved_at: new Date().toISOString(),
                     comment: reason
                 })
                 .eq('id', paymentId)
