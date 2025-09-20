@@ -1,5 +1,5 @@
 -- Database Schema Export
--- Generated: 2025-09-20T19:04:15.132156
+-- Generated: 2025-09-20T21:16:36.022859
 -- Database: postgres
 -- Host: 31.128.51.210
 
@@ -1212,19 +1212,19 @@ AS '$libdir/pgcrypto', $function$pg_random_uuid$function$
 
 ;
 
-CREATE OR REPLACE FUNCTION extensions.gen_salt(text, integer)
- RETURNS text
- LANGUAGE c
- PARALLEL SAFE STRICT
-AS '$libdir/pgcrypto', $function$pg_gen_salt_rounds$function$
-
-;
-
 CREATE OR REPLACE FUNCTION extensions.gen_salt(text)
  RETURNS text
  LANGUAGE c
  PARALLEL SAFE STRICT
 AS '$libdir/pgcrypto', $function$pg_gen_salt$function$
+
+;
+
+CREATE OR REPLACE FUNCTION extensions.gen_salt(text, integer)
+ RETURNS text
+ LANGUAGE c
+ PARALLEL SAFE STRICT
+AS '$libdir/pgcrypto', $function$pg_gen_salt_rounds$function$
 
 ;
 
@@ -1368,7 +1368,7 @@ $function$
 
 ;
 
-CREATE OR REPLACE FUNCTION extensions.hmac(bytea, bytea, text)
+CREATE OR REPLACE FUNCTION extensions.hmac(text, text, text)
  RETURNS bytea
  LANGUAGE c
  IMMUTABLE PARALLEL SAFE STRICT
@@ -1376,7 +1376,7 @@ AS '$libdir/pgcrypto', $function$pg_hmac$function$
 
 ;
 
-CREATE OR REPLACE FUNCTION extensions.hmac(text, text, text)
+CREATE OR REPLACE FUNCTION extensions.hmac(bytea, bytea, text)
  RETURNS bytea
  LANGUAGE c
  IMMUTABLE PARALLEL SAFE STRICT
@@ -1424,7 +1424,7 @@ AS '$libdir/pgcrypto', $function$pgp_pub_decrypt_text$function$
 
 ;
 
-CREATE OR REPLACE FUNCTION extensions.pgp_pub_decrypt_bytea(bytea, bytea, text)
+CREATE OR REPLACE FUNCTION extensions.pgp_pub_decrypt_bytea(bytea, bytea, text, text)
  RETURNS bytea
  LANGUAGE c
  IMMUTABLE PARALLEL SAFE STRICT
@@ -1432,7 +1432,7 @@ AS '$libdir/pgcrypto', $function$pgp_pub_decrypt_bytea$function$
 
 ;
 
-CREATE OR REPLACE FUNCTION extensions.pgp_pub_decrypt_bytea(bytea, bytea, text, text)
+CREATE OR REPLACE FUNCTION extensions.pgp_pub_decrypt_bytea(bytea, bytea, text)
  RETURNS bytea
  LANGUAGE c
  IMMUTABLE PARALLEL SAFE STRICT
@@ -1448,7 +1448,7 @@ AS '$libdir/pgcrypto', $function$pgp_pub_decrypt_bytea$function$
 
 ;
 
-CREATE OR REPLACE FUNCTION extensions.pgp_pub_encrypt(text, bytea, text)
+CREATE OR REPLACE FUNCTION extensions.pgp_pub_encrypt(text, bytea)
  RETURNS bytea
  LANGUAGE c
  PARALLEL SAFE STRICT
@@ -1456,7 +1456,7 @@ AS '$libdir/pgcrypto', $function$pgp_pub_encrypt_text$function$
 
 ;
 
-CREATE OR REPLACE FUNCTION extensions.pgp_pub_encrypt(text, bytea)
+CREATE OR REPLACE FUNCTION extensions.pgp_pub_encrypt(text, bytea, text)
  RETURNS bytea
  LANGUAGE c
  PARALLEL SAFE STRICT
@@ -1480,14 +1480,6 @@ AS '$libdir/pgcrypto', $function$pgp_pub_encrypt_bytea$function$
 
 ;
 
-CREATE OR REPLACE FUNCTION extensions.pgp_sym_decrypt(bytea, text, text)
- RETURNS text
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/pgcrypto', $function$pgp_sym_decrypt_text$function$
-
-;
-
 CREATE OR REPLACE FUNCTION extensions.pgp_sym_decrypt(bytea, text)
  RETURNS text
  LANGUAGE c
@@ -1496,11 +1488,11 @@ AS '$libdir/pgcrypto', $function$pgp_sym_decrypt_text$function$
 
 ;
 
-CREATE OR REPLACE FUNCTION extensions.pgp_sym_decrypt_bytea(bytea, text, text)
- RETURNS bytea
+CREATE OR REPLACE FUNCTION extensions.pgp_sym_decrypt(bytea, text, text)
+ RETURNS text
  LANGUAGE c
  IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/pgcrypto', $function$pgp_sym_decrypt_bytea$function$
+AS '$libdir/pgcrypto', $function$pgp_sym_decrypt_text$function$
 
 ;
 
@@ -1512,11 +1504,11 @@ AS '$libdir/pgcrypto', $function$pgp_sym_decrypt_bytea$function$
 
 ;
 
-CREATE OR REPLACE FUNCTION extensions.pgp_sym_encrypt(text, text, text)
+CREATE OR REPLACE FUNCTION extensions.pgp_sym_decrypt_bytea(bytea, text, text)
  RETURNS bytea
  LANGUAGE c
- PARALLEL SAFE STRICT
-AS '$libdir/pgcrypto', $function$pgp_sym_encrypt_text$function$
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/pgcrypto', $function$pgp_sym_decrypt_bytea$function$
 
 ;
 
@@ -1528,7 +1520,15 @@ AS '$libdir/pgcrypto', $function$pgp_sym_encrypt_text$function$
 
 ;
 
-CREATE OR REPLACE FUNCTION extensions.pgp_sym_encrypt_bytea(bytea, text, text)
+CREATE OR REPLACE FUNCTION extensions.pgp_sym_encrypt(text, text, text)
+ RETURNS bytea
+ LANGUAGE c
+ PARALLEL SAFE STRICT
+AS '$libdir/pgcrypto', $function$pgp_sym_encrypt_text$function$
+
+;
+
+CREATE OR REPLACE FUNCTION extensions.pgp_sym_encrypt_bytea(bytea, text)
  RETURNS bytea
  LANGUAGE c
  PARALLEL SAFE STRICT
@@ -1536,7 +1536,7 @@ AS '$libdir/pgcrypto', $function$pgp_sym_encrypt_bytea$function$
 
 ;
 
-CREATE OR REPLACE FUNCTION extensions.pgp_sym_encrypt_bytea(bytea, text)
+CREATE OR REPLACE FUNCTION extensions.pgp_sym_encrypt_bytea(bytea, text, text)
  RETURNS bytea
  LANGUAGE c
  PARALLEL SAFE STRICT
@@ -2032,6 +2032,54 @@ EXCEPTION WHEN OTHERS THEN
         'error', SQLERRM,
         'timestamp', now()
     );
+END;
+$function$
+
+;
+
+CREATE OR REPLACE FUNCTION public.delete_payment_with_history(p_payment_id integer)
+ RETURNS void
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+AS $function$
+DECLARE
+    v_invoice_id INTEGER;
+    v_total_amount DECIMAL;
+    v_internal_number TEXT;
+BEGIN
+    -- Получаем информацию о платеже перед удалением
+    SELECT invoice_id, total_amount, internal_number
+    INTO v_invoice_id, v_total_amount, v_internal_number
+    FROM payments
+    WHERE id = p_payment_id;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Платеж с ID % не найден', p_payment_id;
+    END IF;
+
+    -- Добавляем запись в историю об удалении
+    INSERT INTO invoice_history (
+        invoice_id,
+        event_type,
+        event_date,
+        action,
+        description,
+        payment_id,
+        amount_to,
+        user_id
+    ) VALUES (
+        v_invoice_id,
+        'PAYMENT_DELETED',
+        now(),
+        'Платеж удален',
+        format('Удален платеж %s на сумму %s', v_internal_number, v_total_amount),
+        NULL, -- Не ссылаемся на удаляемый платеж
+        v_total_amount,
+        auth.uid()
+    );
+
+    -- Удаляем платеж (связанные записи истории будут обновлены автоматически)
+    DELETE FROM payments WHERE id = p_payment_id;
 END;
 $function$
 
@@ -3192,6 +3240,41 @@ CREATE OR REPLACE FUNCTION public.track_payment_history()
  SECURITY DEFINER
 AS $function$
 BEGIN
+    -- При удалении платежа не пытаемся ссылаться на него
+    IF TG_OP = 'DELETE' THEN
+        INSERT INTO public.invoice_history (
+            invoice_id,
+            event_type,
+            event_date,
+            action,
+            description,
+            payment_id,  -- Будет NULL для удаленного платежа
+            status_from,
+            status_to,
+            amount_from,
+            amount_to,
+            old_values,
+            new_values,
+            user_id
+        ) VALUES (
+            OLD.invoice_id,
+            'PAYMENT_DELETED',
+            now(),
+            'Платеж удален',
+            'Удален платеж ' || COALESCE(OLD.internal_number, 'ID:' || OLD.id) || ' на сумму ' || OLD.total_amount,
+            NULL,  -- Не ссылаемся на удаляемый платеж
+            OLD.status,
+            NULL,
+            OLD.total_amount,
+            NULL,
+            to_jsonb(OLD),
+            NULL,
+            auth.uid()
+        );
+        RETURN OLD;
+    END IF;
+
+    -- При создании платежа
     IF TG_OP = 'INSERT' THEN
         INSERT INTO public.invoice_history (
             invoice_id,
@@ -3200,8 +3283,11 @@ BEGIN
             action,
             description,
             payment_id,
+            status_from,
             status_to,
+            amount_from,
             amount_to,
+            old_values,
             new_values,
             user_id
         ) VALUES (
@@ -3209,71 +3295,56 @@ BEGIN
             'PAYMENT_CREATED',
             now(),
             'Платеж создан',
-            'Создан новый платеж на сумму ' || NEW.total_amount,
+            'Создан платеж ' || COALESCE(NEW.internal_number, 'ID:' || NEW.id) || ' на сумму ' || NEW.total_amount,
             NEW.id,
+            NULL,
             NEW.status,
+            NULL,
             NEW.total_amount,
+            NULL,
             to_jsonb(NEW),
             auth.uid()
         );
         RETURN NEW;
-    ELSIF TG_OP = 'UPDATE' THEN
-        INSERT INTO public.invoice_history (
-            invoice_id,
-            event_type,
-            event_date,
-            action,
-            description,
-            payment_id,
-            status_from,
-            status_to,
-            amount_from,
-            amount_to,
-            old_values,
-            new_values,
-            user_id
-        ) VALUES (
-            NEW.invoice_id,
-            'PAYMENT_UPDATED',
-            now(),
-            'Платеж обновлен',
-            'Обновлен платеж #' || NEW.id,
-            NEW.id,
-            OLD.status,
-            NEW.status,
-            OLD.total_amount,
-            NEW.total_amount,
-            to_jsonb(OLD),
-            to_jsonb(NEW),
-            auth.uid()
-        );
-        RETURN NEW;
-    ELSIF TG_OP = 'DELETE' THEN
-        INSERT INTO public.invoice_history (
-            invoice_id,
-            event_type,
-            event_date,
-            action,
-            description,
-            payment_id,
-            status_from,
-            amount_from,
-            old_values,
-            user_id
-        ) VALUES (
-            OLD.invoice_id,
-            'PAYMENT_DELETED',
-            now(),
-            'Платеж удален',
-            'Удален платеж #' || OLD.id,
-            OLD.id,
-            OLD.status,
-            OLD.total_amount,
-            to_jsonb(OLD),
-            auth.uid()
-        );
-        RETURN OLD;
     END IF;
+
+    -- При обновлении платежа
+    IF TG_OP = 'UPDATE' THEN
+        -- Логируем только если изменились важные поля
+        IF OLD.status != NEW.status OR OLD.total_amount != NEW.total_amount THEN
+            INSERT INTO public.invoice_history (
+                invoice_id,
+                event_type,
+                event_date,
+                action,
+                description,
+                payment_id,
+                status_from,
+                status_to,
+                amount_from,
+                amount_to,
+                old_values,
+                new_values,
+                user_id
+            ) VALUES (
+                NEW.invoice_id,
+                'PAYMENT_UPDATED',
+                now(),
+                'Платеж обновлен',
+                'Обновлен платеж ' || COALESCE(NEW.internal_number, 'ID:' || NEW.id),
+                NEW.id,
+                OLD.status,
+                NEW.status,
+                OLD.total_amount,
+                NEW.total_amount,
+                to_jsonb(OLD),
+                to_jsonb(NEW),
+                auth.uid()
+            );
+        END IF;
+        RETURN NEW;
+    END IF;
+
     RETURN NULL;
 END;
 $function$

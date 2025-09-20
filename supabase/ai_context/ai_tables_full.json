@@ -1048,7 +1048,10 @@
       "2200_18603_9_not_null",
       "check_amounts",
       "check_delivery_days_type",
+      "check_invoice_positive_amounts",
       "check_invoice_status",
+      "check_invoice_vat_amounts",
+      "check_invoice_vat_rate",
       "invoices_amount_net_check",
       "invoices_paid_amount_check",
       "invoices_vat_rate_check"
@@ -1953,7 +1956,10 @@
       "2200_18728_22_not_null",
       "2200_18728_2_not_null",
       "2200_18728_3_not_null",
-      "2200_18728_5_not_null"
+      "2200_18728_5_not_null",
+      "check_payment_positive_amounts",
+      "check_payment_vat_amounts",
+      "check_payment_vat_rate"
     ],
     "indexes": [
       {

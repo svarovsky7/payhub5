@@ -24,7 +24,7 @@ export interface PaymentWithType {
   total_amount: number // Total amount including VAT
   amount_net?: number // Amount excluding VAT
   payer_id?: string
-  type_id?: string
+  payment_type_id?: string
   reference?: string
   comment?: string
   status: string // Dynamic status from database
@@ -41,7 +41,7 @@ export interface PaymentInsertWithType {
   total_amount: number // Total amount including VAT
   amount_net?: number // Amount excluding VAT
   payer_id?: string
-  type_id?: string
+  payment_type_id?: string
   reference?: string
   comment?: string
   status?: string // Dynamic status from database

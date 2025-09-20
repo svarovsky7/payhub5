@@ -39,6 +39,15 @@
     "notes": "Returns {success, deleted, invoice_ref}; ensure caller checks success."
   },
   {
+    "name": "public.delete_payment_with_history",
+    "signature": "public.delete_payment_with_history(p_payment_id integer)",
+    "returns": "void",
+    "summary": "Function public.delete_payment_with_history",
+    "sideEffects": [],
+    "usedBy": [],
+    "notes": ""
+  },
+  {
     "name": "public.fn_recalc_invoice_amounts",
     "signature": "public.fn_recalc_invoice_amounts()",
     "returns": "trigger",

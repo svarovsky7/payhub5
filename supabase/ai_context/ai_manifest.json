@@ -1,13 +1,13 @@
 {
-  "generated_at": "2025-09-20T16:17:35.669Z",
+  "generated_at": "2025-09-20T18:16:52.043Z",
   "source_files": {
     "supabase/migrations/prod.sql": {
-      "sha256": "ec2a037480c97790f000a4c33690f7f059980cbeff63e3f2a7f308b8b74ad7b0",
-      "bytes": 190929
+      "sha256": "5ed4ed96ebb8da53f2911097035e97f7e6ec6e337058d3b1891f463304b84f02",
+      "bytes": 193502
     },
     "supabase/exports/tables.json": {
-      "sha256": "ae679c000164e2a844fa2ea93844a388f72b961adb6fd1636bb09d31dc4f8822",
-      "bytes": 268817
+      "sha256": "19664e2d3b3048395126cfa69c16ac32b8fc2f5512c9e0e11e4edd221dae82da",
+      "bytes": 270135
     },
     "supabase/exports/indexes.json": {
       "sha256": "ce03f1082ea1d80eab4dbb6de7fa6088f06c4c6956b9326a1f95ab1dd696b92f",
@@ -18,8 +18,8 @@
       "bytes": 7679
     },
     "supabase/exports/functions.json": {
-      "sha256": "1698828713bdf234b36401a03bc98b027f17b9b29e6751cad9c127d8bdb13256",
-      "bytes": 145991
+      "sha256": "82d62e49da486060ad21666d2cd8e53781339829654bbbdd1f851cc216cbaef7",
+      "bytes": 149072
     },
     "supabase/exports/enums.json": {
       "sha256": "3b578638539bcbce6f3f340104f03d8c7ab648fa2cdb001205d4edb35d92cb94",

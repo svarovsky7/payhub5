@@ -1,0 +1,56 @@
+Large Files Overview
+- Generated or dependency artifacts (skip refactors): `package-lock.json`, `.playwright-mcp/Spec.pdf`, `public/vite.svg`, `supabase/exports/*.json`, `supabase/migrations/prod.sql`, `supabase/ai_context/*.json`.
+- Runtime code exceeding 600 lines: `scripts/generate-ai-context.mjs`, `src/models/auth.tsx`, `src/models/theme.ts`, `src/pages/Payments.tsx`, `src/pages/Approvals/ApprovalsPage.tsx`, `src/pages/InvoiceCreate/InvoiceCreate.tsx`, `src/pages/Invoices/index.tsx`, `src/pages/InvoiceView/InvoiceViewNew.tsx`, `src/services/admin/users.ts`, `src/services/approvals/queries.ts`, `src/services/approvals/optimized-queries.ts`, `src/services/invoices/optimized-queries.ts`, `src/services/invoices/queries.ts`, `src/services/invoices/workflow.ts`, `src/services/invoices/file-storage.ts`, `src/services/payments/crud.ts`, `src/services/payments/queries.ts`, `src/services/payments/optimized-queries.ts`, `src/services/projects/crud.ts`, `src/services/projects/queries.ts`, `src/types/database.ts`.
+
+Refactor Plan
+1. `src/pages/InvoiceView/InvoiceViewNew.tsx` (~3245 lines)
+   - Relocate to `src/pages/InvoiceViewNew/` with a lean container that composes hooks/providers.
+   - Create hooks: `useInvoiceView`, `useInvoicePayments`, `useInvoiceWorkflow` for data, state, and mutations.
+   - Split UI into components: `SummaryHeader`, `FinanceStats`, `WorkflowTabs`, `HistoryTimeline`, `AttachmentSection`, `PaymentTable`, `ActionToolbar`, modal components (`ApproveModal`, `RejectModal`, etc.).
+   - Move form schemas and helpers to `InvoiceViewNew/utils`.
+   - Share status/amount/tag components with `Invoices/index.tsx` to avoid duplication.
+
+2. `src/pages/InvoiceCreate/InvoiceCreate.tsx` (~689 lines)
+   - Container-only `InvoiceCreatePage.tsx`; move form logic into `useInvoiceCreate` hook.
+   - Extract subforms (line items, documents, approval preview) into `components/`.
+   - Centralize form constants/validation in `invoiceCreate/formConfig.ts`; utilities in `invoiceCreate/utils/`.
+
+3. `src/pages/Payments.tsx` (~770 lines)
+   - Divide into `PaymentsPage.tsx`, `PaymentsTable.tsx`, `PaymentsFilters.tsx`.
+   - Move modal/bulk-action logic into `components/` and hooks (`usePaymentBulkActions`).
+   - Share cell renderers (status, money, user) with generic table components.
+
+4. `src/pages/Approvals/ApprovalsPage.tsx` (~689 lines)
+   - Split into container, list, and detail drawer components.
+   - Provide dedicated hooks (`useApprovalsList`, `useApprovalMutations`).
+   - Externalize filter state and column definitions to separate files.
+
+5. `src/pages/Invoices/index.tsx` (~706 lines)
+   - Break out filters, table config, and bulk actions into their own modules.
+   - Reuse invoice UI components from InvoiceView to maintain consistency.
+
+6. `src/models/auth.tsx` (~656 lines)
+   - Restructure Zustand store into slices: `auth.state.ts`, `auth.actions.ts`, `auth.effects.ts`, `auth.selectors.ts`.
+   - Keep React context provider thin; export typed selectors for components.
+
+7. `src/models/theme.ts` (~763 lines)
+   - Apply same slice pattern as auth; move presets to `src/constants/themes.ts`.
+   - Place transformation helpers in `theme.utils.ts`.
+
+8. Services layer
+   - Admin (`users.ts`): separate CRUD, roles, and search concern into `users-crud.ts`, `users-roles.ts`, `users-queries.ts`; share DTOs in `users.types.ts`.
+   - Approvals (`queries.ts`, `optimized-queries.ts`): divide into `list.ts`, `stats.ts`, `reports.ts`, `exports.ts`; consolidate filters/utilities.
+   - Invoices: split `queries` and `optimized-queries` by use-case (list/stats/dashboard/history); move workflow logic into modules (`workflow/submit.ts`, `workflow/actions.ts`, `workflow/helpers.ts`); isolate file handling under `storage/`.
+   - Payments: breakout CRUD, VAT helpers, queries (list/stats/reports/exports) similarly; ensure shared validation utilities.
+   - Projects (`crud.ts`, `queries.ts`): create smaller modules for base CRUD vs. analytics.
+
+9. `scripts/generate-ai-context.mjs` (~736 lines)
+   - Move into `scripts/ai-context/` folder with modular files (`loaders.ts`, `table-summary.ts`, `function-summary.ts`, `trigger-summary.ts`, `enums-summary.ts`, `examples.ts`, `manifest.ts`); keep orchestrator small.
+
+10. `src/types/database.ts` (~609 lines, generated)
+    - If possible, adjust Supabase generator to emit modular files or relocate output to `src/types/generated/` and re-export minimal aliases in hand-authored file to maintain <600 lines in editable sources.
+
+11. General
+    - After splitting, update import paths and create barrels where helpful.
+    - Target <300 lines per new module to leave room for growth.
+    - Document the new structure in `docs/architecture/frontend-structure.md` for onboarding.

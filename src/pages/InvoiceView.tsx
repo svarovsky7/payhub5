@@ -1,2 +1,2 @@
-// Re-export from InvoiceView folder
-export { default } from './InvoiceView/InvoiceViewNew';
+// Re-export from InvoiceViewNew folder (модульная версия)
+export { default } from './InvoiceViewNew';

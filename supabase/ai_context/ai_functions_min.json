@@ -18,6 +18,12 @@
     "summary": "Recursively delete invoice-related data (documents, history, payments) and return a JSON summary payload."
   },
   {
+    "name": "public.delete_payment_with_history",
+    "signature": "public.delete_payment_with_history(p_payment_id integer)",
+    "returns": "void",
+    "summary": "Function public.delete_payment_with_history"
+  },
+  {
     "name": "public.fn_recalc_invoice_amounts",
     "signature": "public.fn_recalc_invoice_amounts()",
     "returns": "trigger",

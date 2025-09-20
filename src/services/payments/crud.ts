@@ -11,6 +11,9 @@ import {
   supabase
 } from '../supabase'
 import type { PaymentInsertWithType } from '@/types/payment'
+import { HistoryService } from '../history/HistoryService'
+import { InvoicePaymentSyncService } from '../sync/InvoicePaymentSync'
+import { VATCalculator } from '../calculations/VATCalculator'
 
 export interface PaymentWithRelations extends Payment {
   invoice?: {
@@ -34,12 +37,16 @@ export class PaymentCrudService {
       })
 
       // Получаем текущего пользователя
+      console.log('[PaymentCrudService.create] Получение текущего пользователя...')
       const { data: { user }, error: userError } = await supabase.auth.getUser()
       if (userError || !user) {
         console.warn('[PaymentCrudService.create] Не удалось получить текущего пользователя:', userError)
+      } else {
+        console.log('[PaymentCrudService.create] Пользователь получен:', user.id)
       }
-      
+
       // Проверяем, что заявка существует и готова к оплате
+      console.log('[PaymentCrudService.create] Загрузка заявки:', payment.invoice_id)
       const { data: invoice, error: invoiceError } = await supabase
         .from('invoices')
         .select('id, invoice_number, internal_number, total_amount, status, payer_id, type_id')
@@ -47,27 +54,34 @@ export class PaymentCrudService {
         .single()
 
       if (invoiceError || !invoice) {
+        console.error('[PaymentCrudService.create] Ошибка загрузки заявки:', invoiceError)
         return { data: null, error: 'Заявка не найдена' }
       }
 
+      console.log('[PaymentCrudService.create] Заявка загружена:', invoice)
 
       // Разрешаем добавлять платежи к счетам в статусах draft, approved, paid
       if (!['draft', 'approved', 'paid'].includes(invoice.status)) {
+        console.error('[PaymentCrudService.create] Недопустимый статус заявки:', invoice.status)
         return { data: null, error: 'Нельзя добавлять платежи к счетам в статусе: ' + invoice.status }
       }
 
       // Получаем сумму всех существующих платежей
+      console.log('[PaymentCrudService.create] Загрузка существующих платежей...')
       const { data: existingPayments } = await supabase
         .from('payments')
         .select('total_amount')
         .eq('invoice_id', payment.invoice_id)
         .neq('status', 'cancelled')
 
+      console.log('[PaymentCrudService.create] Существующие платежи загружены:', existingPayments)
       const totalPaid = existingPayments?.reduce((sum, p) => sum + (p.total_amount || 0), 0) || 0
       const remainingAmount = invoice.total_amount - totalPaid
+      console.log('[PaymentCrudService.create] Расчет остатка:', { totalPaid, remainingAmount })
 
       // Проверяем, не превышает ли новый платеж остаток к оплате
       if (payment.total_amount > remainingAmount) {
+        console.error('[PaymentCrudService.create] Превышение остатка:', { payment_amount: payment.total_amount, remaining: remainingAmount })
         return {
           data: null,
           error: `Сумма платежа (${payment.total_amount}) превышает остаток к оплате (${remainingAmount})`
@@ -77,44 +91,67 @@ export class PaymentCrudService {
       // Генерируем internal_number если не указан
       let generatedInternalNumber: string | undefined
       if (!(payment as any).internal_number) {
-        // Получаем последние платежи по этому счету
-        const { data: existingInvoicePayments } = await supabase
+        console.log('[PaymentCrudService.create] Генерация internal_number...')
+        // Получаем ВСЕ платежи по этому счету для определения максимального номера
+        const { data: existingInvoicePayments, error: fetchError } = await supabase
           .from('payments')
           .select('internal_number')
           .eq('invoice_id', payment.invoice_id)
-          .order('created_at', { ascending: false })
-          .limit(1)
+          .not('internal_number', 'is', null)
+
+        if (fetchError) {
+          console.error('[PaymentCrudService.create] Ошибка при загрузке платежей для генерации номера:', fetchError)
+        }
 
         let nextNumber = 1
-        if (existingInvoicePayments && existingInvoicePayments.length > 0 && existingInvoicePayments[0]?.internal_number) {
-          // Парсим номер из формата /PAY-NN-TYPE
-          const match = existingInvoicePayments[0].internal_number.match(/PAY-(\d+)-/)
-          if (match) {
-            nextNumber = parseInt(match[1]) + 1
+        if (existingInvoicePayments && existingInvoicePayments.length > 0) {
+          // Находим максимальный номер среди всех платежей
+          let maxNumber = 0
+          for (const payment of existingInvoicePayments) {
+            if (payment.internal_number) {
+              // Парсим номер из формата /PAY-NN (где NN - двухзначное число)
+              const match = payment.internal_number.match(/\/PAY-(\d+)$/i)
+              if (match) {
+                const num = parseInt(match[1])
+                if (num > maxNumber) {
+                  maxNumber = num
+                }
+              }
+            }
           }
+          nextNumber = maxNumber + 1
         }
 
         // Генерируем internal_number в формате {номер счета}/PAY-NN
         const invoiceNum = invoice.internal_number || invoice.invoice_number || invoice.id
         generatedInternalNumber = `${invoiceNum}/PAY-${nextNumber.toString().padStart(2, '0')}`
+
+        console.log(`[PaymentCrudService.create] Генерация номера платежа: ${generatedInternalNumber} (следующий номер: ${nextNumber})`)
       }
+
+      // Calculate VAT if total amount is provided
+      const vatRate = (payment as any).vat_rate || 20
+      const vatCalculation = VATCalculator.calculateFromGross(
+        payment.total_amount,
+        vatRate
+      )
 
       // Подготавливаем данные для вставки в соответствии со схемой БД
       const paymentData: any = {
         invoice_id: payment.invoice_id,
         payment_date: payment.payment_date || new Date().toISOString().split('T')[0],
-        total_amount: payment.total_amount,
+        total_amount: vatCalculation.totalAmount,
         payer_id: payment.payer_id || invoice.payer_id, // Используем payer_id из invoice если не указан
-        type_id: invoice.type_id, // Наследуем тип счета от связанного счета
+        payment_type_id: payment.payment_type_id || (payment as any).payment_type_id, // Используем тип платежа
         internal_number: generatedInternalNumber || (payment as any).internal_number,
         comment: payment.comment || (payment as any).description || (payment as any).notes,
         // Временно убираем created_by, так как вызывает ошибку прав доступа к таблице users
         // created_by: payment.created_by,
         status: payment.status || 'draft', // По умолчанию используем статус 'draft' (Черновик)
         // VAT поля
-        vat_rate: (payment as any).vat_rate || 20,
-        vat_amount: (payment as any).vat_amount || 0,
-        amount_net: (payment as any).amount_net || payment.total_amount,
+        vat_rate: vatCalculation.vatRate,
+        vat_amount: vatCalculation.vatAmount,
+        amount_net: vatCalculation.netAmount,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       }
@@ -129,7 +166,7 @@ export class PaymentCrudService {
         payment_date: paymentData.payment_date,
         total_amount: paymentData.total_amount,
         payer_id: paymentData.payer_id,
-        type_id: paymentData.type_id,
+        payment_type_id: paymentData.payment_type_id,
         internal_number: paymentData.internal_number,
         comment: paymentData.comment,
         status: paymentData.status,
@@ -159,6 +196,25 @@ export class PaymentCrudService {
       }
 
       console.log('[PaymentCrudService.create] Платеж успешно создан:', data)
+
+      // Track history
+      if (user?.id) {
+        await HistoryService.trackPaymentChange(
+          data.id,
+          payment.invoice_id,
+          'created',
+          [],
+          user.id,
+          { source: 'payment_crud' }
+        )
+      }
+
+      // Sync invoice status
+      await InvoicePaymentSyncService.syncInvoiceStatus(
+        payment.invoice_id,
+        user?.id
+      )
+
       return { data: data as Payment, error: null }
     } catch (error) {
       console.error('Ошибка создания платежа:', error)
@@ -202,14 +258,44 @@ export class PaymentCrudService {
    * Обновить платеж
    */
   static async update(
-    id: string, 
+    id: string,
     updates: PaymentUpdate
   ): Promise<ApiResponse<Payment>> {
     try {
-      const updateData = {
+      console.log('[PaymentCrudService.update] Обновление платежа:', { id, updates })
+
+      // Get current data for history tracking
+      const { data: oldData } = await supabase
+        .from('payments')
+        .select('*')
+        .eq('id', id)
+        .single()
+
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser()
+
+      // Recalculate VAT if total amount changed
+      let updateData = {
         ...updates,
         updated_at: new Date().toISOString(),
       }
+
+      if ('total_amount' in updates && updates.total_amount) {
+        const vatRate = (updates as any).vat_rate || oldData?.vat_rate || 20
+        const vatCalculation = VATCalculator.calculateFromGross(
+          Number(updates.total_amount),
+          vatRate
+        )
+        updateData = {
+          ...updateData,
+          amount_net: vatCalculation.netAmount,
+          vat_amount: vatCalculation.vatAmount,
+          vat_rate: vatCalculation.vatRate,
+          total_amount: vatCalculation.totalAmount
+        }
+      }
+
+      console.log('[PaymentCrudService.update] Данные для обновления:', updateData)
 
       const { data, error } = await supabase
         .from('payments')
@@ -219,6 +305,29 @@ export class PaymentCrudService {
         .single()
 
       if (error) {throw error}
+
+      // Track history
+      if (user?.id && oldData) {
+        const changes = HistoryService.calculateChanges(oldData, data)
+        if (changes.length > 0) {
+          await HistoryService.trackPaymentChange(
+            data.id,
+            oldData.invoice_id,
+            'updated',
+            changes,
+            user.id,
+            { source: 'payment_crud' }
+          )
+        }
+      }
+
+      // Sync invoice status
+      if (oldData?.invoice_id) {
+        await InvoicePaymentSyncService.syncInvoiceStatus(
+          oldData.invoice_id,
+          user?.id
+        )
+      }
 
       return { data: data as Payment, error: null }
     } catch (error) {
@@ -235,14 +344,19 @@ export class PaymentCrudService {
    */
   static async delete(id: string): Promise<ApiResponse<null>> {
     try {
+      console.log('[PaymentCrudService.delete] Удаление платежа:', id)
+
       // Проверяем статус платежа
       const { data: payment, error: fetchError } = await supabase
         .from('payments')
-        .select('status')
+        .select('status, invoice_id')
         .eq('id', id)
         .single()
 
-      if (fetchError) {throw fetchError}
+      if (fetchError) {
+        console.error('[PaymentCrudService.delete] Ошибка получения платежа:', fetchError)
+        throw fetchError
+      }
 
       if (payment.status !== 'draft' && payment.status !== 'pending') {
         return {
@@ -251,12 +365,65 @@ export class PaymentCrudService {
         }
       }
 
+      // Получаем дополнительную информацию о платеже для записи в историю
+      const { data: fullPayment } = await supabase
+        .from('payments')
+        .select('internal_number, total_amount')
+        .eq('id', id)
+        .single()
+
+      // Сначала обнуляем ссылки на платеж в существующих записях истории
+      console.log('[PaymentCrudService.delete] Обнуление ссылок в истории на платеж:', id)
+      const { error: historyUpdateError } = await supabase
+        .from('invoice_history')
+        .update({ payment_id: null })
+        .eq('payment_id', id)
+
+      if (historyUpdateError) {
+        console.error('[PaymentCrudService.delete] Ошибка обновления истории:', historyUpdateError)
+        // Не прерываем процесс, продолжаем удаление
+      }
+
+      // Теперь удаляем сам платеж
+      console.log('[PaymentCrudService.delete] Удаление платежа из таблицы payments')
       const { error } = await supabase
         .from('payments')
         .delete()
         .eq('id', id)
 
-      if (error) {throw error}
+      if (error) {
+        console.error('[PaymentCrudService.delete] Ошибка удаления платежа:', error)
+        throw error
+      }
+
+      // После успешного удаления добавляем запись в историю
+      console.log('[PaymentCrudService.delete] Добавление записи в историю об удалении')
+      const { error: historyInsertError } = await supabase
+        .from('invoice_history')
+        .insert({
+          invoice_id: payment.invoice_id,
+          event_type: 'PAYMENT_DELETED',
+          event_date: new Date().toISOString(),
+          action: 'Платеж удален',
+          description: `Удален платеж ${fullPayment?.internal_number || `#${id}`} на сумму ${fullPayment?.total_amount || 0}`,
+          payment_id: null, // Платеж уже удален, поэтому null
+          user_id: (await supabase.auth.getUser()).data.user?.id
+        })
+
+      if (historyInsertError) {
+        console.error('[PaymentCrudService.delete] Ошибка добавления в историю:', historyInsertError)
+        // Не критично, платеж уже удален
+      }
+
+      console.log('[PaymentCrudService.delete] Платеж успешно удален')
+
+      // Sync invoice status after deletion
+      if (payment.invoice_id) {
+        await InvoicePaymentSyncService.syncInvoiceStatus(
+          payment.invoice_id,
+          (await supabase.auth.getUser()).data.user?.id
+        )
+      }
 
       return { data: null, error: null }
     } catch (error) {
@@ -514,6 +681,28 @@ export class PaymentCrudService {
       }
 
       console.log('[PaymentCrudService.deletePayment] Платеж удален успешно')
+
+      // Track deletion in history
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user?.id && payment) {
+        await HistoryService.trackPaymentChange(
+          Number(id),
+          payment.invoice_id,
+          'deleted',
+          [],
+          user.id,
+          { source: 'payment_crud' }
+        )
+      }
+
+      // Sync invoice status after deletion
+      if (payment.invoice_id) {
+        await InvoicePaymentSyncService.syncInvoiceStatus(
+          payment.invoice_id,
+          user?.id
+        )
+      }
+
       return { data: null, error: null }
     } catch (error) {
       console.error('[PaymentCrudService.deletePayment] Ошибка:', error)

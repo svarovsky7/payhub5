@@ -70,6 +70,7 @@ For all database-related queries (table structures, indexes, triggers, functions
 - `ai_triggers_min.json` - Database triggers
 - `ai_enums_min.json` - Enum type definitions
 - `ai_examples.sql` - Example SQL queries and patterns
+- `ai_manifest.json` - Schema manifest and metadata
 
 **Important**: Never invent fields, functions, or triggers not present in these files. If information is insufficient, request an update to these files rather than making assumptions.
 
@@ -248,3 +249,10 @@ The system handles procurement and payment workflows with the following status m
 - Configurable approval routes with multiple steps
 - Automatic notifications on status changes
 - Escalation mechanisms for delayed approvals
+
+## Recent Features
+
+### react-beautiful-dnd Integration
+- Drag-and-drop functionality for workflow steps and approvals
+- Used in Admin workflow configuration
+- Imported as `react-beautiful-dnd` (version 13.1.1)

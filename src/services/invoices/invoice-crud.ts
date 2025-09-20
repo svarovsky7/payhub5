@@ -11,6 +11,8 @@ import {
   supabase
 } from '../supabase'
 import type { InvoiceWithRelations } from './types'
+import { HistoryService } from '../history/HistoryService'
+import { VATCalculator } from '../calculations/VATCalculator'
 
 export class InvoiceCrudOperations {
   /**
@@ -24,9 +26,27 @@ export class InvoiceCrudOperations {
       const { data: { user } } = await supabase.auth.getUser()
       const userId = user?.id
 
+      // Calculate VAT amounts if total_amount is provided
+      let vatCalculation = null
+      if (invoice.total_amount) {
+        const vatRate = invoice.vat_rate || 20
+        vatCalculation = VATCalculator.calculateFromGross(
+          Number(invoice.total_amount),
+          vatRate
+        )
+        console.log('[InvoiceCrudOperations.create] VAT calculation:', vatCalculation)
+      }
+
       // Prepare invoice data
       const invoiceData = {
         ...invoice,
+        // Apply VAT calculation if available
+        ...(vatCalculation && {
+          amount_net: vatCalculation.netAmount,
+          vat_amount: vatCalculation.vatAmount,
+          total_amount: vatCalculation.totalAmount,
+          vat_rate: vatCalculation.vatRate
+        }),
         created_by: userId || invoice.created_by,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
@@ -55,6 +75,17 @@ export class InvoiceCrudOperations {
       }
 
       console.log('[InvoiceCrudOperations.create] Invoice created successfully:', data)
+
+      // Track history
+      if (userId) {
+        await HistoryService.trackInvoiceChange(
+          data.id,
+          'created',
+          [],
+          userId,
+          { source: 'invoice_crud' }
+        )
+      }
 
       return { data, error: null }
     } catch (error) {
@@ -109,6 +140,17 @@ export class InvoiceCrudOperations {
       console.log('[InvoiceCrudOperations.update] Received updates:', updates)
       console.log('[InvoiceCrudOperations.update] Updates keys:', Object.keys(updates))
       console.log('[InvoiceCrudOperations.update] Updates JSON:', JSON.stringify(updates))
+
+      // Get current data for history tracking
+      const { data: oldData } = await supabase
+        .from('invoices')
+        .select('*')
+        .eq('id', id)
+        .single()
+
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser()
+      const userId = user?.id
 
       // Define allowed fields from the database schema
       const allowedFields = [
@@ -167,6 +209,31 @@ export class InvoiceCrudOperations {
       }
       if ('vat_rate' in cleanedUpdates && typeof cleanedUpdates.vat_rate === 'string') {
         cleanedUpdates.vat_rate = Number(cleanedUpdates.vat_rate)
+      }
+
+      // Recalculate VAT if total amount changed
+      if ('total_amount' in cleanedUpdates && cleanedUpdates.total_amount) {
+        const vatRate = cleanedUpdates.vat_rate || oldData?.vat_rate || 20
+        const vatCalculation = VATCalculator.calculateFromGross(
+          cleanedUpdates.total_amount,
+          vatRate
+        )
+        cleanedUpdates.amount_net = vatCalculation.netAmount
+        cleanedUpdates.vat_amount = vatCalculation.vatAmount
+        cleanedUpdates.vat_rate = vatCalculation.vatRate
+        console.log('[InvoiceCrudOperations.update] Recalculated VAT:', vatCalculation)
+      }
+      // Recalculate from net amount if provided
+      else if ('amount_net' in cleanedUpdates && cleanedUpdates.amount_net) {
+        const vatRate = cleanedUpdates.vat_rate || oldData?.vat_rate || 20
+        const vatCalculation = VATCalculator.calculateFromNet(
+          cleanedUpdates.amount_net,
+          vatRate
+        )
+        cleanedUpdates.vat_amount = vatCalculation.vatAmount
+        cleanedUpdates.total_amount = vatCalculation.totalAmount
+        cleanedUpdates.vat_rate = vatCalculation.vatRate
+        console.log('[InvoiceCrudOperations.update] Recalculated from net:', vatCalculation)
       }
 
       // Add updated_at
@@ -247,6 +314,20 @@ export class InvoiceCrudOperations {
       console.log('[InvoiceCrudOperations.update] Обновленный счет:', data)
       console.log('[InvoiceCrudOperations.update] ==========================================')
 
+      // Track history
+      if (userId && oldData) {
+        const changes = HistoryService.calculateChanges(oldData, data)
+        if (changes.length > 0) {
+          await HistoryService.trackInvoiceChange(
+            Number(id),
+            'updated',
+            changes,
+            userId,
+            { source: 'invoice_crud' }
+          )
+        }
+      }
+
       return { data, error: null }
     } catch (error) {
       console.error('[InvoiceCrudOperations.update] Error:', error)
@@ -297,6 +378,18 @@ export class InvoiceCrudOperations {
         }
 
         console.log('[InvoiceCrudOperations.delete] Invoice deleted successfully')
+      }
+
+      // Track deletion in history (if we have user context)
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user?.id) {
+        await HistoryService.trackInvoiceChange(
+          Number(id),
+          'deleted',
+          [],
+          user.id,
+          { cascade, source: 'invoice_crud' }
+        )
       }
 
       return { data: null, error: null }

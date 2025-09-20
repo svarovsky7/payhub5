@@ -3878,7 +3878,31 @@
         "foreign_column": null
       },
       {
+        "name": "check_invoice_positive_amounts",
+        "type": "CHECK",
+        "column": null,
+        "foreign_table_schema": null,
+        "foreign_table": null,
+        "foreign_column": null
+      },
+      {
         "name": "check_invoice_status",
+        "type": "CHECK",
+        "column": null,
+        "foreign_table_schema": null,
+        "foreign_table": null,
+        "foreign_column": null
+      },
+      {
+        "name": "check_invoice_vat_amounts",
+        "type": "CHECK",
+        "column": null,
+        "foreign_table_schema": null,
+        "foreign_table": null,
+        "foreign_column": null
+      },
+      {
+        "name": "check_invoice_vat_rate",
         "type": "CHECK",
         "column": null,
         "foreign_table_schema": null,
@@ -4813,6 +4837,30 @@
       },
       {
         "name": "2200_18728_5_not_null",
+        "type": "CHECK",
+        "column": null,
+        "foreign_table_schema": null,
+        "foreign_table": null,
+        "foreign_column": null
+      },
+      {
+        "name": "check_payment_positive_amounts",
+        "type": "CHECK",
+        "column": null,
+        "foreign_table_schema": null,
+        "foreign_table": null,
+        "foreign_column": null
+      },
+      {
+        "name": "check_payment_vat_amounts",
+        "type": "CHECK",
+        "column": null,
+        "foreign_table_schema": null,
+        "foreign_table": null,
+        "foreign_column": null
+      },
+      {
+        "name": "check_payment_vat_rate",
         "type": "CHECK",
         "column": null,
         "foreign_table_schema": null,
